@@ -1,0 +1,32 @@
+:root {
+  color-scheme: light;
+  font-family: "Segoe UI", sans-serif;
+  color: #17212b;
+  background: linear-gradient(180deg, #f7f9fc 0%, #eef3f8 100%);
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  max-width: 760px;
+  margin: 48px auto;
+  padding: 32px;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 18px 50px rgba(17, 24, 39, 0.08);
+}
+
+h1 {
+  margin: 0 0 12px;
+}
+
+p {
+  margin: 8px 0;
+  line-height: 1.6;
+}
+
+code {
+  font-family: Consolas, monospace;
+}
