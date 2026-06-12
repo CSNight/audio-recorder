@@ -6,13 +6,15 @@
   "description": "TypeScript audio recorder library scaffold with Vite, Vitest, and Playwright.",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "dev:playground": "vite --open /playground/",
+    "build": "vite build && tsc -p tsconfig.build.json",
     "preview": "vite preview",
     "prepare": "husky",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
     "test": "npm run test:unit && npm run test:functional",
     "test:unit": "vitest run --coverage",
     "test:functional": "playwright test",
+    "test:functional:headed": "playwright test --headed",
     "lint": "eslint .",
     "format": "prettier --write .",
     "commitlint": "commitlint --edit",
@@ -20,7 +22,10 @@
     "verify:exports": "node ./scripts/verify-exports.mjs"
   },
   "exports": {
-    ".": "./dist/index.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
   "devDependencies": {
     "@commitlint/cli": "^21.0.2",
@@ -39,5 +44,19 @@
     "globals": "^17.6.0",
     "vite": "^8.0.12",
     "vitest": "^4.1.8"
+  },
+  "prettier": {
+    "singleQuote": false,
+    "semi": false,
+    "trailingComma": "es5",
+    "bracketSpacing": true,
+    "endOfLine": "crlf",
+    "bracketSameLine": false,
+    "cursorOffset": 2
+  },
+  "lint-staged": {
+    "src/**/*.{ts,tsx,json,css,scss,md}": [
+      "npm lint"
+    ]
   }
 }

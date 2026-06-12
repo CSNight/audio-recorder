@@ -7,7 +7,14 @@ import tseslint from "typescript-eslint"
 
 export default defineConfig(
   {
-    ignores: ["coverage", "dist", "playwright-report", "public", "test-results"],
+    ignores: [
+      "coverage",
+      "dist",
+      "playwright-report",
+      "public",
+      "test-results",
+      "vendor",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

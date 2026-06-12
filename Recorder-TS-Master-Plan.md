@@ -24,6 +24,16 @@
 - Vite 构建
 - 不挂载 `window`
 - 支持长期演进和中断恢复
+- upstream `vendor/Recorder-master` 仅作为源码参照源，不是复刻而是优化再实现
+
+实施约束：
+
+- 方案、实现、测试三者必须同时成立，不能只凭重构文档推断行为
+- 每个阶段都要结合 `vendor/Recorder-master` 的源码和 demo 校准关键链路
+- 对浏览器 `Deprecated` API，优先作为低版本降级处理，不作为默认主实现，能用新不用旧
+- 写代码时优先保证命名清晰、边界直接，避免过度封装，不要因为少数的逻辑类似而抽取功能函数逻辑，不要为了抽取而抽取
+- 类的公有 API 与私有字段命名必须清晰区分，避免含义模糊的缩写
+- 状态、类型等尽量采用类型定义和枚举，明确边界，避免例如：isClose和isRecording这种明显互斥的状态却非要采用两个变量来存储的问题，
 
 ---
 
@@ -308,6 +318,12 @@ export interface AudioFrame {
 - `ScriptProcessor` 已过时，但短期内仍是降级路径
 - `channelCount` 不能假设所有浏览器可靠支持
 
+实现约束补充：
+
+- 能用非过时 API 完成主链路时，不允许优先选用过时 API
+- `ScriptProcessor`、`createJavaScriptNode` 这类过时能力只允许在探测失败后的 fallback 中出现
+- 降级路径必须带明确 `warning`，便于 demo、测试和业务侧观测
+
 ### 6.3 浏览器兼容设计原则
 
 - 所有能力都走运行时探测，不做静态假设
@@ -347,7 +363,9 @@ export interface EncoderDefinition {
   type: string
   mimeType: string
   canRealtime?: boolean
-  createSession(options: EncoderOptions): EncoderSession | Promise<EncoderSession>
+  createSession(
+    options: EncoderOptions
+  ): EncoderSession | Promise<EncoderSession>
 }
 ```
 
@@ -387,6 +405,10 @@ export interface RecorderPlugin {
 - 关键逻辑有注释
 - Worker 协议单独封装
 - 浏览器 API 不得散落业务层
+- 变量命名必须表达职责，避免 `data`、`obj`、`tmp` 这类弱语义命名
+- 新增函数和变量要克制，不为“解耦”而制造只被单点调用的薄封装
+- 类的私有字段统一使用 `private` 明确约束，命名与公有成员保持语义区分
+- 代码目标是优化再实现，不是逐行翻译 upstream
 
 ### 8.2 工具链
 
@@ -719,8 +741,10 @@ recorder-ts/
 2. 所有降级都要发出 `warning`
 3. 所有不支持格式都要显式报错
 4. 双声道请求失败时必须自动回落并记录实际结果
-5. `AudioWorklet` 不可用时允许走 `ScriptProcessor`
-6. `MediaRecorder` 可用时优先评估原生后端
+5. 采集主路径优先采用非过时能力，当前优先级为 `MediaRecorder` 评估 > `AudioWorklet` > `ScriptProcessor fallback`
+6. `AudioWorklet` 不可用时允许走 `ScriptProcessor`
+7. 使用过时 API 时必须写清楚降级原因和退出条件，不能把降级实现写成长期默认实现
+8. `MediaRecorder` 可用时优先评估原生后端
 
 ## 15. 自检清单
 
@@ -755,7 +779,7 @@ recorder-ts/
 
 ## 16. 开发日志与进度记录模板
 
-这是长期任务，实施部分必须支持中断恢复。每次开发结束都要更新以下记录。
+这是长期任务，实施部分必须支持中断恢复。每次开发结束都要更新以下记录，并统一写入当天的 `logs/YYYY-MM-DD.md`。
 
 ### 16.1 阶段状态模板
 
@@ -849,4 +873,4 @@ recorder-ts/
 - 每完成一个大步骤，必须在 `logs/YYYY-MM-DD.md` 追加当日记录。
 - 同一天内的多个大步骤统一写入同一个日期日志文件，不新建重复日期文件。
 - 日志内容至少包含目标、完成、变更文件、测试结果、遗留问题、下次恢复入口。
-- `IMPLEMENTATION-LOG.md` 维护阶段状态，`logs/YYYY-MM-DD.md` 维护当日执行明细，两者都必须同步更新。
+- 每个日志文件顶部应维护“当前阶段 / 已完成 / 进行中 / 下一步 / 风险或阻塞”，用于中断恢复；不再维护单独的 `IMPLEMENTATION-LOG.md`。
