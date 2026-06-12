@@ -1,4 +1,3 @@
-import { createRecorder } from "../src"
 import type {
   AudioFrame,
   RecorderOpenOptions,
@@ -6,7 +5,12 @@ import type {
   RecorderSessionSummary,
   RecorderWarning,
 } from "../src"
-import { RecorderInputSource, RecorderState, RecorderWarningCode } from "../src"
+import {
+  createRecorder,
+  RecorderInputSource,
+  RecorderState,
+  RecorderWarningCode,
+} from "../src"
 
 const PlaygroundSourceModeValue = {
   Microphone: RecorderInputSource.Microphone,
@@ -199,10 +203,12 @@ openButton.addEventListener("click", async () => {
             sourceStream: currentSource.stream,
             capture: {
               channelCount: readChannelCount(),
-              sampleRate: currentSource.sampleRate,
               echoCancellation: false,
               noiseSuppression: false,
               autoGainControl: false,
+              ...(currentSource.sampleRate !== undefined && {
+                sampleRate: currentSource.sampleRate,
+              }),
             },
           }
         : {
@@ -234,8 +240,7 @@ openButton.addEventListener("click", async () => {
 
 startButton.addEventListener("click", async () => {
   try {
-    const runtimeInfo = await recorder.start()
-    state.runtimeInfo = runtimeInfo
+    state.runtimeInfo = await recorder.start()
     appendLog("info", "录音已开始。")
     render()
   } catch (error) {
@@ -257,8 +262,7 @@ pauseButton.addEventListener("click", () => {
 
 resumeButton.addEventListener("click", async () => {
   try {
-    const runtimeInfo = await recorder.resume()
-    state.runtimeInfo = runtimeInfo
+    state.runtimeInfo = await recorder.resume()
     appendLog("info", "录音已恢复。")
     render()
   } catch (error) {
