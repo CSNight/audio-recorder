@@ -1,5 +1,5 @@
-import type { CaptureAdapter } from "./capture/types"
-import type { RecorderController } from "./core/recorder-controller"
+import type { CaptureAdapter } from "@/capture/types"
+import type { RecorderController } from "@/core/recorder-controller"
 
 export type AudioChannelCount = 1 | 2
 
@@ -52,6 +52,16 @@ export interface RecorderWarning {
   message: string
 }
 
+export type RecorderIssue =
+  | {
+      kind: "warning"
+      warning: RecorderWarning
+    }
+  | {
+      kind: "error"
+      error: Error
+    }
+
 export interface RecorderRuntimeInfo {
   requestedSampleRate?: number
   actualSampleRate?: number
@@ -86,20 +96,11 @@ export interface RecorderFrameEvent {
   summary: RecorderSessionSummary
 }
 
-export interface RecorderWarningEvent {
+export interface RecorderIssueEvent {
   controller: RecorderController
   sessionId: string
   emittedAt: number
-  warning: RecorderWarning
-  runtimeInfo: RecorderRuntimeInfo
-  summary: RecorderSessionSummary
-}
-
-export interface RecorderErrorEvent {
-  controller: RecorderController
-  sessionId: string
-  emittedAt: number
-  error: Error
+  issue: RecorderIssue
   runtimeInfo: RecorderRuntimeInfo
   summary: RecorderSessionSummary
 }
@@ -107,8 +108,7 @@ export interface RecorderErrorEvent {
 export interface RecorderEventMap {
   statechange: RecorderStateChangeEvent
   frame: RecorderFrameEvent
-  warning: RecorderWarningEvent
-  error: RecorderErrorEvent
+  issue: RecorderIssueEvent
 }
 
 export interface RecorderOpenOptions {

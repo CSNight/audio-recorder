@@ -1,18 +1,17 @@
-import type { CaptureAdapter, CaptureSession } from "../capture/types"
-import { RecorderInputSource, RecorderState } from "../types"
-import { EventBus } from "./event-bus"
+import type { CaptureAdapter, CaptureSession } from "@/capture/types"
 import type {
   AudioFrame,
-  RecorderErrorEvent,
   RecorderEventMap,
   RecorderFrameEvent,
+  RecorderIssue,
+  RecorderIssueEvent,
   RecorderOpenOptions,
   RecorderRuntimeInfo,
   RecorderSessionSummary,
   RecorderStateChangeEvent,
-  RecorderWarning,
-  RecorderWarningEvent,
-} from "../types"
+} from "@/types"
+import { RecorderInputSource, RecorderState } from "@/types"
+import { EventBus } from "@/core/event-bus"
 
 export class RecorderController {
   private readonly eventBus = new EventBus<RecorderEventMap>()
@@ -62,18 +61,20 @@ export class RecorderController {
   }
 
   async open(options: RecorderOpenOptions = {}): Promise<RecorderRuntimeInfo> {
+    // open 只允许从未打开或已关闭状态进入，确保一次生命周期只绑定一个底层会话。
     this.assertState([RecorderState.Idle, RecorderState.Closed])
 
     const requestedChannelCount = options.capture?.channelCount ?? 1
+    // 每次 open 都生成新的 sessionId，方便事件流、日志和后续导出链路关联同一轮会话。
     this.activeSessionId = this.createSessionId()
     this.sessionRuntimeInfo = {
       requestedChannelCount,
       source: options.sourceStream
         ? RecorderInputSource.ExternalStream
         : RecorderInputSource.Microphone,
-    }
-    if (options.capture?.sampleRate !== undefined) {
-      this.sessionRuntimeInfo.requestedSampleRate = options.capture.sampleRate
+      ...(options.capture?.sampleRate !== undefined && {
+        requestedSampleRate: options.capture.sampleRate,
+      }),
     }
     this.latestSessionSummary = {
       frames: 0,
@@ -83,23 +84,23 @@ export class RecorderController {
     }
 
     try {
+      // 控制器不直接接触 Web Audio 细节，只通过适配器接收统一的帧/告警/错误回调。
       this.captureSession = await this.captureAdapter.open(options, {
         onFrame: (frame) => this.handleFrame(frame),
-        onWarning: (warning) => this.emitWarning(warning),
-        onError: (error) => this.emitError(error),
+        onIssue: (issue) => this.handleIssue(issue),
       })
     } catch (error) {
       const wrappedError =
         error instanceof Error ? error : new Error("Failed to open recorder.")
-      this.emitError(wrappedError)
+      this.handleIssue({
+        kind: "error",
+        error: wrappedError,
+      })
       throw wrappedError
     }
 
-    this.sessionRuntimeInfo = {
-      ...this.sessionRuntimeInfo,
-      actualSampleRate: this.captureSession.actualSampleRate,
-      actualChannelCount: this.captureSession.actualChannelCount,
-    }
+    // 适配器真正打开后，控制器才回填实际采样率与声道数。
+    this.syncRuntimeFromSession(this.captureSession)
     this.latestSessionSummary = {
       ...this.latestSessionSummary,
       sampleRate: this.captureSession.actualSampleRate,
@@ -111,15 +112,12 @@ export class RecorderController {
   }
 
   async start(): Promise<RecorderRuntimeInfo> {
+    // start 只是驱动底层 session，状态和事件出口仍统一收敛在控制器层。
     this.assertState([RecorderState.Ready])
     const session = this.requireSession()
 
     await session.start()
-    this.sessionRuntimeInfo = {
-      ...this.sessionRuntimeInfo,
-      actualSampleRate: session.actualSampleRate,
-      actualChannelCount: session.actualChannelCount,
-    }
+    this.syncRuntimeFromSession(session)
     this.transition(RecorderState.Recording)
 
     return this.getRuntimeInfo()
@@ -127,6 +125,7 @@ export class RecorderController {
 
   pause(): void {
     this.assertState([RecorderState.Recording])
+    // pause 不销毁底层图，只停止接收帧并切换状态，便于后续 resume。
     this.requireSession().pause()
     this.transition(RecorderState.Paused)
   }
@@ -136,32 +135,25 @@ export class RecorderController {
     const session = this.requireSession()
 
     await session.resume()
-    this.sessionRuntimeInfo = {
-      ...this.sessionRuntimeInfo,
-      actualSampleRate: session.actualSampleRate,
-      actualChannelCount: session.actualChannelCount,
-    }
+    this.syncRuntimeFromSession(session)
     this.transition(RecorderState.Recording)
 
     return this.getRuntimeInfo()
   }
 
   async stop(): Promise<RecorderSessionSummary> {
+    // stop 结束本轮采集但不释放资源，close 才负责真正断开图和释放流。
     this.assertState([RecorderState.Recording, RecorderState.Paused])
     const session = this.requireSession()
     const summary = await session.stop()
 
+    this.syncRuntimeFromSession(session)
     this.latestSessionSummary = {
       ...this.latestSessionSummary,
       frames: summary.frames,
       durationMs: summary.durationMs,
       sampleRate: session.actualSampleRate,
       channels: session.actualChannelCount,
-    }
-    this.sessionRuntimeInfo = {
-      ...this.sessionRuntimeInfo,
-      actualSampleRate: session.actualSampleRate,
-      actualChannelCount: session.actualChannelCount,
     }
     this.transition(RecorderState.Stopped)
 
@@ -177,6 +169,7 @@ export class RecorderController {
     ])
 
     if (this.captureSession) {
+      // close 会关闭底层采集图和可能由适配器持有的 MediaStream。
       await this.captureSession.close()
       this.captureSession = undefined
     }
@@ -190,11 +183,13 @@ export class RecorderController {
       this.captureSession = undefined
     }
 
+    // destroy 代表控制器实例退出，不再允许保留任何事件订阅。
     this.transition(RecorderState.Destroyed)
     this.eventBus.clear()
   }
 
   private handleFrame(frame: AudioFrame): void {
+    // 每一帧都顺带推进实时摘要，UI 和后续编码模块都可以只读 summary 获取累计结果。
     this.sessionRuntimeInfo = {
       ...this.sessionRuntimeInfo,
       actualSampleRate: frame.sampleRate,
@@ -217,14 +212,11 @@ export class RecorderController {
 
     const previousState = this.recorderState
     this.recorderState = nextState
+    // 所有状态切换都转成结构化事件，避免 UI 侧自行推测状态机。
     const event: RecorderStateChangeEvent = {
-      controller: this,
-      sessionId: this.activeSessionId,
-      emittedAt: Date.now(),
       previousState,
       state: nextState,
-      runtimeInfo: this.getRuntimeInfo(),
-      summary: this.getLatestSummary(),
+      ...this.createEventContext(),
     }
     this.eventBus.emit("statechange", event)
   }
@@ -249,40 +241,51 @@ export class RecorderController {
 
   private createFrameEvent(frame: AudioFrame): RecorderFrameEvent {
     return {
-      controller: this,
-      sessionId: this.activeSessionId,
-      emittedAt: Date.now(),
       frame,
-      runtimeInfo: this.getRuntimeInfo(),
-      summary: this.getLatestSummary(),
+      ...this.createEventContext(),
     }
   }
 
-  private emitWarning(warning: RecorderWarning): void {
-    const event: RecorderWarningEvent = {
-      controller: this,
-      sessionId: this.activeSessionId,
-      emittedAt: Date.now(),
-      warning,
-      runtimeInfo: this.getRuntimeInfo(),
-      summary: this.getLatestSummary(),
+  private handleIssue(issue: RecorderIssue): void {
+    if (issue.kind === "warning") {
+      console.warn(
+        `[audio-recorder][${issue.warning.code}] ${issue.warning.message}`
+      )
     }
-    this.eventBus.emit("warning", event)
+
+    const event: RecorderIssueEvent = {
+      issue,
+      ...this.createEventContext(),
+    }
+    this.eventBus.emit("issue", event)
   }
 
-  private emitError(error: Error): void {
-    const event: RecorderErrorEvent = {
+  private syncRuntimeFromSession(session: CaptureSession): void {
+    this.sessionRuntimeInfo = {
+      ...this.sessionRuntimeInfo,
+      actualSampleRate: session.actualSampleRate,
+      actualChannelCount: session.actualChannelCount,
+    }
+  }
+
+  private createEventContext(): {
+    controller: RecorderController
+    sessionId: string
+    emittedAt: number
+    runtimeInfo: RecorderRuntimeInfo
+    summary: RecorderSessionSummary
+  } {
+    return {
       controller: this,
       sessionId: this.activeSessionId,
       emittedAt: Date.now(),
-      error,
       runtimeInfo: this.getRuntimeInfo(),
       summary: this.getLatestSummary(),
     }
-    this.eventBus.emit("error", event)
   }
 
   private createSessionId(): string {
+    // sessionId 只用于日志追踪和事件关联，不承担安全或全局唯一语义。
     return `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   }
 }

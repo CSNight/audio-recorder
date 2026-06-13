@@ -3,12 +3,21 @@ import type {
   AudioChannelCount,
   AudioFrame,
   RecorderWarning,
-} from "../types"
+} from "@/types"
+
+export type CaptureIssue =
+  | {
+      kind: "warning"
+      warning: RecorderWarning
+    }
+  | {
+      kind: "error"
+      error: Error
+    }
 
 export interface CaptureHandlers {
   onFrame: (frame: AudioFrame) => void
-  onWarning: (warning: RecorderWarning) => void
-  onError: (error: Error) => void
+  onIssue: (issue: CaptureIssue) => void
 }
 
 export interface CaptureOpenRequest {

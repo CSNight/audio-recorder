@@ -1,13 +1,128 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>audio-recorder 示例工作台</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="./style.css"></script>
-    <script type="module" src="./main.ts"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>audio-recorder Vue Playground</title>
+  <link href="./style.css" rel="stylesheet" />
+</head>
+<body>
+<div id="app">
+  <main class="page">
+    <section class="hero">
+      <p class="eyebrow">Vue Playground</p>
+      <h1>audio-recorder 简版示例页</h1>
+      <p class="lede">
+        这个 playground 不再直接引用工程源码，而是通过 <code>/dist/index.js</code>
+        消费库的打包产物。Vue 运行时通过 CDN 引入，不额外建立 Vue 工程。
+      </p>
+      <div class="hero-meta">
+        <span class="meta-pill">CDN Vue</span>
+        <span class="meta-pill">Built Artifact Only</span>
+        <span class="meta-pill">Microphone / External Stream</span>
+      </div>
+      <p class="supporting">
+        <a class="top-link" href="/">返回根页说明</a>
+      </p>
+    </section>
+
+    <section class="grid">
+      <div class="stack">
+        <section class="panel">
+          <h2>控制区</h2>
+          <div class="control-row">
+            <label>
+              <div class="stat-label">输入来源</div>
+              <select v-model="state.sourceMode" data-testid="source-mode">
+                <option :value="PLAYGROUND_SOURCE_MODE.microphone">麦克风</option>
+                <option :value="PLAYGROUND_SOURCE_MODE.externalTone">外部音调流</option>
+              </select>
+            </label>
+            <label>
+              <div class="stat-label">期望声道</div>
+              <select v-model.number="state.requestedChannelCount" data-testid="channel-count">
+                <option :value="1">单声道</option>
+                <option :value="2">双声道</option>
+              </select>
+            </label>
+          </div>
+          <div class="control-grid">
+            <button :disabled="!canOpen" id="open-button" @click="openRecorder">打开</button>
+            <button :disabled="!canStart" id="start-button" @click="startRecorder">开始</button>
+            <button :disabled="!canPause" id="pause-button" @click="pauseRecorder">暂停</button>
+            <button :disabled="!canResume" id="resume-button" @click="resumeRecorder">恢复</button>
+            <button :disabled="!canStop" id="stop-button" @click="stopRecorder">停止</button>
+            <button :disabled="!canClose" id="close-button" @click="closeRecorder">关闭</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>实时状态</h2>
+          <div class="stats-grid">
+            <article class="stat">
+              <p class="stat-label">录音器状态</p>
+              <p class="stat-value" id="state-value">{{ state.recorderState }}</p>
+            </article>
+            <article class="stat">
+              <p class="stat-label">已接收帧数</p>
+              <p class="stat-value" id="frame-count-value">{{ state.frameCount }}</p>
+            </article>
+            <article class="stat">
+              <p class="stat-label">实际采样率</p>
+              <p class="stat-value" id="sample-rate-value">
+                {{ state.runtimeInfo?.actualSampleRate ?? state.runtimeInfo?.requestedSampleRate ?? "-" }}
+              </p>
+            </article>
+            <article class="stat">
+              <p class="stat-label">实际声道</p>
+              <p class="stat-value" id="channels-value">
+                {{ state.runtimeInfo?.actualChannelCount ?? state.runtimeInfo?.requestedChannelCount ?? "-" }}
+              </p>
+            </article>
+          </div>
+          <div class="meter-panel">
+            <p class="stat-label">实时电平估算</p>
+            <div class="meter-shell">
+              <div :style="{ width: `${state.levelPercent}%` }" class="meter-fill"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>运行时快照</h2>
+          <pre class="json" id="runtime-json">{{ runtimeJson }}</pre>
+        </section>
+      </div>
+
+      <div class="stack">
+        <section class="panel">
+          <h2>会话摘要</h2>
+          <pre class="json" id="summary-json">{{ summaryJson }}</pre>
+        </section>
+
+        <section class="panel">
+          <h2>事件日志</h2>
+          <ul class="log-list" id="log-list">
+            <li v-for="item in state.logs" :key="`${item.time}-${item.message}`" class="log-item">
+              <span class="log-time">{{ item.time }}</span>
+              <span :class="['log-type', item.type]">{{ item.type }}</span>
+              <p class="log-message">{{ item.message }}</p>
+            </li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <h2>说明</h2>
+          <ul class="hint-list">
+            <li>当前页面直接 import <code>/dist/index.js</code>，用于验证打包产物对外行为。</li>
+            <li>Vue 通过 CDN 版 ESM 引入，不在仓库里再建一套 Vue 工程。</li>
+            <li>建议先使用“外部音调流”，这样不依赖麦克风权限也能完整走一遍主链路。</li>
+          </ul>
+        </section>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="./app.js" type="module"></script>
+</body>
 </html>
