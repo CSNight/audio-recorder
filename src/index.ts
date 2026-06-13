@@ -17,7 +17,11 @@ export type {
   RecorderStateChangeEvent,
   RecorderWarning,
 } from "@/types"
-export { RecorderInputSource, RecorderState, RecorderWarningCode } from "@/types"
+export {
+  RecorderInputSource,
+  RecorderState,
+  RecorderWarningCode,
+} from "@/types"
 
 export { RecorderController } from "@/core/recorder-controller"
 

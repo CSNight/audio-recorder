@@ -32,7 +32,9 @@ function createStream(trackCount = 1): FakeStream {
   }
 }
 
-function createAudioContextStub(options?: AudioContextOptions): AudioContextStub {
+function createAudioContextStub(
+  options?: AudioContextOptions
+): AudioContextStub {
   const sourceNode = {
     connect: vi.fn(),
     disconnect: vi.fn(),
@@ -122,7 +124,9 @@ describe("BrowserCaptureAdapter", () => {
   })
 
   it("requests microphone input with explicit constraints and falls back to webkitAudioContext", async () => {
-    const getUserMedia = vi.fn(async () => createStream() as unknown as MediaStream)
+    const getUserMedia = vi.fn(
+      async () => createStream() as unknown as MediaStream
+    )
     const webkitAudioContextInstances: AudioContextStub[] = []
     const webkitAudioContext = vi.fn(function (
       this: unknown,
@@ -223,9 +227,7 @@ describe("BrowserCaptureAdapter", () => {
           onIssue: vi.fn(),
         }
       )
-    ).rejects.toThrow(
-      "navigator.mediaDevices.getUserMedia is not available."
-    )
+    ).rejects.toThrow("navigator.mediaDevices.getUserMedia is not available.")
   })
 
   it("rejects opening when the environment exposes no AudioContext constructor", async () => {

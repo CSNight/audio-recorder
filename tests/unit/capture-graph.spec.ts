@@ -92,9 +92,7 @@ describe("createCaptureGraph", () => {
   it("registers the worklet once per AudioContext and routes worklet frames and errors", async () => {
     const createdNodes: Array<{
       port: {
-        onmessage:
-          | ((event: MessageEvent<unknown>) => void)
-          | null
+        onmessage: ((event: MessageEvent<unknown>) => void) | null
       }
       name: string
       options?: AudioWorkletNodeOptions
@@ -185,9 +183,7 @@ describe("createCaptureGraph", () => {
     } as MessageEvent<unknown>)
 
     expect(acceptFrame).toHaveBeenCalledTimes(1)
-    expect(acceptFrame.mock.calls[0]?.[0]).toEqual([
-      new Float32Array([0.1]),
-    ])
+    expect(acceptFrame.mock.calls[0]?.[0]).toEqual([new Float32Array([0.1])])
     expect(acceptFrame.mock.calls[0]?.[1]).toBe(1234)
     expect(onIssue).toHaveBeenCalledWith({
       kind: "error",

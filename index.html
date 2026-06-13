@@ -1,156 +1,170 @@
 <!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-  <title>audio-recorder</title>
-  <style>
-    :root {
-      color-scheme: light;
-      --bg-0: #f5efe4;
-      --bg-1: #dfe8f2;
-      --ink: #132136;
-      --muted: #5d6977;
-      --line: rgba(19, 33, 54, 0.12);
-      --panel: rgba(255, 255, 255, 0.84);
-      --brand: #b85c24;
-      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
-      color: var(--ink);
-      background:
-        radial-gradient(circle at top left, rgba(184, 92, 36, 0.18), transparent 28%),
-        radial-gradient(circle at bottom right, rgba(20, 79, 132, 0.14), transparent 32%),
-        linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 100%);
-    }
+  <head>
+    <meta charset="UTF-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>audio-recorder</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg-0: #f5efe4;
+        --bg-1: #dfe8f2;
+        --ink: #132136;
+        --muted: #5d6977;
+        --line: rgba(19, 33, 54, 0.12);
+        --panel: rgba(255, 255, 255, 0.84);
+        --brand: #b85c24;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(
+            circle at top left,
+            rgba(184, 92, 36, 0.18),
+            transparent 28%
+          ),
+          radial-gradient(
+            circle at bottom right,
+            rgba(20, 79, 132, 0.14),
+            transparent 32%
+          ),
+          linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 100%);
+      }
 
-    * {
-      box-sizing: border-box;
-    }
+      * {
+        box-sizing: border-box;
+      }
 
-    body {
-      margin: 0;
-      min-height: 100vh;
-    }
+      body {
+        margin: 0;
+        min-height: 100vh;
+      }
 
-    main {
-      width: min(920px, calc(100vw - 28px));
-      margin: 28px auto;
-      display: grid;
-      gap: 18px;
-    }
-
-    section {
-      padding: 24px;
-      border: 1px solid var(--line);
-      border-radius: 28px;
-      background: var(--panel);
-      box-shadow: 0 28px 80px rgba(19, 33, 54, 0.08);
-      backdrop-filter: blur(14px);
-    }
-
-    p {
-      margin: 0;
-      line-height: 1.7;
-      color: var(--muted);
-    }
-
-    h1,
-    h2 {
-      margin: 0;
-      color: var(--ink);
-    }
-
-    h1 {
-      font-size: clamp(2.1rem, 6vw, 4rem);
-      line-height: 0.95;
-      letter-spacing: -0.05em;
-    }
-
-    h2 {
-      font-size: 1.1rem;
-      margin-bottom: 12px;
-    }
-
-    .eyebrow {
-      font-size: 0.78rem;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--brand);
-    }
-
-    .hero {
-      display: grid;
-      gap: 16px;
-    }
-
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-
-    .action-link {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 46px;
-      padding: 0 18px;
-      border-radius: 999px;
-      background: var(--ink);
-      color: #fff;
-      text-decoration: none;
-      font-weight: 600;
-    }
-
-    ul {
-      margin: 0;
-      padding-left: 18px;
-      display: grid;
-      gap: 8px;
-      color: var(--muted);
-      line-height: 1.65;
-    }
-
-    code {
-      font-family: "IBM Plex Mono", Consolas, monospace;
-      color: var(--ink);
-    }
-
-    @media (max-width: 680px) {
       main {
-        width: min(100vw - 18px, 920px);
-        margin: 14px auto 24px;
+        width: min(920px, calc(100vw - 28px));
+        margin: 28px auto;
+        display: grid;
+        gap: 18px;
       }
 
       section {
-        padding: 18px;
-        border-radius: 22px;
+        padding: 24px;
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background: var(--panel);
+        box-shadow: 0 28px 80px rgba(19, 33, 54, 0.08);
+        backdrop-filter: blur(14px);
       }
-    }
-  </style>
-</head>
-<body>
-<main>
-  <section class="hero">
-    <p class="eyebrow">audio-recorder</p>
-    <h1>Library entry only</h1>
-    <p>
-      根目录不再承载调试 demo。交互示例统一收敛到
-      <code>/playground/</code>，并且 playground 只依赖库的打包产物
-      <code>/dist/index.js</code>。
-    </p>
-    <div class="actions">
-      <a class="action-link" href="/playground/">打开 Vue Playground</a>
-    </div>
-  </section>
 
-  <section>
-    <h2>使用约束</h2>
-    <ul>
-      <li>先执行 <code>npm run build</code>，确保 <code>dist/index.js</code> 已生成。</li>
-      <li><code>playground</code> 使用 CDN 版 Vue，不直接引用 <code>src</code> 下的工程源码。</li>
-      <li>根页面只保留导航说明，避免示例逻辑混入库工程入口。</li>
-    </ul>
-  </section>
-</main>
-</body>
+      p {
+        margin: 0;
+        line-height: 1.7;
+        color: var(--muted);
+      }
+
+      h1,
+      h2 {
+        margin: 0;
+        color: var(--ink);
+      }
+
+      h1 {
+        font-size: clamp(2.1rem, 6vw, 4rem);
+        line-height: 0.95;
+        letter-spacing: -0.05em;
+      }
+
+      h2 {
+        font-size: 1.1rem;
+        margin-bottom: 12px;
+      }
+
+      .eyebrow {
+        font-size: 0.78rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--brand);
+      }
+
+      .hero {
+        display: grid;
+        gap: 16px;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .action-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 46px;
+        padding: 0 18px;
+        border-radius: 999px;
+        background: var(--ink);
+        color: #fff;
+        text-decoration: none;
+        font-weight: 600;
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 18px;
+        display: grid;
+        gap: 8px;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+
+      code {
+        font-family: "IBM Plex Mono", Consolas, monospace;
+        color: var(--ink);
+      }
+
+      @media (max-width: 680px) {
+        main {
+          width: min(100vw - 18px, 920px);
+          margin: 14px auto 24px;
+        }
+
+        section {
+          padding: 18px;
+          border-radius: 22px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <p class="eyebrow">audio-recorder</p>
+        <h1>Library entry only</h1>
+        <p>
+          根目录不再承载调试 demo。交互示例统一收敛到
+          <code>/playground/</code>，并且 playground 只依赖库的打包产物
+          <code>/dist/index.js</code>。
+        </p>
+        <div class="actions">
+          <a class="action-link" href="/playground/">打开 Vue Playground</a>
+        </div>
+      </section>
+
+      <section>
+        <h2>使用约束</h2>
+        <ul>
+          <li>
+            先执行 <code>npm run build</code>，确保
+            <code>dist/index.js</code> 已生成。
+          </li>
+          <li>
+            <code>playground</code> 使用 CDN 版 Vue，不直接引用
+            <code>src</code> 下的工程源码。
+          </li>
+          <li>根页面只保留导航说明，避免示例逻辑混入库工程入口。</li>
+        </ul>
+      </section>
+    </main>
+  </body>
 </html>

@@ -90,9 +90,8 @@ describe("BrowserCaptureSession", () => {
     }
     const deactivateCaptureNode = vi.fn()
     const audioContext = createAudioContextStub()
-    const createMediaStreamSource = audioContext.createMediaStreamSource as ReturnType<
-      typeof vi.fn
-    >
+    const createMediaStreamSource =
+      audioContext.createMediaStreamSource as ReturnType<typeof vi.fn>
     createMediaStreamSource.mockReturnValue({
       connect: vi.fn(),
       disconnect: vi.fn(),

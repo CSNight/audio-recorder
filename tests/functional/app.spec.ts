@@ -25,7 +25,9 @@ test("playground consumes the built library artifact and completes an external s
 
   await page.getByRole("button", { name: "停止" }).click()
   await expect(page.locator("#state-value")).toHaveText("stopped")
-  await expect(page.locator("#summary-json")).toContainText('"state": "stopped"')
+  await expect(page.locator("#summary-json")).toContainText(
+    '"state": "stopped"'
+  )
 
   await page.getByRole("button", { name: "关闭" }).click()
   await expect(page.locator("#state-value")).toHaveText("closed")
