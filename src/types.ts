@@ -1,5 +1,9 @@
 import type { CaptureAdapter } from "@/capture/types"
 import type { RecorderController } from "@/core/recorder-controller"
+import type {
+  RecorderPluginEventContext,
+  RecorderPluginEventPayload,
+} from "@/plugins/types"
 import type { RecorderStorageOptions } from "@/storage/types"
 
 export type AudioChannelCount = 1 | 2
@@ -109,10 +113,27 @@ export interface RecorderIssueEvent {
   summary: RecorderSessionSummary
 }
 
+export interface RecorderLevelChannel {
+  peak: number
+  rms: number
+}
+
+export interface RecorderLevel {
+  peak: number
+  rms: number
+  channels: RecorderLevelChannel[]
+}
+
+export interface RecorderLevelEvent {
+  level: RecorderLevel
+}
+
 export interface RecorderEventMap {
   statechange: RecorderStateChangeEvent
   frame: RecorderFrameEvent
   issue: RecorderIssueEvent
+  level: RecorderPluginEventContext<RecorderLevelEvent>
+  [event: string]: RecorderPluginEventContext<RecorderPluginEventPayload> | RecorderStateChangeEvent | RecorderFrameEvent | RecorderIssueEvent
 }
 
 export interface RecorderOpenOptions {

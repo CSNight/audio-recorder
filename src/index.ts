@@ -4,6 +4,7 @@ export type { PcmExportOptions, PcmExportResult } from "@/codecs/pcm/types"
 export { exportWavSnapshot } from "@/codecs/wav/wav-exporter"
 export type { WavExportOptions, WavExportResult } from "@/codecs/wav/types"
 import { RecorderController } from "@/core/recorder-controller"
+export type { RecorderPlugin, RecorderPluginContext } from "@/plugins/types"
 export type {
   RecorderPersistencePlugin,
   RecorderPersistenceSession,
@@ -21,6 +22,9 @@ export type {
   RecorderFrameEvent,
   RecorderIssue,
   RecorderIssueEvent,
+  RecorderLevel,
+  RecorderLevelChannel,
+  RecorderLevelEvent,
   RecorderOpenOptions,
   RecorderRuntimeInfo,
   RecorderSessionSummary,

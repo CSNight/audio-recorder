@@ -8,6 +8,7 @@ import type {
   CaptureSessionSummary,
 } from "@/capture/types"
 import { RecorderController, RecorderState, RecorderWarningCode } from "@/index"
+import type { RecorderPlugin } from "@/plugins/types"
 import type { RecorderPersistencePlugin } from "@/storage/types"
 import { createAudioFrame } from "@/utils/audio-frame"
 
@@ -466,5 +467,95 @@ describe("RecorderController", () => {
 
     expect(recorder.getRuntimeInfo().requestedChannelCount).toBe(1)
     expect(recorder.getLatestSummary().frames).toBe(0)
+  })
+
+  it("runs plugin hooks across the recorder lifecycle", async () => {
+    const adapter = new FakeCaptureAdapter()
+    const recorder = new RecorderController({
+      captureAdapter: adapter,
+      storageOptions: undefined,
+    })
+    const calls: string[] = []
+    const plugin: RecorderPlugin = {
+      name: "test-plugin",
+      setup() {
+        calls.push("setup")
+      },
+      onStart() {
+        calls.push("start")
+      },
+      onFrame() {
+        calls.push("frame")
+      },
+      onPause() {
+        calls.push("pause")
+      },
+      onResume() {
+        calls.push("resume")
+      },
+      onStop() {
+        calls.push("stop")
+      },
+      dispose() {
+        calls.push("dispose")
+      },
+    }
+
+    await recorder.use(plugin)
+    await recorder.open()
+    await recorder.start()
+    adapter.session?.emitFrame()
+    recorder.pause()
+    await recorder.resume()
+    await recorder.stop()
+    await recorder.destroy()
+
+    expect(calls).toEqual([
+      "setup",
+      "start",
+      "frame",
+      "pause",
+      "resume",
+      "stop",
+      "dispose",
+    ])
+  })
+
+  it("requires plugin events to be registered before emit", async () => {
+    const recorder = new RecorderController({
+      captureAdapter: new FakeCaptureAdapter(),
+      storageOptions: undefined,
+    })
+    const plugin: RecorderPlugin = {
+      name: "unregistered-event-plugin",
+      setup(context) {
+        context.eventBus.emit("custom-event", {
+          value: 1,
+        })
+      },
+    }
+
+    await expect(recorder.use(plugin)).rejects.toThrow(
+      'Recorder plugin "unregistered-event-plugin" failed during setup.'
+    )
+  })
+
+  it("rejects duplicate plugin registration", async () => {
+    const recorder = new RecorderController({
+      captureAdapter: new FakeCaptureAdapter(),
+      storageOptions: undefined,
+    })
+    const plugin: RecorderPlugin = {
+      name: "duplicate-plugin",
+      setup() {
+        return
+      },
+    }
+
+    await recorder.use(plugin)
+
+    await expect(recorder.use(plugin)).rejects.toThrow(
+      'Recorder plugin "duplicate-plugin" is already registered.'
+    )
   })
 })

@@ -1,11 +1,15 @@
 import { createPcmBufferStore } from "@/buffer/pcm-buffer-store"
 import type { CaptureAdapter, CaptureSession } from "@/capture/types"
-import { exportPcmSnapshot } from "@/codecs/pcm/pcm-exporter"
 import type { PcmExportOptions, PcmExportResult } from "@/codecs/pcm/types"
-import { exportWavSnapshot } from "@/codecs/wav/wav-exporter"
 import type { WavExportOptions, WavExportResult } from "@/codecs/wav/types"
+import {
+  createDefaultEncoderRegistry,
+  type EncoderRegistry,
+} from "@/encoders/encoder-registry"
 import { PcmFramePipeline } from "@/pipeline/pcm-frame-pipeline"
 import type { RecorderFramePipeline } from "@/pipeline/types"
+import { PluginHost } from "@/plugins/plugin-host"
+import type { RecorderPlugin } from "@/plugins/types"
 import type { RecorderStorageOptions } from "@/storage/types"
 import type {
   AudioFrame,
@@ -24,6 +28,15 @@ import { EventBus } from "@/core/event-bus"
 export class RecorderController {
   private readonly eventBus = new EventBus<RecorderEventMap>()
   private readonly captureAdapter: CaptureAdapter
+  private readonly encoderRegistry: EncoderRegistry
+  private readonly pluginHost = new PluginHost({
+    recorder: this,
+    emitIssue: (issue) => this.handleIssue(issue),
+    eventBus: this.eventBus,
+    getRuntimeInfo: () => this.getRuntimeInfo(),
+    getLatestSummary: () => this.getLatestSummary(),
+    createEventContext: () => this.createEventContext(),
+  })
   private readonly storageOptions: RecorderStorageOptions | undefined
   private framePipeline: RecorderFramePipeline
   private captureSession: CaptureSession | undefined
@@ -44,8 +57,11 @@ export class RecorderController {
     captureAdapter: CaptureAdapter
     storageOptions: RecorderStorageOptions | undefined
     framePipeline?: RecorderFramePipeline
+    encoderRegistry?: EncoderRegistry
   }) {
     this.captureAdapter = options.captureAdapter
+    this.encoderRegistry =
+      options.encoderRegistry ?? createDefaultEncoderRegistry()
     this.storageOptions = options.storageOptions
     this.framePipeline = options.framePipeline ?? new PcmFramePipeline()
   }
@@ -76,12 +92,30 @@ export class RecorderController {
     return { ...this.latestSessionSummary }
   }
 
+  async use(plugin: RecorderPlugin): Promise<void> {
+    if (this.recorderState === RecorderState.Destroyed) {
+      throw new Error(
+        'Recorder state "destroyed" does not allow this operation. Expected: idle, ready, recording, paused, stopped, closed.'
+      )
+    }
+
+    await this.pluginHost.use(plugin)
+  }
+
   async exportPCM(options: PcmExportOptions = {}): Promise<PcmExportResult> {
-    return exportPcmSnapshot(await this.requirePcmSnapshot(), options)
+    return this.encoderRegistry.export<PcmExportOptions, PcmExportResult>(
+      "pcm",
+      await this.requirePcmSnapshot(),
+      options
+    )
   }
 
   async exportWAV(options: WavExportOptions = {}): Promise<WavExportResult> {
-    return exportWavSnapshot(await this.requirePcmSnapshot(), options)
+    return this.encoderRegistry.export<WavExportOptions, WavExportResult>(
+      "wav",
+      await this.requirePcmSnapshot(),
+      options
+    )
   }
 
   async open(options: RecorderOpenOptions = {}): Promise<RecorderRuntimeInfo> {
@@ -146,6 +180,7 @@ export class RecorderController {
     await session.start()
     this.syncRuntimeFromSession(session)
     this.transition(RecorderState.Recording)
+    this.pluginHost.onStart()
 
     return this.getRuntimeInfo()
   }
@@ -155,6 +190,7 @@ export class RecorderController {
     // pause 不销毁底层图，只停止接收帧并切换状态，便于后续 resume。
     this.requireSession().pause()
     this.transition(RecorderState.Paused)
+    this.pluginHost.onPause()
   }
 
   async resume(): Promise<RecorderRuntimeInfo> {
@@ -164,6 +200,7 @@ export class RecorderController {
     await session.resume()
     this.syncRuntimeFromSession(session)
     this.transition(RecorderState.Recording)
+    this.pluginHost.onResume()
 
     return this.getRuntimeInfo()
   }
@@ -183,6 +220,7 @@ export class RecorderController {
       channels: session.actualChannelCount,
     }
     this.transition(RecorderState.Stopped)
+    this.pluginHost.onStop()
 
     return this.getLatestSummary()
   }
@@ -214,6 +252,7 @@ export class RecorderController {
 
     // destroy 代表控制器实例退出，不再允许保留任何事件订阅。
     this.transition(RecorderState.Destroyed)
+    await this.pluginHost.destroy()
     this.eventBus.clear()
   }
 
@@ -233,6 +272,7 @@ export class RecorderController {
       channels: frame.channels,
     }
     this.eventBus.emit("frame", this.createFrameEvent(frame))
+    this.pluginHost.onFrame(frame)
   }
 
   private transition(nextState: RecorderState): void {

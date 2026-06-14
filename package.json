@@ -26,6 +26,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./plugins/level-meter": {
+      "types": "./dist/plugins/level-meter/index.d.ts",
+      "import": "./dist/plugins/level-meter/index.js"
+    },
     "./storage/opfs": {
       "types": "./dist/storage/opfs/index.d.ts",
       "import": "./dist/storage/opfs/index.js"

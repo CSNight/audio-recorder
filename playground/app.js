@@ -9,6 +9,7 @@ import {
   RecorderState,
   RecorderWarningCode,
 } from "/dist/index.js"
+import { createLevelMeterPlugin } from "/dist/plugins/level-meter/index.js"
 import { createIndexedDbPersistencePlugin } from "/dist/storage/indexeddb/index.js"
 import { createOpfsPersistencePlugin } from "/dist/storage/opfs/index.js"
 
@@ -60,7 +61,7 @@ createApp({
       state.persistenceBackend,
       state.memoryThresholdBytes
     )
-    let recorderDisposers = bindRecorderEvents(recorder, state, appendLog)
+    let recorderDisposers = []
     let currentSource = null
 
     const runtimeJson = computed(() =>
@@ -154,6 +155,8 @@ createApp({
       "Vue playground 已就绪。该页面直接依赖 /dist/index.js，而不是 src 源码。"
     )
 
+    void initializeRecorder()
+
     async function runLoggedAction(action, successMessage, pendingActionLabel) {
       state.pendingActionLabel = pendingActionLabel ?? "处理中..."
       try {
@@ -192,25 +195,30 @@ createApp({
       state.storageDiagnostics = null
     }
 
-    function rebuildRecorder() {
+    async function initializeRecorder() {
+      recorderDisposers = bindRecorderEvents(recorder, state, appendLog)
+      await recorder.use(createLevelMeterPlugin())
+    }
+
+    async function rebuildRecorder() {
       unbindRecorderEvents(recorderDisposers)
       recorder = createPlaygroundRecorder(
         state.storageMode,
         state.persistenceBackend,
         state.memoryThresholdBytes
       )
-      recorderDisposers = bindRecorderEvents(recorder, state, appendLog)
+      await initializeRecorder()
       state.recorderState = recorder.getState()
     }
 
-    function handleStorageModeChange() {
+    async function handleStorageModeChange() {
       if (!canChangeStorageMode.value) {
         appendLog("warning", "请先关闭当前录音器，再切换持久化后端。")
         return
       }
 
       resetRealtimeState()
-      rebuildRecorder()
+      await rebuildRecorder()
       appendLog(
         "info",
         `已切换存储模式：${getStorageModeLabel(state.storageMode)}。`
@@ -220,7 +228,7 @@ createApp({
     async function openRecorder() {
       await runLoggedAction(
         async () => {
-          rebuildRecorder()
+          await rebuildRecorder()
           await closeManagedSource(currentSource)
           currentSource = await createManagedSource(state.sourceMode, appendLog)
 
@@ -399,10 +407,15 @@ function bindRecorderEvents(recorder, state, appendLog) {
     state.lastFrameDurationMs = frame.durationMs
     state.runtimeInfo = runtimeInfo
     state.summary = summary
-    state.levelPercent = measureLevel(frame)
+  })
+  const offLevel = recorder.on("level", ({ payload }) => {
+    state.levelPercent = Math.max(
+      0,
+      Math.min(100, Math.round(payload.level.rms * 180))
+    )
   })
 
-  return [offStateChange, offIssue, offFrame]
+  return [offStateChange, offIssue, offFrame, offLevel]
 }
 
 function unbindRecorderEvents(disposers) {
@@ -425,21 +438,6 @@ function createPlaygroundRecorder(
       persistencePluginFactory
     ),
   })
-}
-
-function measureLevel(frame) {
-  const channel = frame.planar[0]
-  if (!channel || channel.length === 0) {
-    return 0
-  }
-
-  let absoluteSum = 0
-  for (let index = 0; index < channel.length; index += 1) {
-    absoluteSum += Math.abs(channel[index] ?? 0)
-  }
-
-  const average = absoluteSum / channel.length
-  return Math.max(0, Math.min(100, Math.round((average / 32767) * 180)))
 }
 
 function formatError(error) {
