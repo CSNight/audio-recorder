@@ -42,7 +42,8 @@ label {
 }
 
 button,
-select {
+select,
+input {
   font: inherit;
 }
 
@@ -69,13 +70,20 @@ button:disabled {
   transform: none;
 }
 
-select {
+select,
+input {
   min-width: 180px;
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 12px 14px;
   background: white;
   color: var(--ink);
+}
+
+input:disabled,
+select:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
 }
 
 code,
@@ -125,6 +133,10 @@ pre {
   margin: 0;
   line-height: 1.7;
   color: var(--muted);
+}
+
+.storage-note {
+  margin-top: 12px;
 }
 
 .hero-meta {

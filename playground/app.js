@@ -9,20 +9,40 @@ import {
   RecorderState,
   RecorderWarningCode,
 } from "/dist/index.js"
+import { createIndexedDbPersistencePlugin } from "/dist/storage/indexeddb/index.js"
+import { createOpfsPersistencePlugin } from "/dist/storage/opfs/index.js"
 
 const PLAYGROUND_SOURCE_MODE = {
   microphone: RecorderInputSource.Microphone,
   externalTone: "external-tone",
 }
 
-const recorder = createRecorder()
-let currentSource = null
+const PLAYGROUND_STORAGE_MODE = {
+  memory: "memory",
+  persistent: "persistent",
+  auto: "auto",
+}
+
+const PLAYGROUND_PERSISTENCE_BACKEND = {
+  indexeddb: "indexeddb",
+  opfs: "opfs",
+}
+const PLAYGROUND_PERSISTENCE_CHUNK_BYTES = 256 * 1024
+
+const PERSISTENCE_PLUGIN_FACTORIES = {
+  [PLAYGROUND_PERSISTENCE_BACKEND.indexeddb]: createIndexedDbPersistencePlugin,
+  [PLAYGROUND_PERSISTENCE_BACKEND.opfs]: createOpfsPersistencePlugin,
+}
 
 createApp({
   setup() {
     const state = reactive({
       sourceMode: PLAYGROUND_SOURCE_MODE.externalTone,
+      storageMode: PLAYGROUND_STORAGE_MODE.memory,
+      persistenceBackend: PLAYGROUND_PERSISTENCE_BACKEND.indexeddb,
       requestedChannelCount: 2,
+      memoryThresholdBytes: 256 * 1024,
+      pendingActionLabel: "",
       recorderState: RecorderState.Idle,
       runtimeInfo: null,
       summary: null,
@@ -30,13 +50,25 @@ createApp({
       lastFrameDurationMs: 0,
       levelPercent: 0,
       logs: [],
+      storageDiagnostics: null,
+      exportedBytes: null,
+      activePersistenceBackend: null,
     })
+
+    let recorder = createPlaygroundRecorder(
+      state.storageMode,
+      state.persistenceBackend,
+      state.memoryThresholdBytes
+    )
+    let recorderDisposers = bindRecorderEvents(recorder, state, appendLog)
+    let currentSource = null
 
     const runtimeJson = computed(() =>
       JSON.stringify(
         {
           runtimeInfo: state.runtimeInfo,
           lastFrameDurationMs: state.lastFrameDurationMs,
+          activePersistenceBackend: state.activePersistenceBackend,
         },
         null,
         2
@@ -48,59 +80,73 @@ createApp({
           summary: state.summary,
           state: state.recorderState,
           sourceMode: state.sourceMode,
+          storageMode: state.storageMode,
+          persistenceBackend: state.persistenceBackend,
+          exportedBytes: state.exportedBytes,
         },
         null,
         2
       )
     )
+    const storageJson = computed(() =>
+      JSON.stringify(state.storageDiagnostics, null, 2)
+    )
     const canOpen = computed(
       () =>
-        state.recorderState === RecorderState.Idle ||
-        state.recorderState === RecorderState.Closed
+        state.pendingActionLabel === "" &&
+        [RecorderState.Idle, RecorderState.Closed].includes(state.recorderState)
     )
-    const canStart = computed(() => state.recorderState === RecorderState.Ready)
+    const canStart = computed(
+      () =>
+        state.pendingActionLabel === "" &&
+        state.recorderState === RecorderState.Ready
+    )
     const canPause = computed(
-      () => state.recorderState === RecorderState.Recording
+      () =>
+        state.pendingActionLabel === "" &&
+        state.recorderState === RecorderState.Recording
     )
     const canResume = computed(
-      () => state.recorderState === RecorderState.Paused
+      () =>
+        state.pendingActionLabel === "" &&
+        state.recorderState === RecorderState.Paused
     )
     const canStop = computed(
       () =>
-        state.recorderState === RecorderState.Recording ||
-        state.recorderState === RecorderState.Paused
-    )
-    const canClose = computed(() =>
-      [
-        RecorderState.Ready,
-        RecorderState.Recording,
-        RecorderState.Paused,
-        RecorderState.Stopped,
-      ].includes(state.recorderState)
-    )
-
-    recorder.on("statechange", ({ state: nextState }) => {
-      state.recorderState = nextState
-    })
-    recorder.on("issue", ({ issue }) => {
-      if (issue.kind === "warning") {
-        appendLog(
-          issue.warning.code === RecorderWarningCode.ScriptProcessorFallback
-            ? "info"
-            : "warning",
-          `${issue.warning.code}: ${issue.warning.message}`
+        state.pendingActionLabel === "" &&
+        [RecorderState.Recording, RecorderState.Paused].includes(
+          state.recorderState
         )
-        return
+    )
+    const canClose = computed(
+      () =>
+        state.pendingActionLabel === "" &&
+        [
+          RecorderState.Ready,
+          RecorderState.Recording,
+          RecorderState.Paused,
+          RecorderState.Stopped,
+        ].includes(state.recorderState)
+    )
+    const canChangeStorageMode = computed(
+      () =>
+        state.pendingActionLabel === "" &&
+        [RecorderState.Idle, RecorderState.Closed].includes(state.recorderState)
+    )
+    const storageHint = computed(() => {
+      if (state.storageMode === PLAYGROUND_STORAGE_MODE.memory) {
+        return "仅使用内存缓冲，不触发持久化溢写。"
       }
 
-      appendLog("error", issue.error.message)
-    })
-    recorder.on("frame", ({ frame, runtimeInfo, summary }) => {
-      state.frameCount += 1
-      state.lastFrameDurationMs = frame.durationMs
-      state.runtimeInfo = runtimeInfo
-      state.summary = summary
-      state.levelPercent = measureLevel(frame)
+      if (state.storageMode === PLAYGROUND_STORAGE_MODE.persistent) {
+        return `当前会从录音开始即启用 ${getPersistenceBackendLabel(
+          state.persistenceBackend
+        )}，并按 ${PLAYGROUND_PERSISTENCE_CHUNK_BYTES} byte 分块持久化。`
+      }
+
+      return `当前会在累计 PCM 超过 ${state.memoryThresholdBytes} byte 后尝试切到 ${getPersistenceBackendLabel(
+        state.persistenceBackend
+      )}，并按 ${PLAYGROUND_PERSISTENCE_CHUNK_BYTES} byte 分块持久化。`
     })
 
     appendLog(
@@ -108,7 +154,8 @@ createApp({
       "Vue playground 已就绪。该页面直接依赖 /dist/index.js，而不是 src 源码。"
     )
 
-    async function runLoggedAction(action, successMessage) {
+    async function runLoggedAction(action, successMessage, pendingActionLabel) {
+      state.pendingActionLabel = pendingActionLabel ?? "处理中..."
       try {
         await action()
         if (successMessage) {
@@ -116,6 +163,8 @@ createApp({
         }
       } catch (error) {
         appendLog("error", formatError(error))
+      } finally {
+        state.pendingActionLabel = ""
       }
     }
 
@@ -129,104 +178,186 @@ createApp({
           message,
         },
         ...state.logs,
-      ].slice(0, 40)
+      ].slice(0, 60)
     }
 
-    function getSourceModeLabel(mode) {
-      return mode === PLAYGROUND_SOURCE_MODE.externalTone
-        ? "外部音调流"
-        : "麦克风"
+    function resetRealtimeState() {
+      state.runtimeInfo = null
+      state.summary = null
+      state.frameCount = 0
+      state.lastFrameDurationMs = 0
+      state.levelPercent = 0
+      state.exportedBytes = null
+      state.activePersistenceBackend = null
+      state.storageDiagnostics = null
+    }
+
+    function rebuildRecorder() {
+      unbindRecorderEvents(recorderDisposers)
+      recorder = createPlaygroundRecorder(
+        state.storageMode,
+        state.persistenceBackend,
+        state.memoryThresholdBytes
+      )
+      recorderDisposers = bindRecorderEvents(recorder, state, appendLog)
+      state.recorderState = recorder.getState()
+    }
+
+    function handleStorageModeChange() {
+      if (!canChangeStorageMode.value) {
+        appendLog("warning", "请先关闭当前录音器，再切换持久化后端。")
+        return
+      }
+
+      resetRealtimeState()
+      rebuildRecorder()
+      appendLog(
+        "info",
+        `已切换存储模式：${getStorageModeLabel(state.storageMode)}。`
+      )
     }
 
     async function openRecorder() {
-      await runLoggedAction(async () => {
-        await closeManagedSource()
-        currentSource = await createManagedSource(state.sourceMode, appendLog)
+      await runLoggedAction(
+        async () => {
+          rebuildRecorder()
+          await closeManagedSource(currentSource)
+          currentSource = await createManagedSource(state.sourceMode, appendLog)
 
-        const openOptions =
-          currentSource.stream !== null
-            ? {
-                sourceStream: currentSource.stream,
-                capture: {
-                  channelCount: state.requestedChannelCount,
-                  echoCancellation: false,
-                  noiseSuppression: false,
-                  autoGainControl: false,
-                  ...(currentSource.sampleRate !== undefined && {
-                    sampleRate: currentSource.sampleRate,
-                  }),
-                },
-              }
-            : {
-                capture: {
-                  channelCount: state.requestedChannelCount,
-                  echoCancellation: false,
-                  noiseSuppression: false,
-                  autoGainControl: false,
-                },
-              }
+          resetRealtimeState()
+          state.storageDiagnostics = await collectStorageDiagnostics(
+            state.storageMode,
+            state.persistenceBackend
+          )
 
-        state.runtimeInfo = await recorder.open(openOptions)
-        state.summary = null
-        state.frameCount = 0
-        state.lastFrameDurationMs = 0
-        state.levelPercent = 0
-        appendLog(
-          "info",
-          `录音器已打开，输入来源：${getSourceModeLabel(state.sourceMode)}，请求声道数：${state.runtimeInfo.requestedChannelCount}。`
-        )
-      })
+          const openOptions =
+            currentSource.stream !== null
+              ? {
+                  sourceStream: currentSource.stream,
+                  capture: {
+                    channelCount: state.requestedChannelCount,
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false,
+                    ...(currentSource.sampleRate !== undefined && {
+                      sampleRate: currentSource.sampleRate,
+                    }),
+                  },
+                }
+              : {
+                  capture: {
+                    channelCount: state.requestedChannelCount,
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false,
+                  },
+                }
+
+          state.runtimeInfo = await recorder.open(openOptions)
+          appendLog(
+            "info",
+            `录音器已打开，输入来源：${getSourceModeLabel(state.sourceMode)}，请求声道数：${state.runtimeInfo.requestedChannelCount}，存储模式：${getStorageModeLabel(state.storageMode)}。`
+          )
+        },
+        "",
+        "正在打开录音器..."
+      )
     }
 
     async function startRecorder() {
-      await runLoggedAction(async () => {
-        state.runtimeInfo = await recorder.start()
-      }, "录音已开始。")
+      await runLoggedAction(
+        async () => {
+          state.runtimeInfo = await recorder.start()
+        },
+        "录音已开始。",
+        "正在开始录音..."
+      )
     }
 
     async function pauseRecorder() {
-      await runLoggedAction(() => {
-        recorder.pause()
-      }, "录音已暂停。")
+      await runLoggedAction(
+        () => {
+          recorder.pause()
+        },
+        "录音已暂停。",
+        "正在暂停录音..."
+      )
     }
 
     async function resumeRecorder() {
-      await runLoggedAction(async () => {
-        state.runtimeInfo = await recorder.resume()
-      }, "录音已恢复。")
+      await runLoggedAction(
+        async () => {
+          state.runtimeInfo = await recorder.resume()
+        },
+        "录音已恢复。",
+        "正在恢复录音..."
+      )
     }
 
     async function stopRecorder() {
-      await runLoggedAction(async () => {
-        state.summary = await recorder.stop()
-        appendLog(
-          "info",
-          `录音已停止，共接收 ${state.summary.frames} 帧，累计时长 ${state.summary.durationMs.toFixed(1)}ms。`
-        )
-      })
+      await runLoggedAction(
+        async () => {
+          state.summary = await recorder.stop()
+          const exported = await recorder.exportPCM()
+          state.exportedBytes = exported.data.byteLength
+          state.storageDiagnostics = await collectStorageDiagnostics(
+            state.storageMode,
+            state.persistenceBackend
+          )
+          state.activePersistenceBackend =
+            state.storageDiagnostics?.persistedEntries > 0
+              ? state.storageDiagnostics.backend
+              : null
+          appendLog(
+            "info",
+            `录音已停止，共接收 ${state.summary.frames} 帧，累计时长 ${state.summary.durationMs.toFixed(1)}ms，导出 PCM ${state.exportedBytes} byte。`
+          )
+        },
+        "",
+        "正在停止并导出 PCM..."
+      )
     }
 
     async function closeRecorder() {
-      await runLoggedAction(async () => {
-        await recorder.close()
-        await closeManagedSource()
-      }, "录音器已关闭，输入资源已释放。")
+      await runLoggedAction(
+        async () => {
+          await recorder.close()
+          await closeManagedSource(currentSource)
+          currentSource = null
+          state.storageDiagnostics = await collectStorageDiagnostics(
+            state.storageMode,
+            state.persistenceBackend
+          )
+          state.activePersistenceBackend =
+            state.storageDiagnostics?.persistedEntries > 0
+              ? state.storageDiagnostics.backend
+              : null
+        },
+        "录音器已关闭，输入资源已释放。",
+        "正在关闭录音器..."
+      )
     }
 
     window.addEventListener("beforeunload", () => {
-      void closeManagedSource()
+      unbindRecorderEvents(recorderDisposers)
+      void recorder.destroy()
+      void closeManagedSource(currentSource)
     })
 
     return {
       PLAYGROUND_SOURCE_MODE,
+      PLAYGROUND_PERSISTENCE_BACKEND,
+      PLAYGROUND_STORAGE_MODE,
       RecorderState,
+      canChangeStorageMode,
       canClose,
       canOpen,
+      canStart,
       canPause,
       canResume,
-      canStart,
       canStop,
       closeRecorder,
+      handleStorageModeChange,
       openRecorder,
       pauseRecorder,
       resumeRecorder,
@@ -234,10 +365,67 @@ createApp({
       startRecorder,
       state,
       stopRecorder,
+      storageHint,
+      storageJson,
       summaryJson,
     }
   },
 }).mount("#app")
+
+function bindRecorderEvents(recorder, state, appendLog) {
+  const offStateChange = recorder.on("statechange", ({ state: nextState }) => {
+    state.recorderState = nextState
+  })
+  const offIssue = recorder.on("issue", ({ issue }) => {
+    if (issue.kind === "warning") {
+      if (
+        issue.warning.code === RecorderWarningCode.PersistencePluginUnavailable
+      ) {
+        state.activePersistenceBackend = null
+      }
+      appendLog(
+        issue.warning.code === RecorderWarningCode.ScriptProcessorFallback
+          ? "info"
+          : "warning",
+        `${issue.warning.code}: ${issue.warning.message}`
+      )
+      return
+    }
+
+    appendLog("error", issue.error.message)
+  })
+  const offFrame = recorder.on("frame", ({ frame, runtimeInfo, summary }) => {
+    state.frameCount += 1
+    state.lastFrameDurationMs = frame.durationMs
+    state.runtimeInfo = runtimeInfo
+    state.summary = summary
+    state.levelPercent = measureLevel(frame)
+  })
+
+  return [offStateChange, offIssue, offFrame]
+}
+
+function unbindRecorderEvents(disposers) {
+  for (const dispose of disposers) {
+    dispose()
+  }
+}
+
+function createPlaygroundRecorder(
+  storageMode,
+  persistenceBackend,
+  memoryThresholdBytes
+) {
+  const persistencePluginFactory =
+    PERSISTENCE_PLUGIN_FACTORIES[persistenceBackend]
+  return createRecorder({
+    storage: createPlaygroundStorageOptions(
+      storageMode,
+      memoryThresholdBytes,
+      persistencePluginFactory
+    ),
+  })
+}
 
 function measureLevel(frame) {
   const channel = frame.planar[0]
@@ -258,13 +446,59 @@ function formatError(error) {
   return error instanceof Error ? error.message : String(error)
 }
 
-async function closeManagedSource() {
+function getSourceModeLabel(mode) {
+  return mode === PLAYGROUND_SOURCE_MODE.externalTone ? "外部音调流" : "麦克风"
+}
+
+function getStorageModeLabel(mode) {
+  switch (mode) {
+    case PLAYGROUND_STORAGE_MODE.persistent:
+      return "持久化模式"
+    case PLAYGROUND_STORAGE_MODE.auto:
+      return "自动模式"
+    default:
+      return "纯内存"
+  }
+}
+
+function getPersistenceBackendLabel(backend) {
+  switch (backend) {
+    case PLAYGROUND_PERSISTENCE_BACKEND.opfs:
+      return "OPFS"
+    default:
+      return "IndexedDB"
+  }
+}
+
+function createPlaygroundStorageOptions(
+  storageMode,
+  memoryThresholdBytes,
+  persistencePluginFactory
+) {
+  if (storageMode === PLAYGROUND_STORAGE_MODE.memory) {
+    return {
+      mode: "memory",
+    }
+  }
+
+  return {
+    mode: storageMode,
+    ...(storageMode === PLAYGROUND_STORAGE_MODE.auto && {
+      memoryThresholdBytes,
+    }),
+    persistenceChunkBytes: PLAYGROUND_PERSISTENCE_CHUNK_BYTES,
+    ...(persistencePluginFactory && {
+      persistencePlugin: persistencePluginFactory(),
+    }),
+  }
+}
+
+async function closeManagedSource(currentSource) {
   if (!currentSource) {
     return
   }
 
   await currentSource.dispose()
-  currentSource = null
 }
 
 async function createManagedSource(mode, appendLog) {
@@ -305,5 +539,135 @@ async function createManagedSource(mode, appendLog) {
       }
       appendLog("info", "外部音调流已释放。")
     },
+  }
+}
+
+async function collectStorageDiagnostics(storageMode, persistenceBackend) {
+  if (storageMode === PLAYGROUND_STORAGE_MODE.memory) {
+    return {
+      backend: "memory",
+      persistedEntries: 0,
+      bytes: 0,
+    }
+  }
+
+  switch (persistenceBackend) {
+    case PLAYGROUND_PERSISTENCE_BACKEND.indexeddb:
+      return inspectIndexedDbStorage()
+    case PLAYGROUND_PERSISTENCE_BACKEND.opfs:
+      return inspectOpfsStorage()
+    default:
+      return {
+        backend: "memory",
+        persistedEntries: 0,
+        bytes: 0,
+      }
+  }
+}
+
+async function inspectIndexedDbStorage() {
+  if (typeof indexedDB === "undefined") {
+    return {
+      backend: "indexeddb",
+      supported: false,
+      reason: "indexedDB is unavailable in this browser.",
+    }
+  }
+
+  const database = await new Promise((resolve, reject) => {
+    const request = indexedDB.open("audio-recorder", 1)
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains("sessions")) {
+        request.result.createObjectStore("sessions")
+      }
+    }
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () =>
+      reject(request.error ?? new Error("Failed to inspect IndexedDB storage."))
+  })
+
+  try {
+    const entries = await new Promise((resolve, reject) => {
+      const transaction = database.transaction("sessions", "readonly")
+      const store = transaction.objectStore("sessions")
+      const request = store.getAll()
+      request.onsuccess = () => resolve(request.result ?? [])
+      request.onerror = () =>
+        reject(
+          request.error ?? new Error("Failed to read IndexedDB session data.")
+        )
+    })
+
+    let bytes = 0
+    for (const entry of entries) {
+      if (entry instanceof ArrayBuffer) {
+        bytes += entry.byteLength
+      }
+    }
+
+    return {
+      backend: "indexeddb",
+      supported: true,
+      persistedEntries: entries.length,
+      bytes,
+    }
+  } finally {
+    database.close()
+  }
+}
+
+async function inspectOpfsStorage() {
+  if (
+    typeof navigator === "undefined" ||
+    !("storage" in navigator) ||
+    typeof navigator.storage?.getDirectory !== "function"
+  ) {
+    return {
+      backend: "opfs",
+      supported: false,
+      reason: "navigator.storage.getDirectory is unavailable in this browser.",
+    }
+  }
+
+  const root = await navigator.storage.getDirectory()
+  let baseDirectory
+  try {
+    baseDirectory = await root.getDirectoryHandle("audio-recorder")
+  } catch {
+    return {
+      backend: "opfs",
+      supported: true,
+      persistedEntries: 0,
+      bytes: 0,
+    }
+  }
+
+  let persistedEntries = 0
+  let bytes = 0
+  for await (const [, handle] of baseDirectory.entries()) {
+    if (handle.kind !== "directory") {
+      continue
+    }
+
+    for await (const [name, childHandle] of handle.entries()) {
+      if (childHandle.kind !== "file" || !name.endsWith(".bin")) {
+        continue
+      }
+
+      persistedEntries += 1
+      try {
+        const file = await childHandle.getFile()
+        bytes += file.size
+      } catch {
+        continue
+      }
+    }
+  }
+
+  return {
+    backend: "opfs",
+    supported: true,
+    persistedEntries,
+    bytes,
   }
 }

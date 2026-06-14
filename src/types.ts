@@ -1,5 +1,6 @@
 import type { CaptureAdapter } from "@/capture/types"
 import type { RecorderController } from "@/core/recorder-controller"
+import type { RecorderStorageOptions } from "@/storage/types"
 
 export type AudioChannelCount = 1 | 2
 
@@ -16,6 +17,9 @@ export enum RecorderState {
 export enum RecorderWarningCode {
   ScriptProcessorFallback = "script-processor-fallback",
   ChannelCountAdjusted = "channel-count-adjusted",
+  PersistencePluginMissing = "persistence-plugin-missing",
+  PersistencePluginUnavailable = "persistence-plugin-unavailable",
+  PersistenceActivationFailed = "persistence-activation-failed",
 }
 
 export enum RecorderInputSource {
@@ -118,4 +122,5 @@ export interface RecorderOpenOptions {
 
 export interface CreateRecorderOptions {
   captureAdapter?: CaptureAdapter
+  storage?: RecorderStorageOptions
 }

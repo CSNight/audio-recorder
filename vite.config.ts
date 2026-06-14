@@ -5,9 +5,17 @@ export default defineConfig({
   build: {
     emptyOutDir: true,
     lib: {
-      entry: "src/index.ts",
+      entry: {
+        index: fileURLToPath(new URL("./src/index.ts", import.meta.url)),
+        "storage/opfs/index": fileURLToPath(
+          new URL("./src/storage/opfs/index.ts", import.meta.url)
+        ),
+        "storage/indexeddb/index": fileURLToPath(
+          new URL("./src/storage/indexeddb/index.ts", import.meta.url)
+        ),
+      },
       formats: ["es"],
-      fileName: () => "index.js",
+      fileName: (_format, entryName) => `${entryName}.js`,
     },
     sourcemap: false,
     target: "es2022",

@@ -8,6 +8,7 @@ import type {
   CaptureSessionSummary,
 } from "@/capture/types"
 import { RecorderController, RecorderState, RecorderWarningCode } from "@/index"
+import type { RecorderPersistencePlugin } from "@/storage/types"
 import { createAudioFrame } from "@/utils/audio-frame"
 
 class FakeCaptureSession implements CaptureSession {
@@ -16,6 +17,7 @@ class FakeCaptureSession implements CaptureSession {
     frames: 0,
     durationMs: 0,
   }
+  closeCalls = 0
 
   constructor(
     private readonly handlers: CaptureHandlers,
@@ -33,7 +35,9 @@ class FakeCaptureSession implements CaptureSession {
     return { ...this.summary }
   }
 
-  async close(): Promise<void> {}
+  async close(): Promise<void> {
+    this.closeCalls += 1
+  }
 
   emitFrame(
     frame = createAudioFrame([new Float32Array([0, 0.5, -0.5])], 16_000, 10)
@@ -84,11 +88,20 @@ class FakeCaptureAdapter implements CaptureAdapter {
   }
 }
 
+class ThrowingCaptureAdapter implements CaptureAdapter {
+  constructor(private readonly error: unknown) {}
+
+  async open(): Promise<CaptureSession> {
+    throw this.error
+  }
+}
+
 describe("RecorderController", () => {
   it("runs the phase 1 lifecycle and emits frames, issues, and summaries", async () => {
     const adapter = new FakeCaptureAdapter()
     const recorder = new RecorderController({
       captureAdapter: adapter,
+      storageOptions: undefined,
     })
     const states: string[] = []
     const frames: number[] = []
@@ -155,6 +168,7 @@ describe("RecorderController", () => {
     // 非法状态迁移必须在控制器层被拒绝，而不是把错误下沉到适配器层。
     const recorder = new RecorderController({
       captureAdapter: new FakeCaptureAdapter(),
+      storageOptions: undefined,
     })
 
     await expect(recorder.start()).rejects.toThrow(
@@ -171,6 +185,7 @@ describe("RecorderController", () => {
   it("routes capture issues of kind error into the issue event", async () => {
     const recorder = new RecorderController({
       captureAdapter: new FakeCaptureAdapter(),
+      storageOptions: undefined,
     })
     const issues: string[] = []
 
@@ -193,6 +208,7 @@ describe("RecorderController", () => {
     // 显式 off 是事件总线可控性的基础，否则宿主难以安全解绑监听。
     const recorder = new RecorderController({
       captureAdapter: new FakeCaptureAdapter(),
+      storageOptions: undefined,
     })
     const receivedStates: RecorderState[] = []
     const listener = ({ state }: { state: RecorderState }): void => {
@@ -205,5 +221,250 @@ describe("RecorderController", () => {
     await recorder.open()
 
     expect(receivedStates).toEqual([])
+  })
+
+  it("resets internal phase 2 frame buffering when a session is reopened", async () => {
+    const adapter = new FakeCaptureAdapter()
+    const recorder = new RecorderController({
+      captureAdapter: adapter,
+      storageOptions: undefined,
+    })
+
+    await recorder.open()
+    await recorder.start()
+    adapter.session?.emitFrame()
+    await recorder.stop()
+    await recorder.close()
+
+    await recorder.open()
+
+    expect(recorder.getLatestSummary().frames).toBe(0)
+    expect(recorder.getLatestSummary().durationMs).toBe(0)
+  })
+
+  it("exports buffered PCM and WAV data from the controller", async () => {
+    const adapter = new FakeCaptureAdapter()
+    const recorder = new RecorderController({
+      captureAdapter: adapter,
+      storageOptions: undefined,
+    })
+
+    await recorder.open({
+      capture: {
+        sampleRate: 16_000,
+      },
+    })
+    await recorder.start()
+    adapter.session?.emitFrame(
+      createAudioFrame([new Float32Array([0, 0.5, -0.5, 0.25])], 16_000, 10)
+    )
+
+    const pcm = await recorder.exportPCM()
+    const wav = await recorder.exportWAV({
+      bitRate: 8,
+    })
+
+    expect(Array.from(pcm.data)).toEqual([0, 16384, -16384, 8192])
+    expect(wav.mimeType).toBe("audio/wav")
+    expect(wav.bitRate).toBe(8)
+    expect(wav.arrayBuffer.byteLength).toBe(48)
+  })
+
+  it("rejects exporting when no buffered PCM data exists", async () => {
+    const recorder = new RecorderController({
+      captureAdapter: new FakeCaptureAdapter(),
+      storageOptions: undefined,
+    })
+
+    await expect(recorder.exportPCM()).rejects.toThrow(
+      "Recorder has no PCM data to export."
+    )
+    await expect(recorder.exportWAV()).rejects.toThrow(
+      "Recorder has no PCM data to export."
+    )
+  })
+
+  it("emits a warning when persistent mode opens without any persistence plugin", async () => {
+    const recorder = new RecorderController({
+      captureAdapter: new FakeCaptureAdapter(),
+      storageOptions: {
+        mode: "persistent",
+      },
+    })
+    const issues: string[] = []
+
+    recorder.on("issue", ({ issue }) => {
+      if (issue.kind === "warning") {
+        issues.push(issue.warning.code)
+      }
+    })
+
+    await expect(recorder.open()).rejects.toThrow(
+      "Persistent storage mode requires an available persistence plugin before recording starts."
+    )
+
+    expect(issues).toEqual([RecorderWarningCode.PersistencePluginMissing])
+  })
+
+  it("emits activation warning when persistent storage session creation fails during open", async () => {
+    const failingPlugin: RecorderPersistencePlugin = {
+      backend: "indexeddb",
+      isSupported: () => true,
+      createSession: async () => {
+        throw new Error("persistent activation failed")
+      },
+    }
+    const recorder = new RecorderController({
+      captureAdapter: new FakeCaptureAdapter(),
+      storageOptions: {
+        mode: "persistent",
+        persistencePlugin: failingPlugin,
+      },
+    })
+    const issues: string[] = []
+
+    recorder.on("issue", ({ issue }) => {
+      if (issue.kind === "warning") {
+        issues.push(issue.warning.code)
+      }
+    })
+
+    await expect(recorder.open()).rejects.toThrow(
+      "persistent activation failed"
+    )
+
+    expect(issues).toEqual([RecorderWarningCode.PersistenceActivationFailed])
+  })
+
+  it("falls back to memory export when auto-mode persistence activation fails mid-recording", async () => {
+    const failingPlugin: RecorderPersistencePlugin = {
+      backend: "indexeddb",
+      isSupported: () => true,
+      createSession: async () => {
+        throw new Error("auto promotion failed")
+      },
+    }
+    const adapter = new FakeCaptureAdapter()
+    const recorder = new RecorderController({
+      captureAdapter: adapter,
+      storageOptions: {
+        mode: "auto",
+        memoryThresholdBytes: 1,
+        persistencePlugin: failingPlugin,
+      },
+    })
+    const issues: string[] = []
+
+    recorder.on("issue", ({ issue }) => {
+      if (issue.kind === "warning") {
+        issues.push(issue.warning.code)
+      }
+    })
+
+    await recorder.open({
+      capture: {
+        sampleRate: 16_000,
+      },
+    })
+    await recorder.start()
+    adapter.session?.emitFrame(
+      createAudioFrame([new Float32Array([0, 0.5, -0.5, 0.25])], 16_000, 10)
+    )
+
+    const pcm = await recorder.exportPCM()
+
+    expect(Array.from(pcm.data)).toEqual([0, 16384, -16384, 8192])
+    expect(issues).toContain(RecorderWarningCode.PersistenceActivationFailed)
+  })
+
+  it("wraps non-Error open failures into both the issue event and thrown rejection", async () => {
+    const recorder = new RecorderController({
+      captureAdapter: new ThrowingCaptureAdapter("open failed"),
+      storageOptions: undefined,
+    })
+    const issues: string[] = []
+
+    recorder.on("issue", ({ issue }) => {
+      if (issue.kind === "error") {
+        issues.push(issue.error.message)
+      }
+    })
+
+    await expect(recorder.open()).rejects.toThrow("Failed to open recorder.")
+    expect(issues).toEqual(["Failed to open recorder."])
+    expect(recorder.getState()).toBe(RecorderState.Idle)
+  })
+
+  it("reports external-stream runtime info when opened with a source stream", async () => {
+    const recorder = new RecorderController({
+      captureAdapter: new FakeCaptureAdapter(),
+      storageOptions: undefined,
+    })
+
+    const runtime = await recorder.open({
+      sourceStream: {} as MediaStream,
+      capture: {
+        sampleRate: 16_000,
+      },
+    })
+
+    expect(runtime.source).toBe("external-stream")
+    expect(recorder.getRuntimeInfo().source).toBe("external-stream")
+  })
+
+  it("destroys the active session, emits destroyed once, and clears listeners afterwards", async () => {
+    const adapter = new FakeCaptureAdapter()
+    const recorder = new RecorderController({
+      captureAdapter: adapter,
+      storageOptions: undefined,
+    })
+    const states: RecorderState[] = []
+    const listener = ({ state }: { state: RecorderState }): void => {
+      states.push(state)
+    }
+
+    recorder.on("statechange", listener)
+    await recorder.open()
+    await recorder.start()
+    await recorder.destroy()
+
+    expect(adapter.session?.closeCalls).toBe(1)
+    expect(recorder.getState()).toBe(RecorderState.Destroyed)
+    expect(states).toEqual([
+      RecorderState.Ready,
+      RecorderState.Recording,
+      RecorderState.Destroyed,
+    ])
+
+    recorder.off("statechange", listener)
+    await expect(recorder.open()).rejects.toThrow(
+      'Recorder state "destroyed" does not allow this operation.'
+    )
+    expect(states).toEqual([
+      RecorderState.Ready,
+      RecorderState.Recording,
+      RecorderState.Destroyed,
+    ])
+  })
+
+  it("returns stable snapshots from runtime and summary accessors", async () => {
+    const recorder = new RecorderController({
+      captureAdapter: new FakeCaptureAdapter(),
+      storageOptions: undefined,
+    })
+
+    await recorder.open({
+      capture: {
+        sampleRate: 16_000,
+      },
+    })
+
+    const runtime = recorder.getRuntimeInfo()
+    const summary = recorder.getLatestSummary()
+    runtime.requestedChannelCount = 2
+    summary.frames = 999
+
+    expect(recorder.getRuntimeInfo().requestedChannelCount).toBe(1)
+    expect(recorder.getLatestSummary().frames).toBe(0)
   })
 })

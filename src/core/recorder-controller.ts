@@ -1,4 +1,12 @@
+import { createPcmBufferStore } from "@/buffer/pcm-buffer-store"
 import type { CaptureAdapter, CaptureSession } from "@/capture/types"
+import { exportPcmSnapshot } from "@/codecs/pcm/pcm-exporter"
+import type { PcmExportOptions, PcmExportResult } from "@/codecs/pcm/types"
+import { exportWavSnapshot } from "@/codecs/wav/wav-exporter"
+import type { WavExportOptions, WavExportResult } from "@/codecs/wav/types"
+import { PcmFramePipeline } from "@/pipeline/pcm-frame-pipeline"
+import type { RecorderFramePipeline } from "@/pipeline/types"
+import type { RecorderStorageOptions } from "@/storage/types"
 import type {
   AudioFrame,
   RecorderEventMap,
@@ -16,6 +24,8 @@ import { EventBus } from "@/core/event-bus"
 export class RecorderController {
   private readonly eventBus = new EventBus<RecorderEventMap>()
   private readonly captureAdapter: CaptureAdapter
+  private readonly storageOptions: RecorderStorageOptions | undefined
+  private framePipeline: RecorderFramePipeline
   private captureSession: CaptureSession | undefined
   private activeSessionId = "session-0"
   private recorderState: RecorderState = RecorderState.Idle
@@ -30,8 +40,14 @@ export class RecorderController {
     channels: 1,
   }
 
-  constructor(options: { captureAdapter: CaptureAdapter }) {
+  constructor(options: {
+    captureAdapter: CaptureAdapter
+    storageOptions: RecorderStorageOptions | undefined
+    framePipeline?: RecorderFramePipeline
+  }) {
     this.captureAdapter = options.captureAdapter
+    this.storageOptions = options.storageOptions
+    this.framePipeline = options.framePipeline ?? new PcmFramePipeline()
   }
 
   on<TKey extends keyof RecorderEventMap>(
@@ -60,6 +76,14 @@ export class RecorderController {
     return { ...this.latestSessionSummary }
   }
 
+  async exportPCM(options: PcmExportOptions = {}): Promise<PcmExportResult> {
+    return exportPcmSnapshot(await this.requirePcmSnapshot(), options)
+  }
+
+  async exportWAV(options: WavExportOptions = {}): Promise<WavExportResult> {
+    return exportWavSnapshot(await this.requirePcmSnapshot(), options)
+  }
+
   async open(options: RecorderOpenOptions = {}): Promise<RecorderRuntimeInfo> {
     // open 只允许从未打开或已关闭状态进入，确保一次生命周期只绑定一个底层会话。
     this.assertState([RecorderState.Idle, RecorderState.Closed])
@@ -82,6 +106,9 @@ export class RecorderController {
       sampleRate: 0,
       channels: requestedChannelCount,
     }
+    await this.framePipeline.reset()
+    this.framePipeline = this.createFramePipeline()
+    await this.framePipeline.initialize?.()
 
     try {
       // 控制器不直接接触 Web Audio 细节，只通过适配器接收统一的帧/告警/错误回调。
@@ -173,6 +200,7 @@ export class RecorderController {
       await this.captureSession.close()
       this.captureSession = undefined
     }
+    await this.framePipeline.reset()
 
     this.transition(RecorderState.Closed)
   }
@@ -182,6 +210,7 @@ export class RecorderController {
       await this.captureSession.close()
       this.captureSession = undefined
     }
+    await this.framePipeline.reset()
 
     // destroy 代表控制器实例退出，不再允许保留任何事件订阅。
     this.transition(RecorderState.Destroyed)
@@ -190,6 +219,7 @@ export class RecorderController {
 
   private handleFrame(frame: AudioFrame): void {
     // 每一帧都顺带推进实时摘要，UI 和后续编码模块都可以只读 summary 获取累计结果。
+    this.framePipeline.acceptFrame(frame)
     this.sessionRuntimeInfo = {
       ...this.sessionRuntimeInfo,
       actualSampleRate: frame.sampleRate,
@@ -227,6 +257,26 @@ export class RecorderController {
     }
 
     return this.captureSession
+  }
+
+  private async requirePcmSnapshot() {
+    const snapshot = await this.framePipeline.getSnapshot()
+    if (!snapshot) {
+      throw new Error("Recorder has no PCM data to export.")
+    }
+
+    return snapshot
+  }
+
+  private createFramePipeline(): RecorderFramePipeline {
+    return new PcmFramePipeline(
+      createPcmBufferStore({
+        sessionId: this.activeSessionId,
+        startedAt: Date.now(),
+        storage: this.storageOptions,
+        emitIssue: (issue) => this.handleIssue(issue),
+      })
+    )
   }
 
   private assertState(allowedStates: RecorderState[]): void {

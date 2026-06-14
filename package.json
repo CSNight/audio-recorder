@@ -25,6 +25,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./storage/opfs": {
+      "types": "./dist/storage/opfs/index.d.ts",
+      "import": "./dist/storage/opfs/index.js"
+    },
+    "./storage/indexeddb": {
+      "types": "./dist/storage/indexeddb/index.d.ts",
+      "import": "./dist/storage/indexeddb/index.js"
     }
   },
   "devDependencies": {
