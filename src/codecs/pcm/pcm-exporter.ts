@@ -45,7 +45,7 @@ function interleaveChannels(
 ): Int16Array {
   const frameLength = planar[0]?.length ?? 0
 
-  // Fix #6: specialised hot paths avoid optional-chaining overhead in the inner loop.
+  // specialised hot paths avoid optional-chaining overhead in the inner loop.
   if (channels === 1) {
     // Mono: a direct copy is all that is needed.
     const ch0 = planar[0]
@@ -69,7 +69,7 @@ function convertInt16ToInt8(source: Int16Array): Int8Array {
 
   for (let index = 0; index < source.length; index += 1) {
     const sample = source[index] ?? 0
-    // Fix #8: arithmetic right-shift avoids Math.round truncation at +32767
+    // arithmetic right-shift avoids Math.round truncation at +32767
     // (32767 >> 8 === 127, whereas Math.round(32767/256) would also be 128 clamped to 127,
     //  but >> 8 is both faster and semantically correct for PCM bit-depth reduction).
     output[index] = sample >> 8

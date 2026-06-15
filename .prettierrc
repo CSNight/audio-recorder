@@ -3,7 +3,7 @@
   "semi": false,
   "trailingComma": "es5",
   "bracketSpacing": true,
-  "endOfLine": "lf",
+  "endOfLine": "crlf",
   "bracketSameLine": false,
   "cursorOffset": 2,
   "useTabs": false,

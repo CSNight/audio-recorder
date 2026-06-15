@@ -17,6 +17,7 @@ type ComplexStage = "memory" | "promoting" | "persist"
 export class ComplexPcmBufferStore implements PcmBufferStore {
   private readonly memoryThresholdBytes: number
   private readonly memoryStore = new InMemoryPcmBufferStore()
+  // promotion 期间的新帧先落到过渡缓冲，避免和历史快照迁移互相竞争。
   private readonly promotionStore = new InMemoryPcmBufferStore()
   private readonly persistStore: PersistPcmBufferStore
   private stage: ComplexStage = "memory"
@@ -41,6 +42,7 @@ export class ComplexPcmBufferStore implements PcmBufferStore {
         this.memoryThresholdBytes > 0 &&
         this.memoryBytes > this.memoryThresholdBytes
       ) {
+        // 超阈值后异步发起 promotion；当前帧仍算作内存阶段的一部分。
         this.startPromotion()
       }
       return

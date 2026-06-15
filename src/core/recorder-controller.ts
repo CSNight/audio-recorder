@@ -27,6 +27,7 @@ import { RecorderInputSource, RecorderState } from "@/types"
 import { EventBus } from "@/core/event-bus"
 
 export class RecorderController {
+  // 控制器内统一维护核心事件总线，UI 与内置插件都从这里观察状态与数据流。
   private readonly eventBus = new EventBus<RecorderEventMap>()
   private readonly captureAdapter: CaptureAdapter
   private readonly encoderRegistry: EncoderRegistry
@@ -146,8 +147,7 @@ export class RecorderController {
 
     const requestedChannelCount = options.capture?.channelCount ?? 1
     // 每次 open 都生成新的 sessionId，方便事件流、日志和后续导出链路关联同一轮会话。
-    // Fix #12: save previous sessionId so we can restore it if open() fails,
-    // avoiding a dangling empty string that leaks the assigned-but-never-used id.
+    // 同时保留旧值，避免 open 失败后留下一个“已分配但未真正启用”的会话标识。
     const prevSessionId = this.activeSessionId
     this.activeSessionId = this.createSessionId()
     this.sessionRuntimeInfo = {
@@ -180,13 +180,9 @@ export class RecorderController {
         error instanceof Error ? error : new Error("Failed to open recorder.")
       // open 失败时回收已初始化的管线（含已打开的持久化会话），避免句柄泄漏。
       await Promise.resolve(this.framePipeline.reset()).catch(() => undefined)
-      // Fix #3: restore framePipeline to a clean known-good state so a failed
-      // open() does not leave a partially-initialised pipeline behind for the
-      // next open() attempt.
+      // 失败后重建一条干净管线，避免下一次 open 复用到半初始化状态。
       this.framePipeline = new PcmFramePipeline()
-      // Fix #12: restore the previous sessionId so a failed open() does not
-      // leak the newly-assigned-but-never-used identifier, and does not leave
-      // activeSessionId in an invalid empty state if open() is retried.
+      // 会话未真正建立时恢复旧 sessionId，保持控制器上下文稳定可重试。
       this.activeSessionId = prevSessionId
       this.handleIssue({
         kind: "error",
@@ -268,11 +264,9 @@ export class RecorderController {
       RecorderState.Stopped,
     ])
 
-    // Fix #4: if close() is called while recording or paused, the session was
-    // never explicitly stopped, so stop hooks have not been fired yet.
-    // Mirror the stop() sequence — session.stop() → transition(Stopped) →
-    // pluginHost.onStop() — before tearing down the capture graph, so plugins
-    // and listeners always observe a Stopped state prior to Closed.
+    // 如果在 recording / paused 直接 close，需要先补齐 stop 时序：
+    // session.stop() -> transition(stopped) -> pluginHost.onStop()。
+    // 这样插件和外部监听器总能先看到 stopped，再看到 closed。
     if (
       this.recorderState === RecorderState.Recording ||
       this.recorderState === RecorderState.Paused
@@ -357,6 +351,7 @@ export class RecorderController {
   }
 
   private createFramePipeline(): RecorderFramePipeline {
+    // 管线和持久化会话都按录音 session 维度创建，避免跨轮次复用旧缓冲。
     return new PcmFramePipeline(
       createPcmBufferStore({
         sessionId: this.activeSessionId,

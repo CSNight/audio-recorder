@@ -86,6 +86,7 @@ export class PersistPcmBufferStore implements PcmBufferStore {
 
   appendSnapshot(snapshot: PcmBufferSnapshot): void {
     this.requireActiveSession()
+    // 上层如果已经拼好完整 snapshot，可直接落盘，不必再经过 pendingChunkStore 重分块。
     // Intentional direct-write shortcut: bypass pendingChunkStore accumulation
     // and write the caller-supplied snapshot straight to the persistence layer.
     // This is used when the caller has already assembled a complete snapshot
@@ -104,7 +105,7 @@ export class PersistPcmBufferStore implements PcmBufferStore {
 
     if (this.lastWriteError) {
       const error = this.lastWriteError
-      // Fix #2: clear the error after surfacing it once so a single failed
+      // clear the error after surfacing it once so a single failed
       // write doesn't permanently lock snapshot() until clear() is called.
       this.lastWriteError = undefined
       throw error
@@ -114,7 +115,9 @@ export class PersistPcmBufferStore implements PcmBufferStore {
       return mergeSnapshots(await session.readSnapshots())
     } catch (error) {
       this.lastWriteError =
-        error instanceof Error ? error : new Error("Failed to merge persisted snapshots.")
+        error instanceof Error
+          ? error
+          : new Error("Failed to merge persisted snapshots.")
       throw this.lastWriteError
     }
   }
@@ -193,7 +196,8 @@ export class PersistPcmBufferStore implements PcmBufferStore {
   }
 
   private queueSnapshotWrite(snapshot: PcmBufferSnapshot): void {
-    // Fix #6: if a write has already failed, skip queuing further writes to
+    // 一旦写入已经失败，就不再继续排队，避免录音热路径持续制造重复错误事件。
+    // if a write has already failed, skip queuing further writes to
     // avoid emitting one error event per incoming frame (event storm). The
     // caller will surface the persisted error on the next snapshot() call.
     if (this.lastWriteError) {
@@ -211,7 +215,7 @@ export class PersistPcmBufferStore implements PcmBufferStore {
           error instanceof Error
             ? error
             : new Error("Failed to persist PCM snapshot.")
-        // Fix #2: surface write errors immediately via the issue channel so
+        // surface write errors immediately via the issue channel so
         // callers don't have to wait for the next snapshot() call to discover them.
         this.emitIssue?.({ kind: "error", error: this.lastWriteError })
         throw this.lastWriteError

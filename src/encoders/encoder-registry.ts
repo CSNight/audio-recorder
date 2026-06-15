@@ -14,7 +14,7 @@ export interface SnapshotEncoderDefinition<
 }
 
 /**
- * Fix #4: Discriminated union map that links encoder names to their option/result
+ * Discriminated union map that links encoder names to their option/result
  * types, enabling fully type-safe `export()` calls without casting at call sites.
  */
 export interface EncoderMap {

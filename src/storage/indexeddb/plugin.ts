@@ -109,7 +109,7 @@ async function cleanupStaleSessions(
 ): Promise<void> {
   const { keys } = await getAllEntries(database)
   const staleKeys = keys.filter(
-    // Fix #7: skip keys that don't contain CHUNK_KEY_SEPARATOR — they are not
+    // skip keys that don't contain CHUNK_KEY_SEPARATOR — they are not
     // chunk records written by this plugin and must not be deleted.
     (key) =>
       key.includes(CHUNK_KEY_SEPARATOR) &&
@@ -245,7 +245,7 @@ function runTransaction(
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(STORE_NAME, mode)
     const store = transaction.objectStore(STORE_NAME)
-    // Fix #2: use a single reject guard so that request.onerror and
+    // use a single reject guard so that request.onerror and
     // transaction.onerror both funnel into one rejection without double-reject.
     // In real IDB, request errors bubble to transaction.onerror, but we also
     // set request.onerror for environments/mocks that don't implement bubbling.

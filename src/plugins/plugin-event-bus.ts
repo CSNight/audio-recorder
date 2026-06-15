@@ -32,6 +32,7 @@ export class PluginEventBus implements RecorderPluginEventBus {
   register(event: string): void {
     this.assertRegistrableEvent(event)
 
+    // 事件名先登记再允许 emit，避免插件在运行时随意扩散未声明事件。
     this.registeredEvents.add(event)
   }
 
@@ -41,6 +42,7 @@ export class PluginEventBus implements RecorderPluginEventBus {
   ): void {
     this.assertRegisteredEvent(event)
 
+    // 插件事件统一补齐宿主上下文，外部监听方不需要自行拼接会话信息。
     const pluginEvent: RecorderPluginEventContext<TPayload> = {
       pluginName: this.pluginName,
       payload,
@@ -54,6 +56,7 @@ export class PluginEventBus implements RecorderPluginEventBus {
   }
 
   private assertRegistrableEvent(event: string): void {
+    // 核心事件名保留给控制器，避免插件伪造 frame/statechange/issue。
     if (RESERVED_EVENT_NAMES.has(event)) {
       throw new Error(
         `Recorder plugin event "${event}" is reserved for the core event bus.`

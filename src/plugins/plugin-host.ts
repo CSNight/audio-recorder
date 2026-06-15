@@ -27,6 +27,7 @@ interface PluginHostOptions {
 }
 
 export class PluginHost {
+  // 保持注册顺序，确保运行期 hook 派发顺序与宿主声明顺序一致。
   private readonly plugins: RecorderPlugin[] = []
 
   constructor(private readonly options: PluginHostOptions) {}
@@ -37,6 +38,7 @@ export class PluginHost {
     }
 
     try {
+      // 只向插件暴露受限上下文，避免插件直接依赖控制器内部实现细节。
       await plugin.setup(this.createPluginContext(plugin.name))
       this.plugins.push(plugin)
     } catch (error) {
@@ -70,6 +72,7 @@ export class PluginHost {
   }
 
   async destroy(): Promise<void> {
+    // 逆序销毁与常见资源栈一致，后注册的插件通常依赖前面插件暴露的能力。
     const plugins = [...this.plugins].reverse()
     this.plugins.length = 0
 
@@ -94,6 +97,7 @@ export class PluginHost {
       recorder: this.options.recorder,
       getRuntimeInfo: () => this.options.getRuntimeInfo(),
       getLatestSummary: () => this.options.getLatestSummary(),
+      // 插件拿到的是受限事件门面，而不是核心 EventBus 实例本身。
       eventBus: new PluginEventBus(
         pluginName,
         this.options.eventBus,
@@ -126,6 +130,7 @@ export class PluginHost {
       try {
         dispatch(plugin, frame)
       } catch (error) {
+        // 单个插件异常只通过 issue 上报，不中断其余插件，避免观察类插件互相拖垮。
         this.options.emitIssue({
           kind: "error",
           error: this.createPluginError(plugin.name, hookName, error),
