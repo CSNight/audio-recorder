@@ -151,14 +151,24 @@ function getAllEntries(database: IDBDatabase): Promise<{
     const keysRequest = store.getAllKeys()
     const valuesRequest = store.getAll()
 
-    transaction.oncomplete = () =>
-      resolve({
-        keys: ((keysRequest.result as readonly IDBValidKey[]) ?? []).filter(
-          (key): key is string => typeof key === "string"
-        ),
-        values:
-          (valuesRequest.result as readonly (ArrayBuffer | undefined)[]) ?? [],
-      })
+    transaction.oncomplete = () => {
+      const rawKeys =
+        (keysRequest.result as readonly IDBValidKey[] | null) ?? []
+      const rawValues =
+        (valuesRequest.result as readonly (ArrayBuffer | undefined)[] | null) ??
+        []
+      // Filter to string keys only, keeping values aligned by index
+      const keys: string[] = []
+      const values: (ArrayBuffer | undefined)[] = []
+      for (let i = 0; i < rawKeys.length; i++) {
+        const key = rawKeys[i]
+        if (typeof key === "string") {
+          keys.push(key)
+          values.push(rawValues[i])
+        }
+      }
+      resolve({ keys, values })
+    }
     transaction.onerror = () =>
       reject(transaction.error ?? new Error("Failed to read IndexedDB store."))
   })

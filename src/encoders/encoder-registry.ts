@@ -9,6 +9,15 @@ export interface SnapshotEncoderDefinition<TOptions, TResult> {
   export(snapshot: PcmBufferSnapshot, options?: TOptions): TResult
 }
 
+/**
+ * Fix #4: Discriminated union map that links encoder names to their option/result
+ * types, enabling fully type-safe `export()` calls without casting at call sites.
+ */
+export interface EncoderMap {
+  pcm: { options: PcmExportOptions; result: PcmExportResult }
+  wav: { options: WavExportOptions; result: WavExportResult }
+}
+
 export class EncoderRegistry {
   private readonly encoders = new Map<
     string,
@@ -30,21 +39,36 @@ export class EncoderRegistry {
     )
   }
 
+  /**
+   * Type-safe overload for known encoder names declared in {@link EncoderMap}.
+   * Callers that pass a literal key (e.g. `"pcm"`) get the correct result type
+   * inferred automatically without any manual generic arguments.
+   */
+  export<TKey extends keyof EncoderMap>(
+    type: TKey,
+    snapshot: PcmBufferSnapshot,
+    options?: EncoderMap[TKey]["options"]
+  ): EncoderMap[TKey]["result"]
+
+  /** Fallback overload for dynamically registered encoders not in EncoderMap. */
   export<TOptions, TResult>(
     type: string,
     snapshot: PcmBufferSnapshot,
     options?: TOptions
-  ): TResult {
+  ): TResult
+
+  export(
+    type: string,
+    snapshot: PcmBufferSnapshot,
+    options?: unknown
+  ): unknown {
     const encoder = this.encoders.get(type)
 
     if (!encoder) {
       throw new Error(`Recorder encoder "${type}" is not registered.`)
     }
 
-    return (encoder as SnapshotEncoderDefinition<TOptions, TResult>).export(
-      snapshot,
-      options
-    )
+    return encoder.export(snapshot, options)
   }
 }
 

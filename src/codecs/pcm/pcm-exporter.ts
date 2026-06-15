@@ -38,13 +38,21 @@ function interleaveChannels(
   channels: 1 | 2
 ): Int16Array {
   const frameLength = planar[0]?.length ?? 0
-  const interleaved = new Int16Array(frameLength * channels)
 
-  for (let sampleIndex = 0; sampleIndex < frameLength; sampleIndex += 1) {
-    for (let channelIndex = 0; channelIndex < channels; channelIndex += 1) {
-      interleaved[sampleIndex * channels + channelIndex] =
-        planar[channelIndex]?.[sampleIndex] ?? 0
-    }
+  // Fix #6: specialised hot paths avoid optional-chaining overhead in the inner loop.
+  if (channels === 1) {
+    // Mono: a direct copy is all that is needed.
+    const ch0 = planar[0]
+    return ch0 ? new Int16Array(ch0) : new Int16Array(frameLength)
+  }
+
+  // Stereo: unrolled two-channel interleave with direct index writes.
+  const interleaved = new Int16Array(frameLength * 2)
+  const ch0 = planar[0]
+  const ch1 = planar[1]
+  for (let i = 0; i < frameLength; i += 1) {
+    interleaved[i * 2] = ch0 ? ch0[i]! : 0
+    interleaved[i * 2 + 1] = ch1 ? ch1[i]! : 0
   }
 
   return interleaved
@@ -55,7 +63,10 @@ function convertInt16ToInt8(source: Int16Array): Int8Array {
 
   for (let index = 0; index < source.length; index += 1) {
     const sample = source[index] ?? 0
-    output[index] = Math.max(-128, Math.min(127, Math.round(sample / 256)))
+    // Fix #8: arithmetic right-shift avoids Math.round truncation at +32767
+    // (32767 >> 8 === 127, whereas Math.round(32767/256) would also be 128 clamped to 127,
+    //  but >> 8 is both faster and semantically correct for PCM bit-depth reduction).
+    output[index] = sample >> 8
   }
 
   return output

@@ -99,7 +99,11 @@ export class PersistPcmBufferStore implements PcmBufferStore {
     await this.pendingWrite
 
     if (this.lastWriteError) {
-      throw this.lastWriteError
+      const error = this.lastWriteError
+      // Fix #2: clear the error after surfacing it once so a single failed
+      // write doesn't permanently lock snapshot() until clear() is called.
+      this.lastWriteError = undefined
+      throw error
     }
 
     return mergeSnapshots(await session.readSnapshots())
@@ -190,6 +194,9 @@ export class PersistPcmBufferStore implements PcmBufferStore {
           error instanceof Error
             ? error
             : new Error("Failed to persist PCM snapshot.")
+        // Fix #2: surface write errors immediately via the issue channel so
+        // callers don't have to wait for the next snapshot() call to discover them.
+        this.emitIssue?.({ kind: "error", error: this.lastWriteError })
         throw this.lastWriteError
       })
   }

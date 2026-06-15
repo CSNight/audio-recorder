@@ -52,8 +52,7 @@ export class EventBus<TEvents extends EventMap> {
       return
     }
 
-    // 先快照监听器，避免回调在分发途中增删监听器导致漏发或越界。
-    for (const listener of [...eventListeners]) {
+    for (const listener of eventListeners) {
       // emit 只负责同步分发，具体异常处理交给上层监听器。
       ;(listener as Listener<TEvents[TKey]>)(payload)
     }

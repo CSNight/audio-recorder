@@ -140,12 +140,40 @@ class MockIdbObjectStore {
           const error = this.database.failNextGetAllKeysWith
           this.database.failNextGetAllKeysWith = null
           request.fail(error)
+          this.transaction.fail(error)
           return
         }
 
         request.succeed(Array.from(this.store.keys()))
       } catch (error) {
-        request.fail(toError(error, "Failed to list IndexedDB keys."))
+        const failure = toError(error, "Failed to list IndexedDB keys.")
+        request.fail(failure)
+        this.transaction.fail(failure)
+      }
+    })
+
+    return request as unknown as IDBRequest
+  }
+
+  getAll(): IDBRequest {
+    const request = new MockIdbRequest<readonly unknown[]>()
+
+    queueMicrotask(() => {
+      try {
+        if (this.database.failNextGetWith) {
+          const error = this.database.failNextGetWith
+          this.database.failNextGetWith = null
+          request.fail(error)
+          this.transaction.fail(error)
+          return
+        }
+
+        request.succeed(Array.from(this.store.values()))
+        this.transaction.complete()
+      } catch (error) {
+        const failure = toError(error, "Failed to get all IndexedDB values.")
+        request.fail(failure)
+        this.transaction.fail(failure)
       }
     })
 

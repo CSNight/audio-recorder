@@ -155,6 +155,10 @@ export class RecorderController {
         error instanceof Error ? error : new Error("Failed to open recorder.")
       // open 失败时回收已初始化的管线（含已打开的持久化会话），避免句柄泄漏。
       await Promise.resolve(this.framePipeline.reset()).catch(() => undefined)
+      // Fix #3: restore framePipeline to a clean known-good state so a failed
+      // open() does not leave a partially-initialised pipeline behind for the
+      // next open() attempt.
+      this.framePipeline = new PcmFramePipeline()
       this.handleIssue({
         kind: "error",
         error: wrappedError,
