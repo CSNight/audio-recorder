@@ -109,7 +109,11 @@ async function cleanupStaleSessions(
 ): Promise<void> {
   const { keys } = await getAllEntries(database)
   const staleKeys = keys.filter(
-    (key) => parseSessionIdFromKey(key) !== activeSessionId
+    // Fix #7: skip keys that don't contain CHUNK_KEY_SEPARATOR — they are not
+    // chunk records written by this plugin and must not be deleted.
+    (key) =>
+      key.includes(CHUNK_KEY_SEPARATOR) &&
+      parseSessionIdFromKey(key) !== activeSessionId
   )
   await deleteKeys(database, staleKeys)
 }

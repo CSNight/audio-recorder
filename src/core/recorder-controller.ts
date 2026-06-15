@@ -124,6 +124,9 @@ export class RecorderController {
 
     const requestedChannelCount = options.capture?.channelCount ?? 1
     // 每次 open 都生成新的 sessionId，方便事件流、日志和后续导出链路关联同一轮会话。
+    // Fix #12: save previous sessionId so we can restore it if open() fails,
+    // avoiding a dangling empty string that leaks the assigned-but-never-used id.
+    const prevSessionId = this.activeSessionId
     this.activeSessionId = this.createSessionId()
     this.sessionRuntimeInfo = {
       requestedChannelCount,
@@ -159,9 +162,10 @@ export class RecorderController {
       // open() does not leave a partially-initialised pipeline behind for the
       // next open() attempt.
       this.framePipeline = new PcmFramePipeline()
-      // Fix #12: clear the sessionId that was assigned before initialize() so
-      // a failed open() does not leak a dangling session identifier.
-      this.activeSessionId = ""
+      // Fix #12: restore the previous sessionId so a failed open() does not
+      // leak the newly-assigned-but-never-used identifier, and does not leave
+      // activeSessionId in an invalid empty state if open() is retried.
+      this.activeSessionId = prevSessionId
       this.handleIssue({
         kind: "error",
         error: wrappedError,
@@ -243,11 +247,19 @@ export class RecorderController {
     ])
 
     // Fix #4: if close() is called while recording or paused, the session was
-    // never explicitly stopped, so onStop hooks have not been fired yet.
-    // Run them now before tearing down the capture graph.
-    const wasActive =
+    // never explicitly stopped, so stop hooks have not been fired yet.
+    // Mirror the stop() sequence — session.stop() → transition(Stopped) →
+    // pluginHost.onStop() — before tearing down the capture graph, so plugins
+    // and listeners always observe a Stopped state prior to Closed.
+    if (
       this.recorderState === RecorderState.Recording ||
       this.recorderState === RecorderState.Paused
+    ) {
+      const session = this.requireSession()
+      await session.stop()
+      this.transition(RecorderState.Stopped)
+      this.pluginHost.onStop()
+    }
 
     if (this.captureSession) {
       // close 会关闭底层采集图和可能由适配器持有的 MediaStream。
@@ -255,10 +267,6 @@ export class RecorderController {
       this.captureSession = undefined
     }
     await this.framePipeline.reset()
-
-    if (wasActive) {
-      this.pluginHost.onStop()
-    }
 
     this.transition(RecorderState.Closed)
   }

@@ -8,96 +8,45 @@ export interface ResampledPcm {
   planar: Int16Array[]
 }
 
-/**
- * 线性插值重采样。注意：不带抗混叠低通滤波，**降采样时会产生混叠失真**
- * （高频折返为可闻噪声）。适用于轻量场景；对保真有要求时应在外部先做低通。
- */
-export function resamplePlanarPcm(
-  snapshot: PcmBufferSnapshot,
-  targetSampleRate: number
-): ResampledPcm {
-  if (targetSampleRate <= 0) {
-    throw new Error(
-      `Resample target sampleRate must be positive, received ${targetSampleRate}.`
-    )
-  }
-
-  if (snapshot.planar.length === 0) {
-    throw new Error("Resample snapshot must contain at least one channel.")
-  }
-
-  if (targetSampleRate === snapshot.sampleRate) {
-    return {
-      sampleRate: snapshot.sampleRate,
-      channels: snapshot.channels,
-      durationMs: snapshot.durationMs,
-      planar: snapshot.planar.map((channel) => new Int16Array(channel)),
-    }
-  }
-
-  const planar = snapshot.planar.map((channel) =>
-    resampleChannel(channel, snapshot.sampleRate, targetSampleRate)
-  )
-  const frameLength = planar[0]?.length ?? 0
-
-  return {
-    sampleRate: targetSampleRate,
-    channels: snapshot.channels,
-    durationMs: frameLength === 0 ? 0 : (frameLength / targetSampleRate) * 1000,
-    planar,
-  }
-}
-
-function resampleChannel(
-  input: Int16Array,
-  sourceSampleRate: number,
-  targetSampleRate: number
-): Int16Array {
-  if (input.length === 0) {
-    return new Int16Array(0)
-  }
-
-  const ratio = sourceSampleRate / targetSampleRate
-  const targetLength = Math.max(1, Math.round(input.length / ratio))
-  const output = new Int16Array(targetLength)
-
-  for (let targetIndex = 0; targetIndex < targetLength; targetIndex += 1) {
-    const sourcePosition = targetIndex * ratio
-    const leftIndex = Math.min(input.length - 1, Math.floor(sourcePosition))
-    const rightIndex = Math.min(input.length - 1, leftIndex + 1)
-    const interpolationWeight = sourcePosition - leftIndex
-    const leftSample = input[leftIndex] ?? 0
-    const rightSample = input[rightIndex] ?? leftSample
-
-    output[targetIndex] = Math.round(
-      leftSample + (rightSample - leftSample) * interpolationWeight
-    )
-  }
-
-  return output
+export interface ResampleOptions {
+  /**
+   * 是否使用高保真算法。
+   *
+   * - 降采样（HQ = true）：Hann 窗 sinc FIR 低通滤波 + 抽取（FFT overlap-add），
+   *   消除混叠失真，适合语音/音乐上传场景。
+   * - 降采样（HQ = false）：直接线性插值，速度快但降采样时会产生高频混叠噪声。
+   * - 升采样（HQ = true）：Lanczos-3 sinc 插值，保留高频细节，适合音质优先场景。
+   * - 升采样（HQ = false）：线性插值，速度快，引入轻微高频平滑，适合实时预览场景。
+   *
+   * 默认 `false`（快速模式）。
+   */
+  isHQ?: boolean
+  /**
+   * 低通滤波器单侧抽头数（仅降采样 HQ 模式生效）。
+   * 越大截止越陡但越慢，默认 64。
+   */
+  filterHalfTaps?: number
 }
 
 // ---------------------------------------------------------------------------
-// 带低通滤波的保真降采样
+// 公共统一入口
 // ---------------------------------------------------------------------------
 
 /**
- * 使用窗函数 sinc 低通滤波器（Hann 窗）进行抗混叠重采样。
+ * PCM 重采样统一入口。
  *
- * 降采样前先以奈奎斯特频率（targetSampleRate / 2）为截止频率做低通滤波，
- * 从而消除折叠噪声，适合对保真度有要求的场景（如语音/音乐录制上传）。
+ * 根据 `options.isHQ` 自动选择算法：
+ * - 升采样 + HQ：Lanczos-3 sinc 插值
+ * - 升采样 + LQ：线性插值
+ * - 降采样 + HQ：Hann 窗 sinc FIR 低通 + 抽取（FFT overlap-add）
+ * - 降采样 + LQ：直接线性插值（有混叠，轻量）
  *
- * 升采样时与 {@link resamplePlanarPcm} 行为相同（线性插值），因为升采样
- * 不存在混叠问题。
- *
- * @param snapshot        原始 PCM 快照
- * @param targetSampleRate 目标采样率（Hz）
- * @param filterHalfTaps  滤波器单侧抽头数，默认 64；越大截止越陡，但越慢
+ * 采样率相同时直接复制，不执行任何滤波/插值。
  */
-export function resamplePlanarPcmHQ(
+export function resample(
   snapshot: PcmBufferSnapshot,
   targetSampleRate: number,
-  filterHalfTaps = 64
+  options: ResampleOptions = {}
 ): ResampledPcm {
   if (targetSampleRate <= 0) {
     throw new Error(
@@ -105,8 +54,6 @@ export function resamplePlanarPcmHQ(
     )
   }
 
-  // Fix #9: guard zero-channel BEFORE the same-rate early return so an empty
-  // snapshot never silently produces a valid-looking result in any code path.
   if (snapshot.planar.length === 0) {
     throw new Error("Resample snapshot must contain at least one channel.")
   }
@@ -121,21 +68,20 @@ export function resamplePlanarPcmHQ(
   }
 
   const isDownsample = targetSampleRate < snapshot.sampleRate
+  const isHQ = options.isHQ ?? false
+  const filterHalfTaps = options.filterHalfTaps ?? 64
 
-  const planar = snapshot.planar.map((channel) => {
-    if (isDownsample) {
-      // 降采样：先低通滤波再抽取
-      const filtered = lowPassFilter(
-        channel,
-        snapshot.sampleRate,
-        targetSampleRate / 2,
-        filterHalfTaps
-      )
-      return resampleChannel(filtered, snapshot.sampleRate, targetSampleRate)
-    }
-    // 升采样：不存在混叠，直接线性插值
-    return resampleChannel(channel, snapshot.sampleRate, targetSampleRate)
-  })
+  const planar = snapshot.planar.map((channel) =>
+    isDownsample
+      ? downsampleChannel(
+          channel,
+          snapshot.sampleRate,
+          targetSampleRate,
+          isHQ,
+          filterHalfTaps
+        )
+      : upsampleChannel(channel, snapshot.sampleRate, targetSampleRate, isHQ)
+  )
 
   const frameLength = planar[0]?.length ?? 0
 
@@ -146,17 +92,159 @@ export function resamplePlanarPcmHQ(
     planar,
   }
 }
+function linearResample(
+  input: Int16Array,
+  sourceSampleRate: number,
+  targetSampleRate: number
+): Int16Array {
+  const ratio = sourceSampleRate / targetSampleRate
+  const targetLength = Math.max(1, Math.round(input.length / ratio))
+  const output = new Int16Array(targetLength)
+
+  for (let targetIndex = 0; targetIndex < targetLength; targetIndex += 1) {
+    const sourcePosition = targetIndex * ratio
+    const leftIndex = Math.min(input.length - 1, Math.floor(sourcePosition))
+    const rightIndex = Math.min(input.length - 1, leftIndex + 1)
+    const weight = sourcePosition - leftIndex
+    const leftSample = input[leftIndex] ?? 0
+    const rightSample = input[rightIndex] ?? leftSample
+
+    output[targetIndex] = Math.round(
+      leftSample + (rightSample - leftSample) * weight
+    )
+  }
+
+  return output
+}
+
+// ---------------------------------------------------------------------------
+// 升采样实现
+// ---------------------------------------------------------------------------
 
 /**
- * 基于窗函数 sinc（Hann 窗）的 FIR 低通滤波器。
+ * 升采样单通道 PCM。
  *
- * Fix #10: 使用 FFT overlap-add 算法，将复杂度从 O(n×M) 降至 O(n log M)。
- * 对于 halfTaps=64（M=128 抽头）和典型音频帧（≥4096 样本），速度提升约 10-30×。
+ * - HQ = true：Lanczos-3 sinc 插值（减少高频平滑，音质更好）
+ * - HQ = false：线性插值（速度更快，引入轻微高频平滑）
  *
- * @param input        输入 Int16 PCM
- * @param sampleRate   当前采样率（Hz），用于将截止频率归一化
- * @param cutoffHz     截止频率（Hz），通常设为 targetSampleRate / 2
- * @param halfTaps     单侧抽头数（总长度 = 2*halfTaps + 1）
+ * 升采样不存在混叠问题，故无需低通预滤波。
+ */
+function upsampleChannel(
+  input: Int16Array,
+  sourceSampleRate: number,
+  targetSampleRate: number,
+  isHQ: boolean
+): Int16Array {
+  if (input.length === 0) {
+    return new Int16Array(0)
+  }
+
+  return isHQ
+    ? upsampleChannelHQ(input, sourceSampleRate, targetSampleRate)
+    : linearResample(input, sourceSampleRate, targetSampleRate)
+}
+
+/**
+ * 升采样 HQ：Lanczos-3 sinc 插值。
+ *
+ * 使用 Lanczos 窗（a=3）对 sinc 核加权，保留更多高频细节，减少线性插值带来的
+ * 高频滚降（模糊感）。适合音质优先的离线处理场景。
+ *
+ * 复杂度 O(n × 2a)，a=3 时每输出样本需 6 次卷积，对超长信号可考虑改用 polyphase
+ * 滤波器组进一步加速。
+ */
+function upsampleChannelHQ(
+  input: Int16Array,
+  sourceSampleRate: number,
+  targetSampleRate: number
+): Int16Array {
+  const ratio = sourceSampleRate / targetSampleRate
+  const targetLength = Math.max(1, Math.round(input.length / ratio))
+  const output = new Int16Array(targetLength)
+  const a = 3 // Lanczos 窗阶数
+
+  for (let targetIndex = 0; targetIndex < targetLength; targetIndex += 1) {
+    const sourcePosition = targetIndex * ratio
+    const center = Math.floor(sourcePosition)
+    let value = 0
+    let weightSum = 0
+
+    for (let k = center - a + 1; k <= center + a; k++) {
+      const clampedK = Math.max(0, Math.min(input.length - 1, k))
+      const x = sourcePosition - k
+      const w = lanczos(x, a)
+      value += (input[clampedK] ?? 0) * w
+      weightSum += w
+    }
+
+    // 归一化防止边界处因截断产生增益误差
+    const normalized = weightSum > 1e-10 ? value / weightSum : value
+    output[targetIndex] = Math.max(
+      -32768,
+      Math.min(32767, Math.round(normalized))
+    )
+  }
+
+  return output
+}
+
+/** Lanczos 核函数：sinc(x) * sinc(x/a)，|x| < a 时有效，否则为 0 */
+function lanczos(x: number, a: number): number {
+  if (Math.abs(x) < 1e-10) return 1
+  if (Math.abs(x) >= a) return 0
+  const pix = Math.PI * x
+  return (a * Math.sin(pix) * Math.sin(pix / a)) / (pix * pix)
+}
+
+// ---------------------------------------------------------------------------
+// 降采样实现
+// ---------------------------------------------------------------------------
+
+/**
+ * 降采样单通道 PCM。
+ *
+ * - HQ = true：Hann 窗 sinc FIR 低通滤波（FFT overlap-add）+ 抽取，消除混叠
+ * - HQ = false：直接线性插值（快速，但降采样时会产生高频混叠噪声）
+ */
+function downsampleChannel(
+  input: Int16Array,
+  sourceSampleRate: number,
+  targetSampleRate: number,
+  isHQ: boolean,
+  filterHalfTaps: number
+): Int16Array {
+  if (input.length === 0) {
+    return new Int16Array(0)
+  }
+
+  if (isHQ) {
+    // 先低通滤波消除奈奎斯特以上的频率分量，再抽取
+    const filtered = lowPassFilter(
+      input,
+      sourceSampleRate,
+      targetSampleRate / 2,
+      filterHalfTaps
+    )
+    return linearResample(filtered, sourceSampleRate, targetSampleRate)
+  }
+
+  return linearResample(input, sourceSampleRate, targetSampleRate)
+}
+
+// ---------------------------------------------------------------------------
+// 低通 FIR 滤波器（公开，可单独使用）
+// ---------------------------------------------------------------------------
+
+/**
+ * 基于 Hann 窗 sinc 的 FIR 低通滤波器，使用 FFT overlap-add 加速。
+ *
+ * 复杂度 O(n log M)（overlap-add），对典型音频帧（≥4096 样本，halfTaps=64）
+ * 比直接卷积 O(n×M) 快约 10–30×。
+ *
+ * @param input      输入 Int16 PCM
+ * @param sampleRate 当前采样率（Hz）
+ * @param cutoffHz   截止频率（Hz），通常设为 targetSampleRate / 2
+ * @param halfTaps   单侧抽头数（总长度 = 2×halfTaps + 1），默认 64
  */
 export function lowPassFilter(
   input: Int16Array,
@@ -205,14 +293,12 @@ export function lowPassFilter(
   }
 
   // ---------------------------------------------------------------------------
-  // FFT overlap-add 卷积（Fix #10）
+  // FFT overlap-add 卷积
   //
-  // 原理：将长度为 N 的输入切成长度为 L 的块，每块分别与长度为 M=totalTaps 的
-  // 核做 FFT 域快速卷积（DFT 长度 P = nextPow2(L + M - 1)），再将各块线性输出
-  // 累加（overlap-add）。总复杂度 O(n log P) ≪ 直接卷积 O(n×M)。
+  // 将长度 N 的输入切成长度 L 的块，每块与长度 M=totalTaps 的核做 FFT 域快速卷积
+  // （DFT 长度 P = nextPow2(L + M - 1)），再将各块输出线性叠加（overlap-add）。
   // ---------------------------------------------------------------------------
 
-  // 选取块长使 FFT 大小在 512~8192 之间以兼顾小核和大缓冲。
   const blockSize = Math.max(totalTaps, nextPow2(totalTaps * 8))
   const fftSize = nextPow2(blockSize + totalTaps - 1)
 
@@ -227,29 +313,23 @@ export function lowPassFilter(
     const blockEnd = Math.min(blockStart + blockSize, input.length)
     const actualLen = blockEnd - blockStart
 
-    // 将当前块补零至 fftSize
     const block = new Float64Array(fftSize)
     for (let i = 0; i < actualLen; i++) {
       block[i] = input[blockStart + i] ?? 0
     }
 
-    // 正向 FFT
     const blockFreq = fftForward(block, fftSize)
-
-    // 频域复数相乘
     const product = complexMultiply(blockFreq, kernelFreq, fftSize)
-
-    // 逆向 FFT，得到线性卷积结果（长度 actualLen + totalTaps - 1）
     const convResult = fftInverse(product, fftSize)
 
-    // overlap-add：将结果叠加到输出缓冲
     const writeLen = Math.min(convResult.length, output.length - blockStart)
     for (let i = 0; i < writeLen; i++) {
-      output[blockStart + i] = (output[blockStart + i] ?? 0) + (convResult[i] ?? 0)
+      output[blockStart + i] =
+        (output[blockStart + i] ?? 0) + (convResult[i] ?? 0)
     }
   }
 
-  // 将 FIR 延迟（M 个样本）补偿掉：输出向左移 M 个样本（因果滤波器群延迟 = M）
+  // 补偿 FIR 群延迟（M 个样本），将结果向左移 M 个样本
   const out16 = new Int16Array(input.length)
   for (let i = 0; i < input.length; i++) {
     out16[i] = Math.max(-32768, Math.min(32767, Math.round(output[i + M] ?? 0)))
@@ -323,7 +403,6 @@ function fftInPlace(buf: Float64Array, N: number, inverse: boolean): void {
     }
     j ^= bit
     if (i < j) {
-      // 交换 buf[i] 和 buf[j]（每个元素占 2 个槽）
       let tmp = buf[i * 2] ?? 0
       buf[i * 2] = buf[j * 2] ?? 0
       buf[j * 2] = tmp
@@ -348,8 +427,12 @@ function fftInPlace(buf: Float64Array, N: number, inverse: boolean): void {
       for (let k = 0; k < halfLen; k++) {
         const uRe = buf[(i + k) * 2] ?? 0
         const uIm = buf[(i + k) * 2 + 1] ?? 0
-        const vRe = (buf[(i + k + halfLen) * 2] ?? 0) * curRe - (buf[(i + k + halfLen) * 2 + 1] ?? 0) * curIm
-        const vIm = (buf[(i + k + halfLen) * 2] ?? 0) * curIm + (buf[(i + k + halfLen) * 2 + 1] ?? 0) * curRe
+        const vRe =
+          (buf[(i + k + halfLen) * 2] ?? 0) * curRe -
+          (buf[(i + k + halfLen) * 2 + 1] ?? 0) * curIm
+        const vIm =
+          (buf[(i + k + halfLen) * 2] ?? 0) * curIm +
+          (buf[(i + k + halfLen) * 2 + 1] ?? 0) * curRe
 
         buf[(i + k) * 2] = uRe + vRe
         buf[(i + k) * 2 + 1] = uIm + vIm

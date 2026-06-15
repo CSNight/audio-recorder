@@ -1,6 +1,6 @@
 import type { PcmBufferSnapshot } from "@/buffer/types"
 import type { PcmExportOptions, PcmExportResult } from "@/codecs/pcm/types"
-import { resamplePlanarPcm, resamplePlanarPcmHQ } from "@/utils/resample"
+import { resample } from "@/utils/resample"
 
 function normalizeBitRate(bitRate: PcmExportOptions["bitRate"]): 8 | 16 {
   if (bitRate === undefined) {
@@ -19,15 +19,16 @@ export function exportPcmSnapshot(
 ): PcmExportResult {
   const targetSampleRate = options.sampleRate ?? snapshot.sampleRate
   const bitRate = normalizeBitRate(options.bitRate)
-  const normalized = options.isHQ
-    ? resamplePlanarPcmHQ(snapshot, targetSampleRate)
-    : resamplePlanarPcm(snapshot, targetSampleRate)
+  const normalized = resample(snapshot, targetSampleRate, options)
   if (normalized.channels > 2) {
     throw new Error(
       `PCM export does not support ${normalized.channels} channels. Only mono (1) and stereo (2) are supported.`
     )
   }
-  const interleaved = interleaveChannels(normalized.planar, normalized.channels as 1 | 2)
+  const interleaved = interleaveChannels(
+    normalized.planar,
+    normalized.channels as 1 | 2
+  )
 
   return {
     sampleRate: normalized.sampleRate,

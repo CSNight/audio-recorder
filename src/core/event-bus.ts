@@ -64,8 +64,9 @@ export class EventBus<TEvents extends EventMap> {
       return
     }
 
-    for (const listener of eventListeners) {
-      // emit 只负责同步分发，具体异常处理交给上层监听器。
+    // Fix #13: snapshot listeners before iteration so that a listener added
+    // inside a callback (e.g. via once()) does not fire in the current emit.
+    for (const listener of [...eventListeners]) {
       ;(listener as Listener<TEvents[TKey]>)(payload)
     }
   }

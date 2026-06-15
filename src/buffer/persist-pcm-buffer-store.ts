@@ -86,6 +86,10 @@ export class PersistPcmBufferStore implements PcmBufferStore {
 
   appendSnapshot(snapshot: PcmBufferSnapshot): void {
     this.requireActiveSession()
+    // Intentional direct-write shortcut: bypass pendingChunkStore accumulation
+    // and write the caller-supplied snapshot straight to the persistence layer.
+    // This is used when the caller has already assembled a complete snapshot
+    // (e.g. during session restore), so chunk-size bookkeeping is not needed.
     this.queueSnapshotWrite(snapshot)
   }
 
