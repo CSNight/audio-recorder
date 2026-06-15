@@ -54,6 +54,7 @@ createApp({
       storageDiagnostics: null,
       exportedBytes: null,
       activePersistenceBackend: null,
+      lastExportResult: null, // { pcm, wav } — 上次导出结果，用于下载
     })
 
     let recorder = createPlaygroundRecorder(
@@ -193,6 +194,7 @@ createApp({
       state.exportedBytes = null
       state.activePersistenceBackend = null
       state.storageDiagnostics = null
+      state.lastExportResult = null
     }
 
     async function initializeRecorder() {
@@ -306,8 +308,12 @@ createApp({
       await runLoggedAction(
         async () => {
           state.summary = await recorder.stop()
-          const exported = await recorder.exportPCM()
-          state.exportedBytes = exported.data.byteLength
+          const [pcmResult, wavResult] = await Promise.all([
+            recorder.exportPCM(),
+            recorder.exportWAV(),
+          ])
+          state.exportedBytes = pcmResult.data.byteLength
+          state.lastExportResult = { pcm: pcmResult, wav: wavResult }
           state.storageDiagnostics = await collectStorageDiagnostics(
             state.storageMode,
             state.persistenceBackend
@@ -318,12 +324,51 @@ createApp({
               : null
           appendLog(
             "info",
-            `录音已停止，共接收 ${state.summary.frames} 帧，累计时长 ${state.summary.durationMs.toFixed(1)}ms，导出 PCM ${state.exportedBytes} byte。`
+            `录音已停止，共接收 ${state.summary.frames} 帧，累计时长 ${state.summary.durationMs.toFixed(1)}ms，PCM ${pcmResult.data.byteLength} byte，WAV ${wavResult.arrayBuffer.byteLength} byte。`
           )
         },
         "",
-        "正在停止并导出 PCM..."
+        "正在停止并导出..."
       )
+    }
+
+    function downloadPCM() {
+      const result = state.lastExportResult?.pcm
+      if (!result) return
+      // PCM 原始数据包装为 Blob 下载
+      const blob = new Blob([result.data.buffer], {
+        type: "application/octet-stream",
+      })
+      triggerDownload(
+        blob,
+        `recording_${result.sampleRate}hz_${result.channels}ch_${result.bitRate}bit.pcm`
+      )
+      appendLog(
+        "info",
+        `PCM 文件已下载：${result.sampleRate}Hz ${result.channels}ch ${result.bitRate}bit，${result.data.byteLength} byte。`
+      )
+    }
+
+    function downloadWAV() {
+      const result = state.lastExportResult?.wav
+      if (!result) return
+      triggerDownload(
+        result.blob,
+        `recording_${result.sampleRate}hz_${result.channels}ch_${result.bitRate}bit.wav`
+      )
+      appendLog(
+        "info",
+        `WAV 文件已下载：${result.sampleRate}Hz ${result.channels}ch ${result.bitRate}bit，${result.arrayBuffer.byteLength} byte。`
+      )
+    }
+
+    function triggerDownload(blob, filename) {
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement("a")
+      anchor.href = url
+      anchor.download = filename
+      anchor.click()
+      URL.revokeObjectURL(url)
     }
 
     async function closeRecorder() {
@@ -365,6 +410,8 @@ createApp({
       canResume,
       canStop,
       closeRecorder,
+      downloadPCM,
+      downloadWAV,
       handleStorageModeChange,
       openRecorder,
       pauseRecorder,

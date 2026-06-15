@@ -228,6 +228,58 @@
             </section>
 
             <section class="panel">
+              <h2>导出与下载</h2>
+              <p class="supporting" style="margin-bottom: 0.75rem;">
+                停止录音后可下载 PCM 原始数据或 WAV 音频文件。
+              </p>
+              <div class="control-grid" style="grid-template-columns: 1fr 1fr;">
+                <button
+                  :disabled="!state.lastExportResult"
+                  data-testid="download-pcm-button"
+                  @click="downloadPCM"
+                >
+                  ↓ 下载 PCM
+                </button>
+                <button
+                  :disabled="!state.lastExportResult"
+                  data-testid="download-wav-button"
+                  @click="downloadWAV"
+                >
+                  ↓ 下载 WAV
+                </button>
+              </div>
+              <div v-if="state.lastExportResult" class="stats-grid" style="margin-top: 0.75rem;">
+                <article class="stat">
+                  <p class="stat-label">PCM 大小</p>
+                  <p class="stat-value" data-testid="export-pcm-bytes">
+                    {{ state.lastExportResult.pcm.data.byteLength }} byte
+                  </p>
+                </article>
+                <article class="stat">
+                  <p class="stat-label">WAV 大小</p>
+                  <p class="stat-value" data-testid="export-wav-bytes">
+                    {{ state.lastExportResult.wav.arrayBuffer.byteLength }} byte
+                  </p>
+                </article>
+                <article class="stat">
+                  <p class="stat-label">采样率</p>
+                  <p class="stat-value" data-testid="export-sample-rate">
+                    {{ state.lastExportResult.wav.sampleRate }} Hz
+                  </p>
+                </article>
+                <article class="stat">
+                  <p class="stat-label">声道 / 位深</p>
+                  <p class="stat-value" data-testid="export-channels-bitrate">
+                    {{ state.lastExportResult.wav.channels }}ch / {{ state.lastExportResult.wav.bitRate }}bit
+                  </p>
+                </article>
+              </div>
+              <p v-else class="supporting" style="margin-top: 0.5rem; opacity: 0.6;">
+                尚未完成录音，停止后将自动导出。
+              </p>
+            </section>
+
+            <section class="panel">
               <h2>存储诊断</h2>
               <pre class="json" data-testid="storage-json">
 {{ storageJson }}</pre
