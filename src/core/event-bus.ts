@@ -7,6 +7,18 @@ export class EventBus<TEvents extends EventMap> {
     Set<(payload: TEvents[keyof TEvents]) => void>
   >()
 
+  once<TKey extends keyof TEvents>(
+    event: TKey,
+    listener: Listener<TEvents[TKey]>
+  ): () => void {
+    // 包装成自移除监听器：触发一次后立即从 Set 中删除自身。
+    const wrapper = (payload: TEvents[TKey]) => {
+      this.off(event, wrapper as unknown as Listener<TEvents[TKey]>)
+      listener(payload)
+    }
+    return this.on(event, wrapper as unknown as Listener<TEvents[TKey]>)
+  }
+
   on<TKey extends keyof TEvents>(
     event: TKey,
     listener: Listener<TEvents[TKey]>

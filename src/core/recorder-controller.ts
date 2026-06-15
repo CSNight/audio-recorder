@@ -103,7 +103,7 @@ export class RecorderController {
   }
 
   async exportPCM(options: PcmExportOptions = {}): Promise<PcmExportResult> {
-    return this.encoderRegistry.export<PcmExportOptions, PcmExportResult>(
+    return this.encoderRegistry.export(
       "pcm",
       await this.requirePcmSnapshot(),
       options
@@ -111,7 +111,7 @@ export class RecorderController {
   }
 
   async exportWAV(options: WavExportOptions = {}): Promise<WavExportResult> {
-    return this.encoderRegistry.export<WavExportOptions, WavExportResult>(
+    return this.encoderRegistry.export(
       "wav",
       await this.requirePcmSnapshot(),
       options
@@ -159,6 +159,9 @@ export class RecorderController {
       // open() does not leave a partially-initialised pipeline behind for the
       // next open() attempt.
       this.framePipeline = new PcmFramePipeline()
+      // Fix #12: clear the sessionId that was assigned before initialize() so
+      // a failed open() does not leak a dangling session identifier.
+      this.activeSessionId = ""
       this.handleIssue({
         kind: "error",
         error: wrappedError,
@@ -239,12 +242,23 @@ export class RecorderController {
       RecorderState.Stopped,
     ])
 
+    // Fix #4: if close() is called while recording or paused, the session was
+    // never explicitly stopped, so onStop hooks have not been fired yet.
+    // Run them now before tearing down the capture graph.
+    const wasActive =
+      this.recorderState === RecorderState.Recording ||
+      this.recorderState === RecorderState.Paused
+
     if (this.captureSession) {
       // close 会关闭底层采集图和可能由适配器持有的 MediaStream。
       await this.captureSession.close()
       this.captureSession = undefined
     }
     await this.framePipeline.reset()
+
+    if (wasActive) {
+      this.pluginHost.onStop()
+    }
 
     this.transition(RecorderState.Closed)
   }

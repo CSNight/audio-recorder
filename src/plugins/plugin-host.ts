@@ -102,6 +102,17 @@ export class PluginHost {
     }
   }
 
+  private readonly hookDispatch: Record<
+    "onFrame" | "onStart" | "onPause" | "onResume" | "onStop",
+    (plugin: RecorderPlugin, frame?: AudioFrame) => void
+  > = {
+    onFrame: (plugin, frame) => plugin.onFrame?.(frame as AudioFrame),
+    onStart: (plugin) => plugin.onStart?.(),
+    onPause: (plugin) => plugin.onPause?.(),
+    onResume: (plugin) => plugin.onResume?.(),
+    onStop: (plugin) => plugin.onStop?.(),
+  }
+
   private runHook(hookName: "onFrame", frame: AudioFrame): void
   private runHook(
     hookName: "onStart" | "onPause" | "onResume" | "onStop"
@@ -110,27 +121,10 @@ export class PluginHost {
     hookName: "onFrame" | "onStart" | "onPause" | "onResume" | "onStop",
     frame?: AudioFrame
   ): void {
+    const dispatch = this.hookDispatch[hookName]
     for (const plugin of this.plugins) {
       try {
-        if (hookName === "onFrame") {
-          plugin.onFrame?.(frame as AudioFrame)
-          continue
-        }
-
-        if (hookName === "onStart") {
-          plugin.onStart?.()
-          continue
-        }
-        if (hookName === "onPause") {
-          plugin.onPause?.()
-          continue
-        }
-        if (hookName === "onResume") {
-          plugin.onResume?.()
-          continue
-        }
-
-        plugin.onStop?.()
+        dispatch(plugin, frame)
       } catch (error) {
         this.options.emitIssue({
           kind: "error",

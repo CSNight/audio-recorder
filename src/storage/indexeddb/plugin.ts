@@ -16,7 +16,7 @@ export function createIndexedDbPersistencePlugin(): RecorderPersistencePlugin {
   return {
     backend: "indexeddb",
     isSupported() {
-      return typeof indexedDB !== "undefined"
+      return Promise.resolve(typeof indexedDB !== "undefined")
     },
     async createSession(
       options: RecorderPersistenceSessionOptions
@@ -125,7 +125,8 @@ async function getSessionEntries(
     .filter(
       (entry): entry is { key: string; buffer: ArrayBuffer } =>
         parseSessionIdFromKey(entry.key) === sessionId &&
-        entry.buffer instanceof ArrayBuffer
+        entry.buffer instanceof ArrayBuffer &&
+        !Number.isNaN(parseChunkIndexFromKey(entry.key))
     )
     .sort((left, right) => compareChunkKeys(left.key, right.key))
 }
@@ -136,7 +137,11 @@ async function getSessionKeys(
 ): Promise<readonly string[]> {
   const { keys } = await getAllEntries(database)
   return keys
-    .filter((key) => parseSessionIdFromKey(key) === sessionId)
+    .filter(
+      (key) =>
+        parseSessionIdFromKey(key) === sessionId &&
+        !Number.isNaN(parseChunkIndexFromKey(key))
+    )
     .sort(compareChunkKeys)
 }
 
@@ -215,7 +220,7 @@ function parseSessionIdFromKey(key: string): string {
 function parseChunkIndexFromKey(key: string): number {
   const separatorIndex = key.indexOf(CHUNK_KEY_SEPARATOR)
   if (separatorIndex === -1) {
-    return -1
+    return Number.NaN
   }
 
   return Number.parseInt(
@@ -236,14 +241,21 @@ function runTransaction(
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(STORE_NAME, mode)
     const store = transaction.objectStore(STORE_NAME)
-    const request = action(store)
+    // Fix #2: use a single reject guard so that request.onerror and
+    // transaction.onerror both funnel into one rejection without double-reject.
+    // In real IDB, request errors bubble to transaction.onerror, but we also
+    // set request.onerror for environments/mocks that don't implement bubbling.
+    let rejected = false
+    const rejectOnce = (error: Error | null) => {
+      if (rejected) return
+      rejected = true
+      reject(error ?? new Error("IndexedDB transaction failed."))
+    }
 
-    request.onerror = () =>
-      reject(
-        request.error ?? new Error("IndexedDB transaction request failed.")
-      )
+    const request = action(store)
+    request.onerror = () => rejectOnce(request.error)
+
     transaction.oncomplete = () => resolve()
-    transaction.onerror = () =>
-      reject(transaction.error ?? new Error("IndexedDB transaction failed."))
+    transaction.onerror = () => rejectOnce(transaction.error)
   })
 }

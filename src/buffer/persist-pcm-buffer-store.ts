@@ -106,7 +106,13 @@ export class PersistPcmBufferStore implements PcmBufferStore {
       throw error
     }
 
-    return mergeSnapshots(await session.readSnapshots())
+    try {
+      return mergeSnapshots(await session.readSnapshots())
+    } catch (error) {
+      this.lastWriteError =
+        error instanceof Error ? error : new Error("Failed to merge persisted snapshots.")
+      throw this.lastWriteError
+    }
   }
 
   async clear(): Promise<void> {
@@ -183,6 +189,13 @@ export class PersistPcmBufferStore implements PcmBufferStore {
   }
 
   private queueSnapshotWrite(snapshot: PcmBufferSnapshot): void {
+    // Fix #6: if a write has already failed, skip queuing further writes to
+    // avoid emitting one error event per incoming frame (event storm). The
+    // caller will surface the persisted error on the next snapshot() call.
+    if (this.lastWriteError) {
+      return
+    }
+
     const session = this.requireActiveSession()
     this.pendingWrite = this.pendingWrite
       .catch(() => undefined)

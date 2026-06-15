@@ -22,7 +22,12 @@ export function exportPcmSnapshot(
   const normalized = options.isHQ
     ? resamplePlanarPcmHQ(snapshot, targetSampleRate)
     : resamplePlanarPcm(snapshot, targetSampleRate)
-  const interleaved = interleaveChannels(normalized.planar, normalized.channels)
+  if (normalized.channels > 2) {
+    throw new Error(
+      `PCM export does not support ${normalized.channels} channels. Only mono (1) and stereo (2) are supported.`
+    )
+  }
+  const interleaved = interleaveChannels(normalized.planar, normalized.channels as 1 | 2)
 
   return {
     sampleRate: normalized.sampleRate,

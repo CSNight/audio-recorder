@@ -339,10 +339,10 @@ describe("createIndexedDbPersistencePlugin", () => {
     vi.restoreAllMocks()
   })
 
-  it("requires indexedDB to report support", () => {
+  it("requires indexedDB to report support", async () => {
     const plugin = createIndexedDbPersistencePlugin()
 
-    expect(plugin.isSupported()).toBe(typeof indexedDB !== "undefined")
+    expect(await plugin.isSupported()).toBe(typeof indexedDB !== "undefined")
   })
 
   it("appends, reads, clears, and closes session snapshots", async () => {
