@@ -18,7 +18,7 @@ export class InMemoryPcmBufferStore implements PcmBufferStore {
   private layout: PcmLayout | undefined
   private frameCount = 0
   private durationMs = 0
-  private readonly planarChunks: Int16Array[][] = [[], []]
+  private planarChunks: Int16Array[][] = []
   private mergedSnapshot: PcmBufferSnapshot | undefined
   private hasSnapshotChanges = false
 
@@ -81,13 +81,14 @@ export class InMemoryPcmBufferStore implements PcmBufferStore {
     this.durationMs = 0
     this.mergedSnapshot = undefined
     this.hasSnapshotChanges = false
-    this.planarChunks[0] = []
-    this.planarChunks[1] = []
+    this.planarChunks = []
   }
 
   private ensureLayout(sampleRate: number, channels: AudioChannelCount): void {
     if (!this.layout) {
       this.layout = { sampleRate, channels }
+      // 声道分桶按实际声道数构造，不再写死双声道。
+      this.planarChunks = Array.from({ length: channels }, () => [])
       return
     }
 

@@ -153,6 +153,8 @@ export class RecorderController {
     } catch (error) {
       const wrappedError =
         error instanceof Error ? error : new Error("Failed to open recorder.")
+      // open 失败时回收已初始化的管线（含已打开的持久化会话），避免句柄泄漏。
+      await Promise.resolve(this.framePipeline.reset()).catch(() => undefined)
       this.handleIssue({
         kind: "error",
         error: wrappedError,
@@ -259,19 +261,17 @@ export class RecorderController {
   private handleFrame(frame: AudioFrame): void {
     // 每一帧都顺带推进实时摘要，UI 和后续编码模块都可以只读 summary 获取累计结果。
     this.framePipeline.acceptFrame(frame)
-    this.sessionRuntimeInfo = {
-      ...this.sessionRuntimeInfo,
-      actualSampleRate: frame.sampleRate,
-      actualChannelCount: frame.channels,
+    // 帧回调是热路径（48kHz worklet 下约 375 次/秒），原地累加而非每帧重建对象，降低 GC 压力。
+    this.sessionRuntimeInfo.actualSampleRate = frame.sampleRate
+    this.sessionRuntimeInfo.actualChannelCount = frame.channels
+    this.latestSessionSummary.frames += 1
+    this.latestSessionSummary.durationMs += frame.durationMs
+    this.latestSessionSummary.sampleRate = frame.sampleRate
+    this.latestSessionSummary.channels = frame.channels
+    // 只有存在 frame 监听器时才构建事件对象，无订阅时跳过整套上下文克隆。
+    if (this.eventBus.hasListeners("frame")) {
+      this.eventBus.emit("frame", this.createFrameEvent(frame))
     }
-    this.latestSessionSummary = {
-      ...this.latestSessionSummary,
-      frames: this.latestSessionSummary.frames + 1,
-      durationMs: this.latestSessionSummary.durationMs + frame.durationMs,
-      sampleRate: frame.sampleRate,
-      channels: frame.channels,
-    }
-    this.eventBus.emit("frame", this.createFrameEvent(frame))
     this.pluginHost.onFrame(frame)
   }
 

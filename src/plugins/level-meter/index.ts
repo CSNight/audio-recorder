@@ -42,40 +42,40 @@ export function createLevelMeterPlugin(): RecorderPlugin {
 }
 
 function measureFrameLevel(frame: AudioFrame): RecorderLevel {
-  const channels = frame.planar.map((channel) => measureChannelLevel(channel))
   let peak = 0
   let sampleCount = 0
   let totalSquare = 0
 
-  for (const channel of frame.planar) {
+  // 单遍扫描：逐声道统计的同时聚合出整帧的 peak/rms，避免再整体遍历一次全部样本。
+  const channels: RecorderLevelChannel[] = frame.planar.map((channel) => {
+    let channelPeak = 0
+    let channelSquare = 0
+
     for (let index = 0; index < channel.length; index += 1) {
       const sample = normalizePcmSample(channel[index] ?? 0)
-      peak = Math.max(peak, Math.abs(sample))
-      totalSquare += sample * sample
-      sampleCount += 1
+      const magnitude = Math.abs(sample)
+      if (magnitude > channelPeak) {
+        channelPeak = magnitude
+      }
+      channelSquare += sample * sample
     }
-  }
+
+    if (channelPeak > peak) {
+      peak = channelPeak
+    }
+    totalSquare += channelSquare
+    sampleCount += channel.length
+
+    return {
+      peak: channelPeak,
+      rms: channel.length === 0 ? 0 : Math.sqrt(channelSquare / channel.length),
+    }
+  })
 
   return {
     peak,
     rms: sampleCount === 0 ? 0 : Math.sqrt(totalSquare / sampleCount),
     channels,
-  }
-}
-
-function measureChannelLevel(channel: Int16Array): RecorderLevelChannel {
-  let peak = 0
-  let totalSquare = 0
-
-  for (let index = 0; index < channel.length; index += 1) {
-    const sample = normalizePcmSample(channel[index] ?? 0)
-    peak = Math.max(peak, Math.abs(sample))
-    totalSquare += sample * sample
-  }
-
-  return {
-    peak,
-    rms: channel.length === 0 ? 0 : Math.sqrt(totalSquare / channel.length),
   }
 }
 

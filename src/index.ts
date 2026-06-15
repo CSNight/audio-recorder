@@ -1,9 +1,12 @@
 import { BrowserCaptureAdapter } from "@/capture/browser-capture-adapter"
+import { RecorderController } from "@/core/recorder-controller"
+import type { CreateRecorderOptions } from "@/types"
+
 export { exportPcmSnapshot } from "@/codecs/pcm/pcm-exporter"
 export type { PcmExportOptions, PcmExportResult } from "@/codecs/pcm/types"
 export { exportWavSnapshot } from "@/codecs/wav/wav-exporter"
 export type { WavExportOptions, WavExportResult } from "@/codecs/wav/types"
-import { RecorderController } from "@/core/recorder-controller"
+export { RecorderController } from "@/core/recorder-controller"
 export type { RecorderPlugin, RecorderPluginContext } from "@/plugins/types"
 export type {
   RecorderPersistencePlugin,
@@ -11,8 +14,6 @@ export type {
   RecorderPersistenceSessionOptions,
   RecorderStorageOptions,
 } from "@/storage/types"
-import type { CreateRecorderOptions } from "@/types"
-
 export type {
   AudioCaptureOptions,
   AudioChannelCount,
@@ -36,8 +37,6 @@ export {
   RecorderState,
   RecorderWarningCode,
 } from "@/types"
-
-export { RecorderController } from "@/core/recorder-controller"
 
 export function createRecorder(
   options: CreateRecorderOptions = {}

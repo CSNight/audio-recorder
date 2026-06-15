@@ -1,6 +1,6 @@
 import type { PcmBufferSnapshot } from "@/buffer/types"
 import type { PcmExportOptions, PcmExportResult } from "@/codecs/pcm/types"
-import { resamplePlanarPcm } from "@/utils/resample"
+import { resamplePlanarPcm, resamplePlanarPcmHQ } from "@/utils/resample"
 
 function normalizeBitRate(bitRate: PcmExportOptions["bitRate"]): 8 | 16 {
   if (bitRate === undefined) {
@@ -19,7 +19,9 @@ export function exportPcmSnapshot(
 ): PcmExportResult {
   const targetSampleRate = options.sampleRate ?? snapshot.sampleRate
   const bitRate = normalizeBitRate(options.bitRate)
-  const normalized = resamplePlanarPcm(snapshot, targetSampleRate)
+  const normalized = options.isHQ
+    ? resamplePlanarPcmHQ(snapshot, targetSampleRate)
+    : resamplePlanarPcm(snapshot, targetSampleRate)
   const interleaved = interleaveChannels(normalized.planar, normalized.channels)
 
   return {

@@ -100,93 +100,92 @@ async function deleteSnapshots(
   sessionId: string
 ): Promise<void> {
   const keys = await getSessionKeys(database, sessionId)
-  await Promise.all(
-    keys.map((key) =>
-      runTransaction(database, "readwrite", (store) => store.delete(key))
-    )
-  )
+  await deleteKeys(database, keys)
 }
 
 async function cleanupStaleSessions(
   database: IDBDatabase,
   activeSessionId: string
 ): Promise<void> {
-  const keys = await listAllKeys(database)
-  await Promise.all(
-    keys
-      .filter((key): key is string => {
-        if (typeof key !== "string") {
-          return false
-        }
-
-        return parseSessionIdFromKey(key) !== activeSessionId
-      })
-      .map((key) =>
-        runTransaction(database, "readwrite", (store) => store.delete(key))
-      )
+  const { keys } = await getAllEntries(database)
+  const staleKeys = keys.filter(
+    (key) => parseSessionIdFromKey(key) !== activeSessionId
   )
+  await deleteKeys(database, staleKeys)
 }
 
 async function getSessionEntries(
   database: IDBDatabase,
   sessionId: string
 ): Promise<readonly { key: string; buffer: ArrayBuffer }[]> {
-  const keys = await getSessionKeys(database, sessionId)
-  const buffers = await Promise.all(
-    keys.map((key) => getBufferByKey(database, key))
-  )
+  const { keys, values } = await getAllEntries(database)
 
   return keys
-    .map((key, index) => ({
-      key,
-      buffer: buffers[index],
-    }))
+    .map((key, index) => ({ key, buffer: values[index] }))
     .filter(
       (entry): entry is { key: string; buffer: ArrayBuffer } =>
+        parseSessionIdFromKey(entry.key) === sessionId &&
         entry.buffer instanceof ArrayBuffer
     )
+    .sort((left, right) => compareChunkKeys(left.key, right.key))
 }
 
 async function getSessionKeys(
   database: IDBDatabase,
   sessionId: string
 ): Promise<readonly string[]> {
-  const keys = await listAllKeys(database)
+  const { keys } = await getAllEntries(database)
   return keys
-    .filter(
-      (key): key is string =>
-        typeof key === "string" && parseSessionIdFromKey(key) === sessionId
-    )
+    .filter((key) => parseSessionIdFromKey(key) === sessionId)
     .sort(compareChunkKeys)
 }
 
-function getBufferByKey(
-  database: IDBDatabase,
-  key: string
-): Promise<ArrayBuffer | undefined> {
+// 单个只读事务一次取回全部 key/value（getAllKeys 与 getAll 同序），避免每个 chunk 各开一个事务。
+function getAllEntries(database: IDBDatabase): Promise<{
+  keys: readonly string[]
+  values: readonly (ArrayBuffer | undefined)[]
+}> {
   return new Promise((resolve, reject) => {
-    const request = database
-      .transaction(STORE_NAME, "readonly")
-      .objectStore(STORE_NAME)
-      .get(key)
+    const transaction = database.transaction(STORE_NAME, "readonly")
+    const store = transaction.objectStore(STORE_NAME)
+    const keysRequest = store.getAllKeys()
+    const valuesRequest = store.getAll()
 
-    request.onsuccess = () => resolve(request.result as ArrayBuffer | undefined)
-    request.onerror = () =>
-      reject(request.error ?? new Error("Failed to read IndexedDB snapshot."))
+    transaction.oncomplete = () =>
+      resolve({
+        keys: ((keysRequest.result as readonly IDBValidKey[]) ?? []).filter(
+          (key): key is string => typeof key === "string"
+        ),
+        values:
+          (valuesRequest.result as readonly (ArrayBuffer | undefined)[]) ?? [],
+      })
+    transaction.onerror = () =>
+      reject(transaction.error ?? new Error("Failed to read IndexedDB store."))
   })
 }
 
-function listAllKeys(database: IDBDatabase): Promise<readonly IDBValidKey[]> {
-  return new Promise((resolve, reject) => {
-    const request = database
-      .transaction(STORE_NAME, "readonly")
-      .objectStore(STORE_NAME)
-      .getAllKeys()
+// 在单个读写事务内批量删除，N 个 chunk 仅一次事务提交。
+function deleteKeys(
+  database: IDBDatabase,
+  keys: readonly string[]
+): Promise<void> {
+  if (keys.length === 0) {
+    return Promise.resolve()
+  }
 
-    request.onsuccess = () =>
-      resolve((request.result as readonly IDBValidKey[]) ?? [])
-    request.onerror = () =>
-      reject(request.error ?? new Error("Failed to list IndexedDB sessions."))
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(STORE_NAME, "readwrite")
+    const store = transaction.objectStore(STORE_NAME)
+
+    for (const key of keys) {
+      store.delete(key)
+    }
+
+    transaction.oncomplete = () => resolve()
+    transaction.onerror = () =>
+      reject(
+        transaction.error ?? new Error("Failed to delete IndexedDB snapshots.")
+      )
   })
 }
 
