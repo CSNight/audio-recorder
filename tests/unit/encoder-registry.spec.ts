@@ -4,6 +4,8 @@ import {
   createDefaultEncoderRegistry,
   EncoderRegistry,
 } from "@/encoders/encoder-registry"
+import { createPcmEncoder } from "@/encoders/pcm"
+import { createWavEncoder } from "@/encoders/wav"
 
 const snapshot: PcmBufferSnapshot = {
   sampleRate: 16_000,
@@ -47,5 +49,18 @@ describe("EncoderRegistry", () => {
     expect(() => registry.export("mp3", snapshot, {})).toThrow(
       'Recorder encoder "mp3" is not registered.'
     )
+  })
+
+  it("exposes built-in encoder factories as reusable public definitions", () => {
+    const registry = new EncoderRegistry()
+
+    registry.register(createPcmEncoder())
+    registry.register(createWavEncoder())
+
+    const pcm = registry.export("pcm", snapshot, {})
+    const wav = registry.export("wav", snapshot, {})
+
+    expect(Array.from(pcm.data)).toEqual([0, 1000, -1000, 500])
+    expect(wav.mimeType).toBe("audio/wav")
   })
 })

@@ -1,11 +1,15 @@
 import type { PcmBufferSnapshot } from "@/buffer/types"
-import { exportPcmSnapshot } from "@/codecs/pcm/pcm-exporter"
+import { createPcmEncoder } from "@/encoders/pcm"
+import { createWavEncoder } from "@/encoders/wav"
 import type { PcmExportOptions, PcmExportResult } from "@/codecs/pcm/types"
-import { exportWavSnapshot } from "@/codecs/wav/wav-exporter"
 import type { WavExportOptions, WavExportResult } from "@/codecs/wav/types"
 
-export interface SnapshotEncoderDefinition<TOptions, TResult> {
-  type: string
+export interface SnapshotEncoderDefinition<
+  TType extends string = string,
+  TOptions = unknown,
+  TResult = unknown,
+> {
+  type: TType
   export(snapshot: PcmBufferSnapshot, options?: TOptions): TResult
 }
 
@@ -21,11 +25,11 @@ export interface EncoderMap {
 export class EncoderRegistry {
   private readonly encoders = new Map<
     string,
-    SnapshotEncoderDefinition<unknown, unknown>
+    SnapshotEncoderDefinition<string, unknown, unknown>
   >()
 
-  register<TOptions, TResult>(
-    definition: SnapshotEncoderDefinition<TOptions, TResult>
+  register<TType extends string, TOptions, TResult>(
+    definition: SnapshotEncoderDefinition<TType, TOptions, TResult>
   ): void {
     if (this.encoders.has(definition.type)) {
       throw new Error(
@@ -35,7 +39,7 @@ export class EncoderRegistry {
 
     this.encoders.set(
       definition.type,
-      definition as SnapshotEncoderDefinition<unknown, unknown>
+      definition as SnapshotEncoderDefinition<string, unknown, unknown>
     )
   }
 
@@ -75,14 +79,12 @@ export class EncoderRegistry {
 export function createDefaultEncoderRegistry(): EncoderRegistry {
   const registry = new EncoderRegistry()
 
-  registry.register<PcmExportOptions, PcmExportResult>({
-    type: "pcm",
-    export: (snapshot, options) => exportPcmSnapshot(snapshot, options),
-  })
-  registry.register<WavExportOptions, WavExportResult>({
-    type: "wav",
-    export: (snapshot, options) => exportWavSnapshot(snapshot, options),
-  })
+  registry.register<"pcm", PcmExportOptions, PcmExportResult>(
+    createPcmEncoder()
+  )
+  registry.register<"wav", WavExportOptions, WavExportResult>(
+    createWavEncoder()
+  )
 
   return registry
 }

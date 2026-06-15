@@ -1,6 +1,6 @@
 # audio-recorder
 
-面向 `Recorder` 长期 TypeScript 重构的 Phase 2 录音与导出核心链路。
+面向 `Recorder` 长期 TypeScript 重构的 Phase 3 录音、导出与扩展核心链路。
 
 ## Commands
 
@@ -15,7 +15,7 @@
 
 ## Status
 
-- Current phase: `Phase 2`
+- Current phase: `Phase 3`
 - Long-term plan: [`docs/plans/recorder-ts-master-plan.md`](./docs/plans/recorder-ts-master-plan.md)
 - Documentation index: [`docs/README.md`](./docs/README.md)
 
@@ -33,6 +33,10 @@
 - Buffer store now keeps only the minimum `appendFrame / snapshot / clear` interface; layout mismatch checks remain only as a guard against mixed-session or mixed-layout frame pollution
 - Built-in `exportPCM()` and `exportWAV()` support mono/stereo output, optional resample, and `bitRate: 8 | 16`
 - WAV export reuses PCM export results and writes standard PCM WAV headers without introducing an extra realtime encoder layer
+- `RecorderController` now exposes `registerEncoder()` and generic `exportEncoded()`, so custom snapshot encoders can be registered without reaching into internal registry state
+- Built-in PCM/WAV encoders are now available as explicit subpath modules:
+  - `@scope/audio-recorder/encoders/pcm`
+  - `@scope/audio-recorder/encoders/wav`
 - Storage spill is now modeled as an optional capability interface: the core library only knows the persistence contract, while OPFS and IndexedDB are pluggable implementations you opt into explicitly
 - Storage mode now follows three explicit behaviors:
   - `memory`: stay in memory only
@@ -54,6 +58,13 @@
 - The second Phase 2 implementation step is `snapshot -> resample -> interleaved PCM export`, while WAV remains a thin wrapper for the next step.
 - The third Phase 2 implementation step is complete: `wav header + wav export`, and the controller now exposes `exportPCM()` / `exportWAV()`.
 - Long-record protection now follows a plugin-shaped storage contract: default is memory-only, while OPFS / IndexedDB persistence is opt-in and lifecycle-bound to the current recording session.
+
+## Phase 3 Direction
+
+- Built-in plugin lifecycle is now part of the controller runtime.
+- Encoder registration is no longer only an internal implementation detail; custom encoders can now be registered through the public controller API.
+- Built-in encoders follow the same subpath export strategy as plugins and persistence modules, keeping the root entry focused on the smallest default surface.
+- Current root API does not yet position custom plugin authoring as a supported external integration surface; only built-in plugin paths are kept stable for now.
 
 ## Execution chain
 
@@ -90,6 +101,7 @@ flowchart TD
 
 - Root page: static landing page that only links to the playground
 - `/playground/`: Vue CDN demo that imports `dist/index.js` and covers microphone plus external stream scenarios
+- Built-in encoder subpaths live at `/dist/encoders/pcm/index.js` and `/dist/encoders/wav/index.js`
 - Persistence demo paths in the playground import `/dist/storage/opfs/index.js` and `/dist/storage/indexeddb/index.js` directly, instead of relying on the root artifact to re-export them
 
 `npm run dev:playground` will build the library first, because the playground intentionally depends on the packaged output instead of `src`.

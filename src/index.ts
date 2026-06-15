@@ -7,7 +7,11 @@ export type { PcmExportOptions, PcmExportResult } from "@/codecs/pcm/types"
 export { exportWavSnapshot } from "@/codecs/wav/wav-exporter"
 export type { WavExportOptions, WavExportResult } from "@/codecs/wav/types"
 export { RecorderController } from "@/core/recorder-controller"
-export type { RecorderPlugin, RecorderPluginContext } from "@/plugins/types"
+export {
+  EncoderRegistry,
+  createDefaultEncoderRegistry,
+} from "@/encoders/encoder-registry"
+export type { SnapshotEncoderDefinition } from "@/encoders/encoder-registry"
 export type {
   RecorderPersistencePlugin,
   RecorderPersistenceSession,

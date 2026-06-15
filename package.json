@@ -26,6 +26,14 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./encoders/pcm": {
+      "types": "./dist/encoders/pcm/index.d.ts",
+      "import": "./dist/encoders/pcm/index.js"
+    },
+    "./encoders/wav": {
+      "types": "./dist/encoders/wav/index.d.ts",
+      "import": "./dist/encoders/wav/index.js"
+    },
     "./plugins/level-meter": {
       "types": "./dist/plugins/level-meter/index.d.ts",
       "import": "./dist/plugins/level-meter/index.js"

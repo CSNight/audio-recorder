@@ -30,11 +30,7 @@ export class PluginEventBus implements RecorderPluginEventBus {
   ) {}
 
   register(event: string): void {
-    if (RESERVED_EVENT_NAMES.has(event)) {
-      throw new Error(
-        `Recorder plugin event "${event}" is reserved for the core event bus.`
-      )
-    }
+    this.assertRegistrableEvent(event)
 
     this.registeredEvents.add(event)
   }
@@ -43,11 +39,7 @@ export class PluginEventBus implements RecorderPluginEventBus {
     event: string,
     payload: TPayload
   ): void {
-    if (!this.registeredEvents.has(event)) {
-      throw new Error(
-        `Recorder plugin event "${event}" must be registered before emit.`
-      )
-    }
+    this.assertRegisteredEvent(event)
 
     const pluginEvent: RecorderPluginEventContext<TPayload> = {
       pluginName: this.pluginName,
@@ -59,5 +51,23 @@ export class PluginEventBus implements RecorderPluginEventBus {
       event as keyof RecorderEventMap,
       pluginEvent as unknown as RecorderEventMap[keyof RecorderEventMap]
     )
+  }
+
+  private assertRegistrableEvent(event: string): void {
+    if (RESERVED_EVENT_NAMES.has(event)) {
+      throw new Error(
+        `Recorder plugin event "${event}" is reserved for the core event bus.`
+      )
+    }
+  }
+
+  private assertRegisteredEvent(event: string): void {
+    this.assertRegistrableEvent(event)
+
+    if (!this.registeredEvents.has(event)) {
+      throw new Error(
+        `Recorder plugin event "${event}" must be registered before emit.`
+      )
+    }
   }
 }

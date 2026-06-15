@@ -558,4 +558,55 @@ describe("RecorderController", () => {
       'Recorder plugin "duplicate-plugin" is already registered.'
     )
   })
+
+  it("registers custom encoders through the controller and exports through the shared registry", async () => {
+    const adapter = new FakeCaptureAdapter()
+    const recorder = new RecorderController({
+      captureAdapter: adapter,
+      storageOptions: undefined,
+    })
+
+    recorder.registerEncoder({
+      type: "mock-text",
+      export: (snapshot, options?: { prefix?: string }) => {
+        const samples = Array.from(snapshot.planar[0] ?? [])
+        return `${options?.prefix ?? "samples"}:${samples.join(",")}`
+      },
+    })
+
+    await recorder.open({
+      capture: {
+        sampleRate: 16_000,
+      },
+    })
+    await recorder.start()
+    adapter.session?.emitFrame(
+      createAudioFrame([new Float32Array([0, 0.5, -0.5, 0.25])], 16_000, 10)
+    )
+
+    const exported = await recorder.exportEncoded<{ prefix?: string }, string>(
+      "mock-text",
+      {
+        prefix: "pcm",
+      }
+    )
+
+    expect(exported).toBe("pcm:0,16384,-16384,8192")
+  })
+
+  it("rejects encoder registration after destroy", async () => {
+    const recorder = new RecorderController({
+      captureAdapter: new FakeCaptureAdapter(),
+      storageOptions: undefined,
+    })
+
+    await recorder.destroy()
+
+    expect(() =>
+      recorder.registerEncoder({
+        type: "mock",
+        export: () => "ok",
+      })
+    ).toThrow('Recorder state "destroyed" does not allow this operation.')
+  })
 })

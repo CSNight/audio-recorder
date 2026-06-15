@@ -4,6 +4,7 @@ import type { PcmExportOptions, PcmExportResult } from "@/codecs/pcm/types"
 import type { WavExportOptions, WavExportResult } from "@/codecs/wav/types"
 import {
   createDefaultEncoderRegistry,
+  type SnapshotEncoderDefinition,
   type EncoderRegistry,
 } from "@/encoders/encoder-registry"
 import { PcmFramePipeline } from "@/pipeline/pcm-frame-pipeline"
@@ -102,6 +103,18 @@ export class RecorderController {
     await this.pluginHost.use(plugin)
   }
 
+  registerEncoder<TType extends string, TOptions, TResult>(
+    definition: SnapshotEncoderDefinition<TType, TOptions, TResult>
+  ): void {
+    if (this.recorderState === RecorderState.Destroyed) {
+      throw new Error(
+        'Recorder state "destroyed" does not allow this operation. Expected: idle, ready, recording, paused, stopped, closed.'
+      )
+    }
+
+    this.encoderRegistry.register(definition)
+  }
+
   async exportPCM(options: PcmExportOptions = {}): Promise<PcmExportResult> {
     return this.encoderRegistry.export(
       "pcm",
@@ -115,6 +128,15 @@ export class RecorderController {
       "wav",
       await this.requirePcmSnapshot(),
       options
+    )
+  }
+
+  exportEncoded<TOptions, TResult>(
+    type: string,
+    options?: TOptions
+  ): Promise<TResult> {
+    return this.requirePcmSnapshot().then((snapshot) =>
+      this.encoderRegistry.export<TOptions, TResult>(type, snapshot, options)
     )
   }
 
