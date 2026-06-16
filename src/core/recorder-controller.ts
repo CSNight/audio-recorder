@@ -4,8 +4,8 @@ import type { PcmExportOptions, PcmExportResult } from "@/codecs/pcm/types"
 import type { WavExportOptions, WavExportResult } from "@/codecs/wav/types"
 import {
   createDefaultEncoderRegistry,
-  type SnapshotEncoderDefinition,
   type EncoderRegistry,
+  type SnapshotEncoderDefinition,
 } from "@/encoders/encoder-registry"
 import { PcmFramePipeline } from "@/pipeline/pcm-frame-pipeline"
 import type { RecorderFramePipeline } from "@/pipeline/types"

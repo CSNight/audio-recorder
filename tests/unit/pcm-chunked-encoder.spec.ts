@@ -28,10 +28,10 @@ describe("PCM ChunkedEncoder", () => {
 
     expect(result).not.toBeNull()
     const view = new DataView(result!.buffer)
-    expect(view.getInt16(0, true)).toBe(100)  // L0
-    expect(view.getInt16(2, true)).toBe(300)  // R0
-    expect(view.getInt16(4, true)).toBe(200)  // L1
-    expect(view.getInt16(6, true)).toBe(400)  // R1
+    expect(view.getInt16(0, true)).toBe(100) // L0
+    expect(view.getInt16(2, true)).toBe(300) // R0
+    expect(view.getInt16(4, true)).toBe(200) // L1
+    expect(view.getInt16(6, true)).toBe(400) // R1
   })
 
   it("outputs 8-bit unsigned PCM when bitsPerSample is 8", () => {
@@ -41,9 +41,9 @@ describe("PCM ChunkedEncoder", () => {
 
     expect(result).not.toBeNull()
     expect(result!.byteLength).toBe(3)
-    expect(result![0]).toBe(255)  // 127 + 128
-    expect(result![1]).toBe(128)  // 0 + 128
-    expect(result![2]).toBe(0)    // -128 + 128
+    expect(result![0]).toBe(255) // 127 + 128
+    expect(result![1]).toBe(128) // 0 + 128
+    expect(result![2]).toBe(0) // -128 + 128
   })
 
   it("returns null for empty frame", () => {

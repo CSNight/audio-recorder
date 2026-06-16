@@ -1,5 +1,5 @@
 import type { RecorderPlugin } from "@/plugins/types"
-import type { AudioFrame, RecorderLevelChannel, RecorderLevel } from "@/types"
+import type { AudioFrame, RecorderLevel, RecorderLevelChannel } from "@/types"
 
 export function createLevelMeterPlugin(): RecorderPlugin {
   let emitLevel: ((level: RecorderLevel) => void) | undefined

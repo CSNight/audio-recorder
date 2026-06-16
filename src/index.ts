@@ -1,4 +1,7 @@
-import { BrowserCaptureAdapter, listMicrophoneDevices } from "@/capture/browser-capture-adapter"
+import {
+  BrowserCaptureAdapter,
+  listMicrophoneDevices,
+} from "@/capture/browser-capture-adapter"
 import { RecorderController } from "@/core/recorder-controller"
 import type { CreateRecorderOptions } from "@/types"
 

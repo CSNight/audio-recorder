@@ -1,4 +1,7 @@
-import type { ChunkedEncoder, ChunkedEncoderDefinition } from "@/plugins/streaming-export/types"
+import type {
+  ChunkedEncoder,
+  ChunkedEncoderDefinition,
+} from "@/plugins/streaming-export/types"
 import { Mp3EncoderClass } from "@/codecs/mp3/lamejs-adapter"
 
 /** MP3 ChunkedEncoder 选项 */
@@ -15,7 +18,9 @@ export interface Mp3ChunkedEncoderOptions {
  * lamejs 内部以 1152 样本为一个 MPEG 帧，通常每帧都有产出。
  * 单声道时 right 通道传与 left 相同的数组。
  */
-function createMp3ChunkedEncoder(options?: Mp3ChunkedEncoderOptions): ChunkedEncoder {
+function createMp3ChunkedEncoder(
+  options?: Mp3ChunkedEncoderOptions
+): ChunkedEncoder {
   const bitrateKbps = options?.bitrateKbps ?? 128
 
   // encoder 在第一帧时才初始化，因为需要实际的 sampleRate 和 channels

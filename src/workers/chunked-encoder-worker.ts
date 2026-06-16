@@ -23,7 +23,13 @@ import type { ChunkedEncoder } from "@/plugins/streaming-export/types"
 
 type WorkerIncomingMessage =
   | { type: "init"; format: string; options?: unknown }
-  | { type: "feedFrame"; planar: Int16Array[]; channels: number; sampleRate: number; seqId: number }
+  | {
+      type: "feedFrame"
+      planar: Int16Array[]
+      channels: number
+      sampleRate: number
+      seqId: number
+    }
   | { type: "flush"; seqId: number }
   | { type: "dispose" }
 
@@ -62,7 +68,8 @@ self.onmessage = (event: MessageEvent<WorkerIncomingMessage>) => {
     if (encoder === null) {
       postMsg({
         type: "error",
-        message: "ChunkedEncoder not initialized. Send an 'init' message first.",
+        message:
+          "ChunkedEncoder not initialized. Send an 'init' message first.",
         seqId: msg.seqId,
       })
       return
@@ -73,7 +80,9 @@ self.onmessage = (event: MessageEvent<WorkerIncomingMessage>) => {
       if (result !== null) {
         // 复制一份独立 buffer 再 transfer，避免 encoder 内部复用导致数据覆盖
         const copy = result.slice()
-        postMsg({ type: "result", result: copy, seqId: msg.seqId }, [copy.buffer])
+        postMsg({ type: "result", result: copy, seqId: msg.seqId }, [
+          copy.buffer,
+        ])
       } else {
         postMsg({ type: "result", result: null, seqId: msg.seqId })
       }
@@ -101,7 +110,9 @@ self.onmessage = (event: MessageEvent<WorkerIncomingMessage>) => {
       const result = encoder.flush()
       if (result !== null) {
         const copy = result.slice()
-        postMsg({ type: "result", result: copy, seqId: msg.seqId }, [copy.buffer])
+        postMsg({ type: "result", result: copy, seqId: msg.seqId }, [
+          copy.buffer,
+        ])
       } else {
         postMsg({ type: "result", result: null, seqId: msg.seqId })
       }

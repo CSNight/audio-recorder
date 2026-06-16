@@ -1,9 +1,6 @@
 import type { RecorderController } from "@/core/recorder-controller"
 import { PluginEventBus } from "@/plugins/plugin-event-bus"
-import type {
-  RecorderPlugin,
-  RecorderPluginContext,
-} from "@/plugins/types"
+import type { RecorderPlugin, RecorderPluginContext } from "@/plugins/types"
 import type {
   AudioFrame,
   RecorderIssue,
@@ -14,7 +11,9 @@ import type {
 interface PluginHostOptions {
   recorder: RecorderController
   emitIssue: (issue: RecorderIssue) => void
-  eventBus: import("@/core/event-bus").EventBus<import("@/types").RecorderEventMap>
+  eventBus: import("@/core/event-bus").EventBus<
+    import("@/types").RecorderEventMap
+  >
   getRuntimeInfo: () => RecorderRuntimeInfo
   getLatestSummary: () => RecorderSessionSummary
   createEventContext: () => {
@@ -29,6 +28,16 @@ interface PluginHostOptions {
 export class PluginHost {
   // 保持注册顺序，确保运行期 hook 派发顺序与宿主声明顺序一致。
   private readonly plugins: RecorderPlugin[] = []
+  private readonly hookDispatch: Record<
+    "onFrame" | "onStart" | "onPause" | "onResume" | "onStop",
+    (plugin: RecorderPlugin, frame?: AudioFrame) => void
+  > = {
+    onFrame: (plugin, frame) => plugin.onFrame?.(frame as AudioFrame),
+    onStart: (plugin) => plugin.onStart?.(),
+    onPause: (plugin) => plugin.onPause?.(),
+    onResume: (plugin) => plugin.onResume?.(),
+    onStop: (plugin) => plugin.onStop?.(),
+  }
 
   constructor(private readonly options: PluginHostOptions) {}
 
@@ -106,21 +115,8 @@ export class PluginHost {
     }
   }
 
-  private readonly hookDispatch: Record<
-    "onFrame" | "onStart" | "onPause" | "onResume" | "onStop",
-    (plugin: RecorderPlugin, frame?: AudioFrame) => void
-  > = {
-    onFrame: (plugin, frame) => plugin.onFrame?.(frame as AudioFrame),
-    onStart: (plugin) => plugin.onStart?.(),
-    onPause: (plugin) => plugin.onPause?.(),
-    onResume: (plugin) => plugin.onResume?.(),
-    onStop: (plugin) => plugin.onStop?.(),
-  }
-
   private runHook(hookName: "onFrame", frame: AudioFrame): void
-  private runHook(
-    hookName: "onStart" | "onPause" | "onResume" | "onStop"
-  ): void
+  private runHook(hookName: "onStart" | "onPause" | "onResume" | "onStop"): void
   private runHook(
     hookName: "onFrame" | "onStart" | "onPause" | "onResume" | "onStop",
     frame?: AudioFrame

@@ -1,4 +1,7 @@
-import type { ChunkedEncoder, ChunkedEncoderDefinition } from "@/plugins/streaming-export/types"
+import type {
+  ChunkedEncoder,
+  ChunkedEncoderDefinition,
+} from "@/plugins/streaming-export/types"
 import type { AudioChannelCount } from "@/types"
 import { createWavHeader } from "@/codecs/wav/wav-header"
 
@@ -17,7 +20,9 @@ export interface WavChunkedEncoderOptions {
  *
  * 每个分片都是独立可解码的完整 WAV 文件，消费方可以直接拼接或逐片处理。
  */
-function createWavChunkedEncoder(options?: WavChunkedEncoderOptions): ChunkedEncoder {
+function createWavChunkedEncoder(
+  options?: WavChunkedEncoderOptions
+): ChunkedEncoder {
   const framesPerChunk = options?.framesPerChunk ?? 100
   const bitsPerSample = options?.bitsPerSample ?? 16
   const bytesPerSample = bitsPerSample / 8
@@ -28,9 +33,15 @@ function createWavChunkedEncoder(options?: WavChunkedEncoderOptions): ChunkedEnc
   let lastChannels = 1
   let lastSampleRate = 16000
 
-  function buildWavChunk(frames: Int16Array[][], channels: number, sampleRate: number): Uint8Array {
+  function buildWavChunk(
+    frames: Int16Array[][],
+    channels: number,
+    sampleRate: number
+  ): Uint8Array {
     if (channels !== 1 && channels !== 2) {
-      throw new Error(`WAV ChunkedEncoder: unsupported channel count ${channels}. Only 1 or 2 are supported.`)
+      throw new Error(
+        `WAV ChunkedEncoder: unsupported channel count ${channels}. Only 1 or 2 are supported.`
+      )
     }
     const wavChannels = channels as AudioChannelCount
 
@@ -40,7 +51,14 @@ function createWavChunkedEncoder(options?: WavChunkedEncoderOptions): ChunkedEnc
     }
 
     const dataBytes = totalSamplesPerChannel * channels * bytesPerSample
-    const header = new Uint8Array(createWavHeader({ dataBytes, sampleRate, channels: wavChannels, bitRate: bitsPerSample }))
+    const header = new Uint8Array(
+      createWavHeader({
+        dataBytes,
+        sampleRate,
+        channels: wavChannels,
+        bitRate: bitsPerSample,
+      })
+    )
     const output = new Uint8Array(header.byteLength + dataBytes)
     output.set(header, 0)
 

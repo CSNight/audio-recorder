@@ -5,7 +5,10 @@
  * 导入此模块即可直接使用 createStreamingExportPlugin({ format: "pcm"|"wav"|"mp3" })。
  */
 export { createStreamingExportPlugin } from "@/plugins/streaming-export/plugin"
-export { ChunkedEncoderRegistry, defaultChunkedEncoderRegistry } from "@/plugins/streaming-export/registry"
+export {
+  ChunkedEncoderRegistry,
+  defaultChunkedEncoderRegistry,
+} from "@/plugins/streaming-export/registry"
 export type {
   ChunkedEncoder,
   ChunkedEncoderDefinition,

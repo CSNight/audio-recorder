@@ -50,7 +50,9 @@ export class ChunkedEncoderBridge {
           { type: "module" }
         )
 
-        this.worker.onmessage = (event: MessageEvent<WorkerOutgoingMessage>) => {
+        this.worker.onmessage = (
+          event: MessageEvent<WorkerOutgoingMessage>
+        ) => {
           const msg = event.data
           const entry = this.pending.get(msg.seqId)
           if (entry === undefined) {
@@ -102,7 +104,9 @@ export class ChunkedEncoderBridge {
     planar: Int16Array[]
   ): Promise<Uint8Array | null> {
     if (this.disposed) {
-      return Promise.reject(new Error("ChunkedEncoderBridge has been disposed."))
+      return Promise.reject(
+        new Error("ChunkedEncoderBridge has been disposed.")
+      )
     }
 
     // 主线程同步模式
@@ -112,7 +116,9 @@ export class ChunkedEncoderBridge {
           this.encoder.feedFrame(channels, sampleRate, planar)
         )
       } catch (err) {
-        return Promise.reject(err instanceof Error ? err : new Error(String(err)))
+        return Promise.reject(
+          err instanceof Error ? err : new Error(String(err))
+        )
       }
     }
 
@@ -123,20 +129,30 @@ export class ChunkedEncoderBridge {
     const seqId = this.nextSeqId++
     return new Promise<Uint8Array | null>((resolve, reject) => {
       this.pending.set(seqId, { resolve, reject })
-      this.worker!.postMessage({ type: "feedFrame", planar, channels, sampleRate, seqId })
+      this.worker!.postMessage({
+        type: "feedFrame",
+        planar,
+        channels,
+        sampleRate,
+        seqId,
+      })
     })
   }
 
   flush(): Promise<Uint8Array | null> {
     if (this.disposed) {
-      return Promise.reject(new Error("ChunkedEncoderBridge has been disposed."))
+      return Promise.reject(
+        new Error("ChunkedEncoderBridge has been disposed.")
+      )
     }
 
     if (this.encoder !== null) {
       try {
         return Promise.resolve(this.encoder.flush())
       } catch (err) {
-        return Promise.reject(err instanceof Error ? err : new Error(String(err)))
+        return Promise.reject(
+          err instanceof Error ? err : new Error(String(err))
+        )
       }
     }
 

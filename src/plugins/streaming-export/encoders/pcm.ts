@@ -1,4 +1,7 @@
-import type { ChunkedEncoder, ChunkedEncoderDefinition } from "@/plugins/streaming-export/types"
+import type {
+  ChunkedEncoder,
+  ChunkedEncoderDefinition,
+} from "@/plugins/streaming-export/types"
 
 /** PCM ChunkedEncoder 选项 */
 export interface PcmChunkedEncoderOptions {
@@ -40,7 +43,7 @@ function createPcmChunkedEncoder(
           const left = planar[0]!
           const right = planar[1] ?? planar[0]!
           for (let i = 0; i < frameLength; i++) {
-            view.setInt16((i * 2) * 2, left[i] ?? 0, true)
+            view.setInt16(i * 2 * 2, left[i] ?? 0, true)
             view.setInt16((i * 2 + 1) * 2, right[i] ?? 0, true)
           }
         }

@@ -27,9 +27,11 @@ export interface RecorderPluginEventBus {
 
 export interface RecorderPluginContext {
   readonly recorder: RecorderController
-  getRuntimeInfo(): RecorderRuntimeInfo
-  getLatestSummary(): RecorderSessionSummary
   readonly eventBus: RecorderPluginEventBus
+
+  getRuntimeInfo(): RecorderRuntimeInfo
+
+  getLatestSummary(): RecorderSessionSummary
 }
 
 export interface RecorderPlugin {
