@@ -13,12 +13,12 @@ import type { RecorderPersistencePlugin } from "@/storage/types"
 import { createAudioFrame } from "@/utils/audio-frame"
 
 class FakeCaptureSession implements CaptureSession {
+  closeCalls = 0
   // 伪 session 只保留控制器关心的最小行为，用于隔离浏览器音频实现细节。
   private readonly summary: CaptureSessionSummary = {
     frames: 0,
     durationMs: 0,
   }
-  closeCalls = 0
 
   constructor(
     private readonly handlers: CaptureHandlers,

@@ -252,8 +252,8 @@ class MockIdbDatabase {
 }
 
 class MockIndexedDbFactory {
-  private readonly databases = new Map<string, MockIdbDatabase>()
   failNextOpenWith: Error | null = null
+  private readonly databases = new Map<string, MockIdbDatabase>()
 
   open(name: string): IDBOpenDBRequest {
     const request = new MockOpenDbRequest()

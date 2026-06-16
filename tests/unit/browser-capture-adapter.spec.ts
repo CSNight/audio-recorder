@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import {
+  BrowserCaptureAdapter,
+  listMicrophoneDevices,
+} from "@/capture/browser-capture-adapter"
 
 const createCaptureGraphMock = vi.hoisted(() => vi.fn())
 
 vi.mock("@/capture/capture-graph", () => ({
   createCaptureGraph: createCaptureGraphMock,
 }))
-
-import { BrowserCaptureAdapter, listMicrophoneDevices } from "@/capture/browser-capture-adapter"
 
 type FakeTrack = {
   stop: ReturnType<typeof vi.fn>
@@ -266,7 +268,10 @@ describe("BrowserCaptureAdapter", () => {
       })
     )
     createCaptureGraphMock.mockResolvedValue({
-      captureNode: { connect: vi.fn(), disconnect: vi.fn() } as unknown as AudioNode,
+      captureNode: {
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      } as unknown as AudioNode,
       deactivateCaptureNode: vi.fn(),
       bindSession: vi.fn(),
     })
@@ -298,10 +303,30 @@ describe("listMicrophoneDevices", () => {
 
   it("returns only audioinput devices from enumerateDevices", async () => {
     const fakeDevices: Partial<MediaDeviceInfo>[] = [
-      { kind: "audioinput", deviceId: "mic-1", label: "Built-in Microphone", groupId: "g1" },
-      { kind: "videoinput", deviceId: "cam-1", label: "Built-in Camera", groupId: "g2" },
-      { kind: "audiooutput", deviceId: "spk-1", label: "Built-in Speaker", groupId: "g1" },
-      { kind: "audioinput", deviceId: "mic-2", label: "External Mic", groupId: "g3" },
+      {
+        kind: "audioinput",
+        deviceId: "mic-1",
+        label: "Built-in Microphone",
+        groupId: "g1",
+      },
+      {
+        kind: "videoinput",
+        deviceId: "cam-1",
+        label: "Built-in Camera",
+        groupId: "g2",
+      },
+      {
+        kind: "audiooutput",
+        deviceId: "spk-1",
+        label: "Built-in Speaker",
+        groupId: "g1",
+      },
+      {
+        kind: "audioinput",
+        deviceId: "mic-2",
+        label: "External Mic",
+        groupId: "g3",
+      },
     ]
 
     vi.stubGlobal("navigator", {
@@ -324,7 +349,12 @@ describe("listMicrophoneDevices", () => {
     vi.stubGlobal("navigator", {
       mediaDevices: {
         enumerateDevices: vi.fn(async () => [
-          { kind: "videoinput", deviceId: "cam-1", label: "Camera", groupId: "g1" },
+          {
+            kind: "videoinput",
+            deviceId: "cam-1",
+            label: "Camera",
+            groupId: "g1",
+          },
         ]),
       },
     })

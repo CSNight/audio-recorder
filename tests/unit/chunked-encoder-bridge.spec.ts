@@ -36,7 +36,10 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
   })
 
   it("flush returns null for PCM encoder (no buffer)", async () => {
-    const bridge = new ChunkedEncoderBridge({ format: "pcm", registry: buildRegistry() })
+    const bridge = new ChunkedEncoderBridge({
+      format: "pcm",
+      registry: buildRegistry(),
+    })
     await bridge.feedFrame(1, 16000, mono([1, 2]))
     const result = await bridge.flush()
     expect(result).toBeNull()
@@ -63,10 +66,15 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
   })
 
   it("rejects feedFrame and flush after dispose", async () => {
-    const bridge = new ChunkedEncoderBridge({ format: "pcm", registry: buildRegistry() })
+    const bridge = new ChunkedEncoderBridge({
+      format: "pcm",
+      registry: buildRegistry(),
+    })
     bridge.dispose()
 
-    await expect(bridge.feedFrame(1, 16000, mono([1]))).rejects.toThrow("disposed")
+    await expect(bridge.feedFrame(1, 16000, mono([1]))).rejects.toThrow(
+      "disposed"
+    )
     await expect(bridge.flush()).rejects.toThrow("disposed")
   })
 

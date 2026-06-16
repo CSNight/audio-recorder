@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { PcmBufferSnapshot } from "@/buffer/types"
-import { resample, lowPassFilter } from "@/utils/resample"
+import { lowPassFilter, resample } from "@/utils/resample"
 
 // ---------------------------------------------------------------------------
 // helpers
@@ -16,7 +16,9 @@ function makeSine(
   const length = Math.round((sampleRate * durationMs) / 1000)
   const arr = new Int16Array(length)
   for (let i = 0; i < length; i++) {
-    arr[i] = Math.round(amplitude * Math.sin((2 * Math.PI * frequencyHz * i) / sampleRate))
+    arr[i] = Math.round(
+      amplitude * Math.sin((2 * Math.PI * frequencyHz * i) / sampleRate)
+    )
   }
   return arr
 }
@@ -50,7 +52,10 @@ function makeSnapshot(
 
 describe("resample (common)", () => {
   it("同采样率时原样复制，不修改数据", () => {
-    const snapshot = makeSnapshot([new Int16Array([0, 1000, -1000, 500])], 16_000)
+    const snapshot = makeSnapshot(
+      [new Int16Array([0, 1000, -1000, 500])],
+      16_000
+    )
     const result = resample(snapshot, 16_000)
 
     expect(result.sampleRate).toBe(16_000)
@@ -296,7 +301,10 @@ describe("resample — 降采样 HQ (isHQ=true)", () => {
 
     // 排除两端边界效应后比较 RMS
     const inMid = input.slice(256, input.length - 256)
-    const outMid = result.planar[0]!.slice(Math.floor(256 / 3), result.planar[0]!.length - Math.floor(256 / 3))
+    const outMid = result.planar[0]!.slice(
+      Math.floor(256 / 3),
+      result.planar[0]!.length - Math.floor(256 / 3)
+    )
 
     const rmsIn = rms(inMid)
     const rmsOut = rms(outMid)
@@ -331,15 +339,21 @@ describe("resample — 降采样 HQ (isHQ=true)", () => {
     const input = makeSine(14_000, 48_000, 200, 16000)
     const snapshot = makeSnapshot([input], 48_000)
 
-    const resultHigh = resample(snapshot, 16_000, { isHQ: true, filterHalfTaps: 128 })
-    const resultLow = resample(snapshot, 16_000, { isHQ: true, filterHalfTaps: 8 })
+    const resultHigh = resample(snapshot, 16_000, {
+      isHQ: true,
+      filterHalfTaps: 128,
+    })
+    const resultLow = resample(snapshot, 16_000, {
+      isHQ: true,
+      filterHalfTaps: 8,
+    })
 
     const rmsHigh = rms(resultHigh.planar[0]!)
     const rmsLow = rms(resultLow.planar[0]!)
 
     // 两者都应大幅衰减阻带信号（相对原始 16000 振幅）
     expect(rmsHigh).toBeLessThan(4000) // < 25% 原始振幅
-    expect(rmsLow).toBeLessThan(8000)  // low halfTaps 衰减稍弱也可接受
+    expect(rmsLow).toBeLessThan(8000) // low halfTaps 衰减稍弱也可接受
   })
 })
 

@@ -130,7 +130,11 @@ describe("PluginHost", () => {
   it("emits wrapped issues when runtime hooks throw and continues other plugins", async () => {
     const { host, emitIssue } = createHost()
     const calls: string[] = []
-    const frame = createAudioFrame([new Float32Array([0, 0.25, -0.25])], 16_000, 10)
+    const frame = createAudioFrame(
+      [new Float32Array([0, 0.25, -0.25])],
+      16_000,
+      10
+    )
 
     await host.use({
       name: "broken-frame",
