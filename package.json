@@ -15,7 +15,7 @@
     "test:unit": "vitest run --coverage",
     "test:functional": "playwright test",
     "test:functional:headed": "playwright test --headed",
-    "lint": "eslint .",
+    "lint": "eslint . --fix",
     "format": "prettier --write .",
     "commitlint": "commitlint --edit",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build && npm run verify:exports",

@@ -7,20 +7,19 @@ import type { ChunkedEncoderDefinition } from "@/plugins/streaming-export/types"
  * 确保两端的编码器实现完全一致，不维护两套代码。
  */
 export class ChunkedEncoderRegistry {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private readonly encoders = new Map<string, ChunkedEncoderDefinition<any>>()
 
   /**
    * 注册一个 ChunkedEncoder 工厂。
    * 同一 format 重复注册时覆盖旧定义，便于测试注入替代实现。
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   register<TOptions>(definition: ChunkedEncoderDefinition<TOptions>): void {
     this.encoders.set(definition.format, definition)
   }
 
   /** 获取指定 format 的工厂定义，不存在时抛出 */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   get(format: string): ChunkedEncoderDefinition<any> {
     const definition = this.encoders.get(format)
     if (!definition) {

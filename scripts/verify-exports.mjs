@@ -24,7 +24,8 @@ const wavEncoderExport = packageJson.exports?.["./encoders/wav"]
 const levelMeterExport = packageJson.exports?.["./plugins/level-meter"]
 const opfsExport = packageJson.exports?.["./storage/opfs"]
 const indexedDbExport = packageJson.exports?.["./storage/indexeddb"]
-const streamingExportExport = packageJson.exports?.["./plugins/streaming-export"]
+const streamingExportExport =
+  packageJson.exports?.["./plugins/streaming-export"]
 
 if (
   !rootExport ||
