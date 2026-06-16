@@ -95,7 +95,7 @@ describe("createCaptureGraph", () => {
         onmessage: ((event: MessageEvent<unknown>) => void) | null
       }
       name: string
-      options?: AudioWorkletNodeOptions
+      options?: AudioWorkletNodeOptions | undefined
     }> = []
 
     class FakeAudioWorkletNode {
@@ -106,7 +106,7 @@ describe("createCaptureGraph", () => {
       constructor(
         _context: BaseAudioContext,
         public readonly name: string,
-        public readonly options?: AudioWorkletNodeOptions
+        public readonly options: AudioWorkletNodeOptions | undefined = undefined
       ) {
         createdNodes.push(this)
       }
@@ -218,7 +218,7 @@ describe("createCaptureGraph", () => {
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:recorder-worklet")
     vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {})
     ;(
-      audioContext as AudioContext & {
+      audioContext as unknown as AudioContext & {
         audioWorklet?: {
           addModule: typeof addModule
         }

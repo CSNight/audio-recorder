@@ -45,6 +45,10 @@
     "./storage/indexeddb": {
       "types": "./dist/storage/indexeddb/index.d.ts",
       "import": "./dist/storage/indexeddb/index.js"
+    },
+    "./plugins/streaming-export": {
+      "types": "./dist/plugins/streaming-export/index.d.ts",
+      "import": "./dist/plugins/streaming-export/index.js"
     }
   },
   "devDependencies": {
@@ -58,6 +62,7 @@
     "eslint-plugin-prettier": "^5.5.6",
     "globals": "^17.6.0",
     "husky": "^9.1.7",
+    "lamejs": "^1.2.1",
     "playwright": "^1.60.0",
     "prettier": "^3.8.3",
     "typescript": "~6.0.2",

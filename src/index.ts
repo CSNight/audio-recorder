@@ -24,6 +24,7 @@ export type {
   AudioCaptureOptions,
   AudioChannelCount,
   AudioFrame,
+  AudioInputDevice,
   CreateRecorderOptions,
   RecorderEventMap,
   RecorderFrameEvent,

@@ -49,6 +49,13 @@ export interface AudioCaptureOptions {
   deviceId?: string
 }
 
+/** 麦克风（音频输入）设备描述，由 listMicrophoneDevices() 返回。 */
+export interface AudioInputDevice {
+  deviceId: string
+  label: string
+  groupId: string
+}
+
 export interface AudioFrame {
   channels: AudioChannelCount
   sampleRate: number
@@ -135,7 +142,11 @@ export interface RecorderEventMap {
   frame: RecorderFrameEvent
   issue: RecorderIssueEvent
   level: RecorderPluginEventContext<RecorderLevelEvent>
-  [event: string]: RecorderPluginEventContext<RecorderPluginEventPayload> | RecorderStateChangeEvent | RecorderFrameEvent | RecorderIssueEvent
+  [event: string]:
+    | RecorderPluginEventContext<RecorderPluginEventPayload>
+    | RecorderStateChangeEvent
+    | RecorderFrameEvent
+    | RecorderIssueEvent
 }
 
 export interface RecorderOpenOptions {

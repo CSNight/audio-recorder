@@ -6,6 +6,7 @@ import type {
 } from "@/capture/types"
 import { BrowserCaptureSession } from "@/capture/browser-capture-session"
 import { createCaptureGraph } from "@/capture/capture-graph"
+import type { AudioInputDevice } from "@/types"
 
 type AudioContextConstructor = typeof AudioContext
 type AudioContextScope = typeof globalThis & {
@@ -59,7 +60,7 @@ function createConstraints(
  * 注意：在用户授权麦克风权限之前，返回的设备条目 `label` 字段为空字符串。
  * 建议在首次 `recorder.open()` 成功后再次调用本函数以刷新设备标签。
  */
-export async function listMicrophoneDevices(): Promise<MediaDeviceInfo[]> {
+export async function listMicrophoneDevices(): Promise<AudioInputDevice[]> {
   if (!navigator.mediaDevices?.enumerateDevices) {
     throw new Error(
       "navigator.mediaDevices.enumerateDevices is not available in the current environment."
@@ -67,7 +68,9 @@ export async function listMicrophoneDevices(): Promise<MediaDeviceInfo[]> {
   }
 
   const devices = await navigator.mediaDevices.enumerateDevices()
-  return devices.filter((d) => d.kind === "audioinput")
+  return devices
+    .filter((d) => d.kind === "audioinput")
+    .map((d) => ({ deviceId: d.deviceId, label: d.label, groupId: d.groupId }))
 }
 
 export class BrowserCaptureAdapter implements CaptureAdapter {

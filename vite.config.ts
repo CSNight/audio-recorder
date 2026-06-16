@@ -22,6 +22,9 @@ export default defineConfig({
         "storage/indexeddb/index": fileURLToPath(
           new URL("./src/storage/indexeddb/index.ts", import.meta.url)
         ),
+        "plugins/streaming-export/index": fileURLToPath(
+          new URL("./src/plugins/streaming-export/index.ts", import.meta.url)
+        ),
       },
       formats: ["es"],
       fileName: (_format, entryName) => `${entryName}.js`,

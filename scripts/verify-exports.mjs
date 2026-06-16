@@ -15,6 +15,8 @@ const required = [
   "dist/storage/opfs/index.d.ts",
   "dist/storage/indexeddb/index.js",
   "dist/storage/indexeddb/index.d.ts",
+  "dist/plugins/streaming-export/index.js",
+  "dist/plugins/streaming-export/index.d.ts",
 ]
 const rootExport = packageJson.exports?.["."]
 const pcmEncoderExport = packageJson.exports?.["./encoders/pcm"]
@@ -22,6 +24,7 @@ const wavEncoderExport = packageJson.exports?.["./encoders/wav"]
 const levelMeterExport = packageJson.exports?.["./plugins/level-meter"]
 const opfsExport = packageJson.exports?.["./storage/opfs"]
 const indexedDbExport = packageJson.exports?.["./storage/indexeddb"]
+const streamingExportExport = packageJson.exports?.["./plugins/streaming-export"]
 
 if (
   !rootExport ||
@@ -85,6 +88,17 @@ if (
 ) {
   console.error(
     "The package.json IndexedDB export must match dist/storage/indexeddb/index.js and dist/storage/indexeddb/index.d.ts."
+  )
+  process.exit(1)
+}
+
+if (
+  !streamingExportExport ||
+  streamingExportExport.import !== "./dist/plugins/streaming-export/index.js" ||
+  streamingExportExport.types !== "./dist/plugins/streaming-export/index.d.ts"
+) {
+  console.error(
+    "The package.json streaming-export export must match dist/plugins/streaming-export/index.js and dist/plugins/streaming-export/index.d.ts."
   )
   process.exit(1)
 }

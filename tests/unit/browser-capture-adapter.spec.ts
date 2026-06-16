@@ -315,7 +315,9 @@ describe("listMicrophoneDevices", () => {
     expect(result).toHaveLength(2)
     expect(result[0]?.deviceId).toBe("mic-1")
     expect(result[1]?.deviceId).toBe("mic-2")
-    expect(result.every((d) => d.kind === "audioinput")).toBe(true)
+    // AudioInputDevice 不含 kind，过滤逻辑已保证结果全为 audioinput
+    expect(result[0]?.label).toBe("Built-in Microphone")
+    expect(result[1]?.label).toBe("External Mic")
   })
 
   it("returns an empty array when no audioinput devices are present", async () => {
