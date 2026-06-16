@@ -6,7 +6,7 @@ vi.mock("@/capture/capture-graph", () => ({
   createCaptureGraph: createCaptureGraphMock,
 }))
 
-import { BrowserCaptureAdapter } from "@/capture/browser-capture-adapter"
+import { BrowserCaptureAdapter, listMicrophoneDevices } from "@/capture/browser-capture-adapter"
 
 type FakeTrack = {
   stop: ReturnType<typeof vi.fn>
@@ -247,6 +247,106 @@ describe("BrowserCaptureAdapter", () => {
       )
     ).rejects.toThrow(
       "AudioContext is not available in the current environment."
+    )
+  })
+
+  it("passes deviceId as exact constraint to getUserMedia", async () => {
+    const getUserMedia = vi.fn(
+      async () => createStream() as unknown as MediaStream
+    )
+    vi.stubGlobal("navigator", {
+      mediaDevices: {
+        getUserMedia,
+      },
+    })
+    vi.stubGlobal(
+      "AudioContext",
+      vi.fn(function (this: unknown, options?: AudioContextOptions) {
+        return createAudioContextStub(options)
+      })
+    )
+    createCaptureGraphMock.mockResolvedValue({
+      captureNode: { connect: vi.fn(), disconnect: vi.fn() } as unknown as AudioNode,
+      deactivateCaptureNode: vi.fn(),
+      bindSession: vi.fn(),
+    })
+
+    const adapter = new BrowserCaptureAdapter()
+    await adapter.open(
+      {
+        capture: {
+          deviceId: "mic-device-001",
+        },
+      },
+      { onFrame: vi.fn(), onIssue: vi.fn() }
+    )
+
+    expect(getUserMedia).toHaveBeenCalledWith({
+      audio: {
+        deviceId: { exact: "mic-device-001" },
+      },
+      video: false,
+    })
+  })
+})
+
+describe("listMicrophoneDevices", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it("returns only audioinput devices from enumerateDevices", async () => {
+    const fakeDevices: Partial<MediaDeviceInfo>[] = [
+      { kind: "audioinput", deviceId: "mic-1", label: "Built-in Microphone", groupId: "g1" },
+      { kind: "videoinput", deviceId: "cam-1", label: "Built-in Camera", groupId: "g2" },
+      { kind: "audiooutput", deviceId: "spk-1", label: "Built-in Speaker", groupId: "g1" },
+      { kind: "audioinput", deviceId: "mic-2", label: "External Mic", groupId: "g3" },
+    ]
+
+    vi.stubGlobal("navigator", {
+      mediaDevices: {
+        enumerateDevices: vi.fn(async () => fakeDevices),
+      },
+    })
+
+    const result = await listMicrophoneDevices()
+
+    expect(result).toHaveLength(2)
+    expect(result[0]?.deviceId).toBe("mic-1")
+    expect(result[1]?.deviceId).toBe("mic-2")
+    expect(result.every((d) => d.kind === "audioinput")).toBe(true)
+  })
+
+  it("returns an empty array when no audioinput devices are present", async () => {
+    vi.stubGlobal("navigator", {
+      mediaDevices: {
+        enumerateDevices: vi.fn(async () => [
+          { kind: "videoinput", deviceId: "cam-1", label: "Camera", groupId: "g1" },
+        ]),
+      },
+    })
+
+    const result = await listMicrophoneDevices()
+
+    expect(result).toHaveLength(0)
+  })
+
+  it("throws when enumerateDevices is not available", async () => {
+    vi.stubGlobal("navigator", {
+      mediaDevices: {},
+    })
+
+    await expect(listMicrophoneDevices()).rejects.toThrow(
+      "navigator.mediaDevices.enumerateDevices is not available in the current environment."
+    )
+  })
+
+  it("throws when navigator.mediaDevices is not available", async () => {
+    vi.stubGlobal("navigator", {})
+
+    await expect(listMicrophoneDevices()).rejects.toThrow(
+      "navigator.mediaDevices.enumerateDevices is not available in the current environment."
     )
   })
 })

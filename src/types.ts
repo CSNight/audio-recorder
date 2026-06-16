@@ -45,6 +45,8 @@ export interface AudioCaptureOptions {
   echoCancellation?: boolean
   noiseSuppression?: boolean
   autoGainControl?: boolean
+  /** 指定麦克风设备 ID，对应 enumerateDevices 返回的 deviceId */
+  deviceId?: string
 }
 
 export interface AudioFrame {

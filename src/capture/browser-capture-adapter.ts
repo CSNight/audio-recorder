@@ -45,8 +45,29 @@ function createConstraints(
   if (capture?.autoGainControl !== undefined) {
     constraints.autoGainControl = capture.autoGainControl
   }
+  // deviceId 使用 exact 约束，确保精确匹配指定设备，设备不可用时直接报错。
+  if (capture?.deviceId !== undefined) {
+    constraints.deviceId = { exact: capture.deviceId }
+  }
 
   return constraints
+}
+
+/**
+ * 列举当前可用的麦克风（音频输入）设备。
+ *
+ * 注意：在用户授权麦克风权限之前，返回的设备条目 `label` 字段为空字符串。
+ * 建议在首次 `recorder.open()` 成功后再次调用本函数以刷新设备标签。
+ */
+export async function listMicrophoneDevices(): Promise<MediaDeviceInfo[]> {
+  if (!navigator.mediaDevices?.enumerateDevices) {
+    throw new Error(
+      "navigator.mediaDevices.enumerateDevices is not available in the current environment."
+    )
+  }
+
+  const devices = await navigator.mediaDevices.enumerateDevices()
+  return devices.filter((d) => d.kind === "audioinput")
 }
 
 export class BrowserCaptureAdapter implements CaptureAdapter {

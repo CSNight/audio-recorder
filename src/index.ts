@@ -1,6 +1,8 @@
-import { BrowserCaptureAdapter } from "@/capture/browser-capture-adapter"
+import { BrowserCaptureAdapter, listMicrophoneDevices } from "@/capture/browser-capture-adapter"
 import { RecorderController } from "@/core/recorder-controller"
 import type { CreateRecorderOptions } from "@/types"
+
+export { listMicrophoneDevices }
 
 export { exportPcmSnapshot } from "@/codecs/pcm/pcm-exporter"
 export type { PcmExportOptions, PcmExportResult } from "@/codecs/pcm/types"

@@ -5,6 +5,7 @@ import {
 } from "https://unpkg.com/vue@3/dist/vue.esm-browser.js"
 import {
   createRecorder,
+  listMicrophoneDevices,
   RecorderInputSource,
   RecorderState,
   RecorderWarningCode,
@@ -55,6 +56,8 @@ createApp({
       exportedBytes: null,
       activePersistenceBackend: null,
       lastExportResult: null, // { pcm, wav } — 上次导出结果，用于下载
+      microphoneDevices: [], // MediaDeviceInfo[] — 已枚举的麦克风列表
+      selectedDeviceId: "", // "" = 默认麦克风
     })
 
     let recorder = createPlaygroundRecorder(
@@ -227,6 +230,28 @@ createApp({
       )
     }
 
+    async function handleSourceModeChange() {
+      if (state.sourceMode === PLAYGROUND_SOURCE_MODE.microphone) {
+        await refreshMicrophoneDevices()
+      }
+    }
+
+    async function refreshMicrophoneDevices() {
+      try {
+        const devices = await listMicrophoneDevices()
+        state.microphoneDevices = devices
+        if (
+          state.selectedDeviceId !== "" &&
+          !devices.some((device) => device.deviceId === state.selectedDeviceId)
+        ) {
+          state.selectedDeviceId = ""
+        }
+        appendLog("info", `已枚举到 ${devices.length} 个麦克风设备。`)
+      } catch (error) {
+        appendLog("error", formatError(error))
+      }
+    }
+
     async function openRecorder() {
       await runLoggedAction(
         async () => {
@@ -260,6 +285,9 @@ createApp({
                     echoCancellation: false,
                     noiseSuppression: false,
                     autoGainControl: false,
+                    ...(state.selectedDeviceId !== "" && {
+                      deviceId: state.selectedDeviceId,
+                    }),
                   },
                 }
 
@@ -268,6 +296,11 @@ createApp({
             "info",
             `录音器已打开，输入来源：${getSourceModeLabel(state.sourceMode)}，请求声道数：${state.runtimeInfo.requestedChannelCount}，存储模式：${getStorageModeLabel(state.storageMode)}。`
           )
+
+          if (state.sourceMode === PLAYGROUND_SOURCE_MODE.microphone) {
+            // 首次授权后再次枚举，以便拿到设备 label（授权前 label 为空字符串）。
+            await refreshMicrophoneDevices()
+          }
         },
         "",
         "正在打开录音器..."
@@ -412,9 +445,11 @@ createApp({
       closeRecorder,
       downloadPCM,
       downloadWAV,
+      handleSourceModeChange,
       handleStorageModeChange,
       openRecorder,
       pauseRecorder,
+      refreshMicrophoneDevices,
       resumeRecorder,
       runtimeJson,
       startRecorder,

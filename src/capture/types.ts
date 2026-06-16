@@ -23,6 +23,7 @@ export interface CaptureHandlers {
 export interface CaptureOpenRequest {
   sourceStream?: MediaStream
   capture?: AudioCaptureOptions
+  deviceId?: string
 }
 
 export interface CaptureSessionSummary {
