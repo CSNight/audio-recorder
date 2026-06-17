@@ -1,15 +1,11 @@
 /**
- * lamejs ESM 适配层。
+ * lamejs 类型接口定义。
  *
- * lamejs 是无官方类型声明的 CJS 模块，这里封装为 ESM 导出：
- * - 不向 globalThis 挂载任何变量
- * - Worker 和主线程均使用同一份适配器
- *
- * 注意：lamejs 精简版（vendor/Recorder-master/src/engine/mp3-engine.js）
- * 仅支持单声道，且包含 xiangyuecn 的 out_samplerate fix（低码率无声问题）。
- * 当前使用 npm lamejs（支持双声道）；如需体积更小的单声道版本可切换为 vendor 版。
+ * 不直接 import lamejs，而是由消费方通过 registerMp3Encoder() 传入构造函数。
+ * 这样可以避免：
+ *  1. 库与消费方项目各自打包一份 lamejs（重复问题）
+ *  2. Worker inline blob 无法访问外部 peer dep 的问题
  */
-import { Mp3Encoder } from "lamejs"
 
 /** lamejs Mp3Encoder 实例接口 */
 export interface LameMp3Encoder {
@@ -27,9 +23,3 @@ export interface LameMp3Encoder {
 export interface LameMp3EncoderConstructor {
   new (channels: number, sampleRate: number, kbps: number): LameMp3Encoder
 }
-
-/**
- * lamejs 的 Mp3Encoder 构造函数，直接从模块导入，不走全局挂载。
- */
-export const Mp3EncoderClass: LameMp3EncoderConstructor =
-  Mp3Encoder as unknown as LameMp3EncoderConstructor

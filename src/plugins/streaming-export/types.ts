@@ -6,6 +6,10 @@
  * - 可在 Worker 和主线程中直接实例化，使用同一份代码
  */
 
+import type { Mp3ChunkedEncoderOptions } from "@/plugins/streaming-export/encoders/mp3"
+import type { WavChunkedEncoderOptions } from "@/plugins/streaming-export/encoders/wav"
+import type { PcmChunkedEncoderOptions } from "@/plugins/streaming-export/encoders/pcm"
+
 /** 实时编码块的事件 payload，通过 "encoded-chunk" 事件发出 */
 export interface StreamingChunkPayload {
   chunk: Uint8Array
@@ -43,7 +47,10 @@ export interface ChunkedEncoderDefinition<TOptions = unknown> {
 /** createStreamingExportPlugin 的选项 */
 export interface StreamingExportPluginOptions {
   format: string
-  encoderOptions?: unknown
+  encoderOptions?:
+    | Mp3ChunkedEncoderOptions
+    | WavChunkedEncoderOptions
+    | PcmChunkedEncoderOptions
   /** Worker 编码不可用时是否允许降级到主线程同步编码，默认 true */
   allowMainThreadFallback?: boolean
 }

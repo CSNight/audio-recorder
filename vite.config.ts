@@ -4,6 +4,7 @@ import { defineConfig } from "vite"
 export default defineConfig({
   build: {
     emptyOutDir: true,
+    minify: "oxc",
     lib: {
       entry: {
         index: fileURLToPath(new URL("./src/index.ts", import.meta.url)),
@@ -28,6 +29,9 @@ export default defineConfig({
       },
       formats: ["es"],
       fileName: (_format, entryName) => `${entryName}.js`,
+    },
+    rolldownOptions: {
+      output: { minify: true },
     },
     sourcemap: false,
     target: "es2022",

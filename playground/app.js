@@ -13,6 +13,7 @@ import {
 import { createLevelMeterPlugin } from "/dist/plugins/level-meter/index.js"
 import { createIndexedDbPersistencePlugin } from "/dist/storage/indexeddb/index.js"
 import { createOpfsPersistencePlugin } from "/dist/storage/opfs/index.js"
+import { createStreamingExportPlugin } from "/dist/plugins/streaming-export/index.js"
 
 const PLAYGROUND_SOURCE_MODE = {
   microphone: RecorderInputSource.Microphone,
@@ -201,8 +202,15 @@ createApp({
     }
 
     async function initializeRecorder() {
-      recorderDisposers = bindRecorderEvents(recorder, state, appendLog)
       await recorder.use(createLevelMeterPlugin())
+      await recorder.use(
+        createStreamingExportPlugin({
+          format: "pcm",
+          encoderOptions: { bitsPerSample: 16 },
+          allowMainThreadFallback: true,
+        })
+      )
+      recorderDisposers = bindRecorderEvents(recorder, state, appendLog)
     }
 
     async function rebuildRecorder() {
@@ -484,6 +492,10 @@ function bindRecorderEvents(recorder, state, appendLog) {
 
     appendLog("error", issue.error.message)
   })
+
+  const offStream = recorder.on("encoded-chunk", (e) => {
+    console.log(e)
+  })
   const offFrame = recorder.on("frame", ({ frame, runtimeInfo, summary }) => {
     state.frameCount += 1
     state.lastFrameDurationMs = frame.durationMs
@@ -497,7 +509,7 @@ function bindRecorderEvents(recorder, state, appendLog) {
     )
   })
 
-  return [offStateChange, offIssue, offFrame, offLevel]
+  return [offStateChange, offIssue, offFrame, offLevel, offStream]
 }
 
 function unbindRecorderEvents(disposers) {
