@@ -8,12 +8,6 @@ export default defineConfig({
     lib: {
       entry: {
         index: fileURLToPath(new URL("./src/index.ts", import.meta.url)),
-        "encoders/pcm/index": fileURLToPath(
-          new URL("./src/encoders/pcm/index.ts", import.meta.url)
-        ),
-        "encoders/wav/index": fileURLToPath(
-          new URL("./src/encoders/wav/index.ts", import.meta.url)
-        ),
         "plugins/level-meter/index": fileURLToPath(
           new URL("./src/plugins/level-meter/public.ts", import.meta.url)
         ),
@@ -25,6 +19,9 @@ export default defineConfig({
         ),
         "plugins/streaming-export/index": fileURLToPath(
           new URL("./src/plugins/streaming-export/index.ts", import.meta.url)
+        ),
+        "codecs/mp3/index": fileURLToPath(
+          new URL("./src/codecs/mp3/index.ts", import.meta.url)
         ),
       },
       formats: ["es"],

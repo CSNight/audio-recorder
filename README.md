@@ -31,12 +31,10 @@
 - Internal `buffer + pipeline` chain accumulates planar PCM snapshots for export
 - Snapshot merge now caches inside the buffer store, so repeated exports do not re-merge all PCM chunks every time
 - Buffer store now keeps only the minimum `appendFrame / snapshot / clear` interface; layout mismatch checks remain only as a guard against mixed-session or mixed-layout frame pollution
-- Built-in `exportPCM()` and `exportWAV()` support mono/stereo output, optional resample, and `bitRate: 8 | 16`
+- Built-in `pcm`/`wav` snapshot encoders support mono/stereo output, optional resample, and `bitRate: 8 | 16`, accessed only through `recorder.exportEncoded("pcm" | "wav", options)`
 - WAV export reuses PCM export results and writes standard PCM WAV headers without introducing an extra realtime encoder layer
-- `RecorderController` now exposes `registerEncoder()` and generic `exportEncoded()`, so custom snapshot encoders can be registered without reaching into internal registry state
-- Built-in PCM/WAV encoders are now available as explicit subpath modules:
-  - `@scope/audio-recorder/encoders/pcm`
-  - `@scope/audio-recorder/encoders/wav`
+- `RecorderController` now exposes `registerEncoder()` and a single generic `exportEncoded(type, options)` entry point; there are no per-format convenience methods like `exportPCM()`/`exportWAV()` — every format (built-in or custom) goes through the same call
+- Built-in PCM/WAV encoders are registered into the default encoder registry internally and are no longer published as separate subpath modules; only `mp3` ships as an optional subpath because it pulls in the `lamejs` dependency
 - Storage spill is now modeled as an optional capability interface: the core library only knows the persistence contract, while OPFS and IndexedDB are pluggable implementations you opt into explicitly
 - Storage mode now follows three explicit behaviors:
   - `memory`: stay in memory only
@@ -56,7 +54,7 @@
   - `mp3` and other compressed formats: normalize to `bitRateKbps`
 - The first Phase 2 implementation step is `buffer + pipeline`, before resample and PCM/WAV exporters.
 - The second Phase 2 implementation step is `snapshot -> resample -> interleaved PCM export`, while WAV remains a thin wrapper for the next step.
-- The third Phase 2 implementation step is complete: `wav header + wav export`, and the controller now exposes `exportPCM()` / `exportWAV()`.
+- The third Phase 2 implementation step is complete: `wav header + wav export`, and the controller now exposes a single generic `exportEncoded("pcm" | "wav", options)` entry point instead of per-format methods.
 - Long-record protection now follows a plugin-shaped storage contract: default is memory-only, while OPFS / IndexedDB persistence is opt-in and lifecycle-bound to the current recording session.
 
 ## Phase 3 Direction
@@ -89,7 +87,7 @@ flowchart TD
   O --> P[EventBus emit frame]
   P --> Q[UI or host listeners]
   O --> S[PcmFramePipeline buffer snapshot]
-  S --> T[exportPCM or exportWAV]
+  S --> T[exportEncoded pcm or wav or mp3]
   C --> R[statechange or issue]
   R --> Q
 ```
@@ -101,7 +99,7 @@ flowchart TD
 
 - Root page: static landing page that only links to the playground
 - `/playground/`: Vue CDN demo that imports `dist/index.js` and covers microphone plus external stream scenarios
-- Built-in encoder subpaths live at `/dist/encoders/pcm/index.js` and `/dist/encoders/wav/index.js`
+- PCM/WAV export is exercised through `recorder.exportEncoded("pcm" | "wav", options)`; only the optional `mp3` codec lives at its own subpath, `/dist/codecs/mp3/index.js`
 - Persistence demo paths in the playground import `/dist/storage/opfs/index.js` and `/dist/storage/indexeddb/index.js` directly, instead of relying on the root artifact to re-export them
 
 `npm run dev:playground` will build the library first, because the playground intentionally depends on the packaged output instead of `src`.

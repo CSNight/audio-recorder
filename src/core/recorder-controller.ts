@@ -1,9 +1,8 @@
 import { createPcmBufferStore } from "@/buffer/pcm-buffer-store"
 import type { CaptureAdapter, CaptureSession } from "@/capture/types"
-import type { PcmExportOptions, PcmExportResult } from "@/codecs/pcm/types"
-import type { WavExportOptions, WavExportResult } from "@/codecs/wav/types"
 import {
   createDefaultEncoderRegistry,
+  type EncoderMap,
   type EncoderRegistry,
   type SnapshotEncoderDefinition,
 } from "@/encoders/encoder-registry"
@@ -116,28 +115,27 @@ export class RecorderController {
     this.encoderRegistry.register(definition)
   }
 
-  async exportPCM(options: PcmExportOptions = {}): Promise<PcmExportResult> {
-    return this.encoderRegistry.export(
-      "pcm",
-      await this.requirePcmSnapshot(),
-      options
-    )
-  }
-
-  async exportWAV(options: WavExportOptions = {}): Promise<WavExportResult> {
-    return this.encoderRegistry.export(
-      "wav",
-      await this.requirePcmSnapshot(),
-      options
-    )
-  }
+  /**
+   * 通用快照编码导出入口：所有格式（pcm / wav / mp3 / 未来扩展）统一走这一个方法，
+   * 不再为每种内置格式单独暴露 exportPCM()/exportWAV() 之类的便捷方法。
+   *
+   * 对于 EncoderMap 中已登记的已知格式（如 "pcm" / "wav" / "mp3"），TypeScript 会
+   * 根据字面量类型自动推断出对应的 options/result 类型；对动态注册的未知格式，
+   * 调用方仍可显式传入泛型参数。
+   */
+  exportEncoded<TKey extends keyof EncoderMap>(
+    type: TKey,
+    options?: EncoderMap[TKey]["options"]
+  ): Promise<EncoderMap[TKey]["result"]>
 
   exportEncoded<TOptions, TResult>(
     type: string,
     options?: TOptions
-  ): Promise<TResult> {
+  ): Promise<TResult>
+
+  exportEncoded(type: string, options?: unknown): Promise<unknown> {
     return this.requirePcmSnapshot().then((snapshot) =>
-      this.encoderRegistry.export<TOptions, TResult>(type, snapshot, options)
+      this.encoderRegistry.export(type, snapshot, options)
     )
   }
 

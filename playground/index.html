@@ -253,7 +253,7 @@
               <p class="supporting" style="margin-bottom: 0.75rem;">
                 停止录音后可下载 PCM 原始数据或 WAV 音频文件。
               </p>
-              <div class="control-grid" style="grid-template-columns: 1fr 1fr;">
+              <div class="control-grid" style="grid-template-columns: 1fr 1fr 1fr;">
                 <button
                   :disabled="!state.lastExportResult"
                   data-testid="download-pcm-button"
@@ -267,6 +267,13 @@
                   @click="downloadWAV"
                 >
                   ↓ 下载 WAV
+                </button>
+                <button
+                  :disabled="!state.lastExportResult"
+                  data-testid="download-mp3-button"
+                  @click="downloadMP3"
+                >
+                  ↓ 下载 MP3
                 </button>
               </div>
               <div v-if="state.lastExportResult" class="stats-grid" style="margin-top: 0.75rem;">

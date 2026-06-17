@@ -1,8 +1,18 @@
+/**
+ * MP3 流式（chunked）编码器实现。
+ *
+ * 仅会被两类执行环境加载：
+ * 1. MP3 专属 Worker blob 内部（mp3-worker.ts 中 import）
+ * 2. Worker 不可用时的主线程 fallback 路径（chunked-encoder-bridge.ts 中 import）
+ *
+ * 不会被主包（src/index.ts）间接引用，因此不会把 lamejs 拖入主 bundle。
+ */
 import type {
   ChunkedEncoder,
   ChunkedEncoderDefinition,
 } from "@/plugins/streaming-export/types"
-import { Mp3EncoderClass } from "@/codecs/mp3/lamejs-adapter"
+import { Mp3Encoder } from "./vendor/lame.all.js"
+import type { LameMp3Encoder } from "./types"
 
 /** MP3 ChunkedEncoder 选项 */
 export interface Mp3ChunkedEncoderOptions {
@@ -16,7 +26,8 @@ export interface Mp3ChunkedEncoderOptions {
  * flush() 时调用 lame flush，返回最后一批 MP3 帧数据。
  *
  * lamejs 内部以 1152 样本为一个 MPEG 帧，通常每帧都有产出。
- * 单声道时 right 通道传与 left 相同的数组。
+ * 双声道时取 planar[1] 作为 right；单声道时 right 通道传与 left 相同的数组
+ * （lamejs 内部按 mono 处理时忽略 right 参数，但仍需传入避免 undefined）。
  */
 function createMp3ChunkedEncoder(
   options?: Mp3ChunkedEncoderOptions
@@ -24,7 +35,7 @@ function createMp3ChunkedEncoder(
   const bitrateKbps = options?.bitrateKbps ?? 128
 
   // encoder 在第一帧时才初始化，因为需要实际的 sampleRate 和 channels
-  let encoder: InstanceType<typeof Mp3EncoderClass> | null = null
+  let encoder: LameMp3Encoder | null = null
   let encoderChannels = 0
   let encoderSampleRate = 0
 
@@ -38,7 +49,11 @@ function createMp3ChunkedEncoder(
     }
 
     // channels 或 sampleRate 变化时（理论上不应发生）重建
-    encoder = new Mp3EncoderClass(channels, sampleRate, bitrateKbps)
+    encoder = new Mp3Encoder(
+      channels,
+      sampleRate,
+      bitrateKbps
+    ) as unknown as LameMp3Encoder
     encoderChannels = channels
     encoderSampleRate = sampleRate
     return encoder
@@ -53,7 +68,7 @@ function createMp3ChunkedEncoder(
       }
 
       const left = planar[0]!
-      // 单声道时 right 传 left，lamejs 内部会忽略 right
+      // 双声道取 planar[1]；单声道时 right 传 left，lamejs 内部会忽略 right
       const right = channels > 1 ? (planar[1] ?? left) : left
 
       const int8Result = enc.encodeBuffer(left, right)

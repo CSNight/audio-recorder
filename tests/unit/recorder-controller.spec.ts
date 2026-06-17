@@ -260,8 +260,8 @@ describe("RecorderController", () => {
       createAudioFrame([new Float32Array([0, 0.5, -0.5, 0.25])], 16_000, 10)
     )
 
-    const pcm = await recorder.exportPCM()
-    const wav = await recorder.exportWAV({
+    const pcm = await recorder.exportEncoded("pcm")
+    const wav = await recorder.exportEncoded("wav", {
       bitRate: 8,
     })
 
@@ -277,10 +277,10 @@ describe("RecorderController", () => {
       storageOptions: undefined,
     })
 
-    await expect(recorder.exportPCM()).rejects.toThrow(
+    await expect(recorder.exportEncoded("pcm")).rejects.toThrow(
       "Recorder has no PCM data to export."
     )
-    await expect(recorder.exportWAV()).rejects.toThrow(
+    await expect(recorder.exportEncoded("wav")).rejects.toThrow(
       "Recorder has no PCM data to export."
     )
   })
@@ -372,7 +372,7 @@ describe("RecorderController", () => {
       createAudioFrame([new Float32Array([0, 0.5, -0.5, 0.25])], 16_000, 10)
     )
 
-    const pcm = await recorder.exportPCM()
+    const pcm = await recorder.exportEncoded("pcm")
 
     expect(Array.from(pcm.data)).toEqual([0, 16384, -16384, 8192])
     expect(issues).toContain(RecorderWarningCode.PersistenceActivationFailed)

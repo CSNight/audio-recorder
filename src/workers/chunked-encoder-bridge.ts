@@ -4,10 +4,21 @@
  * - Worker 不可用时：主线程同步回退，接口对外透明
  *
  * feedFrame / flush 均返回 Promise，由 plugin.ts 以 fire-and-forget 方式调用。
+ *
+ * Worker 来源优先级：
+ * 1. definition.workerFactory()  — 编解码器自带专属 Worker（如 mp3-worker.ts）
+ * 2. defaultWorkerFactory()      — 默认 PCM/WAV Worker（chunked-encoder-worker.ts，inline blob）
+ *
+ * 使用 `?worker&inline` 将默认 Worker 内联为 base64 blob，避免额外的网络请求，
+ * 同时在 CSP 严格环境下仍可正常实例化（blob: URL 通常被允许）。
  */
 
 import type { ChunkedEncoder } from "@/plugins/streaming-export/types"
 import type { ChunkedEncoderRegistry } from "@/plugins/streaming-export/registry"
+import InlineDefaultWorker from "./chunked-encoder-worker.ts?worker&inline"
+
+/** 默认 Worker 工厂（PCM/WAV 通用，不含 MP3/lamejs） */
+const defaultWorkerFactory = (): Worker => new InlineDefaultWorker()
 
 export interface ChunkedEncoderBridgeOptions {
   format: string
@@ -44,11 +55,11 @@ export class ChunkedEncoderBridge {
 
     if (typeof Worker !== "undefined") {
       try {
-        // Vite 构建时会将此 URL 替换为正确的 Worker chunk 路径
-        this.worker = new Worker(
-          new URL("./chunked-encoder-worker.ts", import.meta.url),
-          { type: "module" }
-        )
+        // 优先使用编解码器自带的专属 Worker（如 mp3-worker.ts），
+        // 回退到默认的 PCM/WAV inline Worker
+        const definition = opts.registry.get(opts.format)
+        const workerFactory = definition.workerFactory ?? defaultWorkerFactory
+        this.worker = workerFactory()
 
         this.worker.onmessage = (
           event: MessageEvent<WorkerOutgoingMessage>

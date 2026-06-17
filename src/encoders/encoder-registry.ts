@@ -3,6 +3,10 @@ import { createPcmEncoder } from "@/encoders/pcm"
 import { createWavEncoder } from "@/encoders/wav"
 import type { PcmExportOptions, PcmExportResult } from "@/codecs/pcm/types"
 import type { WavExportOptions, WavExportResult } from "@/codecs/wav/types"
+import type {
+  Mp3ExportOptions,
+  Mp3ExportResult,
+} from "@/codecs/mp3/mp3-snapshot-types"
 
 export interface SnapshotEncoderDefinition<
   TType extends string = string,
@@ -20,6 +24,7 @@ export interface SnapshotEncoderDefinition<
 export interface EncoderMap {
   pcm: { options: PcmExportOptions; result: PcmExportResult }
   wav: { options: WavExportOptions; result: WavExportResult }
+  mp3: { options: Mp3ExportOptions; result: Mp3ExportResult }
 }
 
 export class EncoderRegistry {

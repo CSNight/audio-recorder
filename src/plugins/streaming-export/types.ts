@@ -6,7 +6,7 @@
  * - 可在 Worker 和主线程中直接实例化，使用同一份代码
  */
 
-import type { Mp3ChunkedEncoderOptions } from "@/plugins/streaming-export/encoders/mp3"
+import type { Mp3ChunkedEncoderOptions } from "@/codecs/mp3/mp3-chunked-encoder"
 import type { WavChunkedEncoderOptions } from "@/plugins/streaming-export/encoders/wav"
 import type { PcmChunkedEncoderOptions } from "@/plugins/streaming-export/encoders/pcm"
 
@@ -42,6 +42,13 @@ export interface ChunkedEncoderDefinition<TOptions = unknown> {
   format: string
   /** 创建 ChunkedEncoder 实例，可接收格式相关选项（bitrate、framesPerChunk 等） */
   create(options?: TOptions): ChunkedEncoder
+  /**
+   * 可选：为本编码器创建专属 Worker 实例的工厂函数。
+   * 未提供时使用默认的 PCM/WAV Worker（chunked-encoder-worker.ts）。
+   * MP3 等可选编解码器提供此字段，以便将 lamejs 等重型依赖隔离到独立 Worker blob 中，
+   * 避免拖入默认 Worker 包体。
+   */
+  workerFactory?: () => Worker
 }
 
 /** createStreamingExportPlugin 的选项 */

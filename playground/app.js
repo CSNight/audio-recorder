@@ -14,6 +14,7 @@ import { createLevelMeterPlugin } from "/dist/plugins/level-meter/index.js"
 import { createIndexedDbPersistencePlugin } from "/dist/storage/indexeddb/index.js"
 import { createOpfsPersistencePlugin } from "/dist/storage/opfs/index.js"
 import { createStreamingExportPlugin } from "/dist/plugins/streaming-export/index.js"
+import { createMp3Encoder } from "/dist/codecs/mp3/index.js"
 
 const PLAYGROUND_SOURCE_MODE = {
   microphone: RecorderInputSource.Microphone,
@@ -205,11 +206,13 @@ createApp({
       await recorder.use(createLevelMeterPlugin())
       await recorder.use(
         createStreamingExportPlugin({
-          format: "pcm",
-          encoderOptions: { bitsPerSample: 16 },
+          format: "mp3",
+          encoderOptions: { bitRate: 32 },
           allowMainThreadFallback: true,
         })
       )
+      // 注册 MP3 快照编码器（可选编解码器，不在默认注册表中，需显式注册）
+      recorder.registerEncoder(createMp3Encoder())
       recorderDisposers = bindRecorderEvents(recorder, state, appendLog)
     }
 
@@ -349,12 +352,17 @@ createApp({
       await runLoggedAction(
         async () => {
           state.summary = await recorder.stop()
-          const [pcmResult, wavResult] = await Promise.all([
-            recorder.exportPCM(),
-            recorder.exportWAV(),
+          const [pcmResult, wavResult, mp3Result] = await Promise.all([
+            recorder.exportEncoded("pcm"),
+            recorder.exportEncoded("wav"),
+            recorder.exportEncoded("mp3"),
           ])
           state.exportedBytes = pcmResult.data.byteLength
-          state.lastExportResult = { pcm: pcmResult, wav: wavResult }
+          state.lastExportResult = {
+            pcm: pcmResult,
+            wav: wavResult,
+            mp3: mp3Result,
+          }
           state.storageDiagnostics = await collectStorageDiagnostics(
             state.storageMode,
             state.persistenceBackend
@@ -365,7 +373,7 @@ createApp({
               : null
           appendLog(
             "info",
-            `录音已停止，共接收 ${state.summary.frames} 帧，累计时长 ${state.summary.durationMs.toFixed(1)}ms，PCM ${pcmResult.data.byteLength} byte，WAV ${wavResult.arrayBuffer.byteLength} byte。`
+            `录音已停止，共接收 ${state.summary.frames} 帧，累计时长 ${state.summary.durationMs.toFixed(1)}ms，PCM ${pcmResult.data.byteLength} byte，WAV ${wavResult.arrayBuffer.byteLength} byte，MP3 ${mp3Result.data.byteLength} byte。`
           )
         },
         "",
@@ -400,6 +408,21 @@ createApp({
       appendLog(
         "info",
         `WAV 文件已下载：${result.sampleRate}Hz ${result.channels}ch ${result.bitRate}bit，${result.arrayBuffer.byteLength} byte。`
+      )
+    }
+
+    function downloadMP3() {
+      const result = state.lastExportResult?.mp3
+      if (!result) return
+      // MP3 编码结果为 Uint8Array，包装为 Blob 下载
+      const blob = new Blob([result.data.buffer], { type: "audio/mpeg" })
+      triggerDownload(
+        blob,
+        `recording_${result.sampleRate}hz_${result.channels}ch_${result.bitrateKbps}kbps.mp3`
+      )
+      appendLog(
+        "info",
+        `MP3 文件已下载：${result.sampleRate}Hz ${result.channels}ch ${result.bitrateKbps}kbps，${result.data.byteLength} byte。`
       )
     }
 
@@ -451,6 +474,7 @@ createApp({
       canResume,
       canStop,
       closeRecorder,
+      downloadMP3,
       downloadPCM,
       downloadWAV,
       handleSourceModeChange,
