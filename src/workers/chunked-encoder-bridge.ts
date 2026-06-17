@@ -8,10 +8,6 @@
 
 import type { ChunkedEncoder } from "@/plugins/streaming-export/types"
 import type { ChunkedEncoderRegistry } from "@/plugins/streaming-export/registry"
-// 使用 ?worker&inline 让 Vite 在构建时将 Worker 代码内联为 base64 Blob URL，
-// 避免 lib 模式下生成独立 chunk 导致路径错误（MIME type 问题）。
-// 必须是静态 import（顶层），动态 import 在构造函数中无法 await。
-import InlineChunkedEncoderWorker from "./chunked-encoder-worker.ts?worker&inline"
 
 export interface ChunkedEncoderBridgeOptions {
   format: string
@@ -48,9 +44,11 @@ export class ChunkedEncoderBridge {
 
     if (typeof Worker !== "undefined") {
       try {
-        // InlineChunkedEncoderWorker 是 Vite 生成的内联 Worker 类（base64 Blob URL），
-        // 不会产生独立 chunk 文件，避免 lib 模式下路径解析失败的 MIME type 错误。
-        this.worker = new InlineChunkedEncoderWorker()
+        // Vite 构建时会将此 URL 替换为正确的 Worker chunk 路径
+        this.worker = new Worker(
+          new URL("./chunked-encoder-worker.ts", import.meta.url),
+          { type: "module" }
+        )
 
         this.worker.onmessage = (
           event: MessageEvent<WorkerOutgoingMessage>
