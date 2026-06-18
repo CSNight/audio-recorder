@@ -115,7 +115,7 @@ describe("RecorderController", () => {
       expect(controller).toBe(recorder)
     })
     recorder.on(
-      "frame",
+      "frame:async",
       ({ frame, controller, summary, sessionId, emittedAt }) => {
         frames.push(frame.planar[0]?.[1] ?? 0)
         expect(controller).toBe(recorder)
@@ -137,6 +137,7 @@ describe("RecorderController", () => {
 
     await recorder.start()
     adapter.session?.emitFrame()
+    await Promise.resolve() // flush queueMicrotask for frame:async
     recorder.pause()
     await recorder.resume()
     const summary = await recorder.stop()
@@ -611,5 +612,79 @@ describe("RecorderController", () => {
         export: () => "ok",
       })
     ).toThrow('Recorder state "destroyed" does not allow this operation.')
+  })
+
+  it("emits frame:async asynchronously after synchronous frame processing", async () => {
+    const adapter = new FakeInputAdapter()
+    const recorder = new RecorderController({
+      inputAdapter: adapter,
+      storageOptions: undefined,
+    })
+    const syncOrder: string[] = []
+    const asyncFrames: number[] = []
+
+    recorder.on("frame:async", ({ frame }) => {
+      asyncFrames.push(frame.planar[0]?.[1] ?? 0)
+      syncOrder.push("async")
+    })
+
+    await recorder.open({ sampleRate: 16_000 })
+    await recorder.start()
+
+    syncOrder.push("before-emit")
+    adapter.session?.emitFrame()
+    syncOrder.push("after-emit")
+
+    // frame:async fires in microtask, not synchronously
+    expect(asyncFrames).toHaveLength(0)
+
+    await Promise.resolve()
+
+    expect(asyncFrames).toEqual([16384])
+    expect(syncOrder).toEqual(["before-emit", "after-emit", "async"])
+  })
+
+  it("does not dispatch frame:async when no listeners are registered before start", async () => {
+    const adapter = new FakeInputAdapter()
+    const recorder = new RecorderController({
+      inputAdapter: adapter,
+      storageOptions: undefined,
+    })
+
+    await recorder.open({ sampleRate: 16_000 })
+    await recorder.start()
+
+    // Add listener AFTER start — hasAsyncFrameListeners was already cached as false
+    const lateFrames: number[] = []
+    recorder.on("frame:async", ({ frame }) => {
+      lateFrames.push(frame.planar[0]?.[1] ?? 0)
+    })
+
+    adapter.session?.emitFrame()
+    await Promise.resolve()
+
+    // No frames dispatched because flag was cached before the listener was added
+    expect(lateFrames).toHaveLength(0)
+  })
+
+  it("dispatches frame:async when listener is registered before start on next session", async () => {
+    const adapter = new FakeInputAdapter()
+    const recorder = new RecorderController({
+      inputAdapter: adapter,
+      storageOptions: undefined,
+    })
+    const frames: number[] = []
+
+    recorder.on("frame:async", ({ frame }) => {
+      frames.push(frame.planar[0]?.[1] ?? 0)
+    })
+
+    await recorder.open({ sampleRate: 16_000 })
+    await recorder.start() // flag cached here — listener already registered
+
+    adapter.session?.emitFrame()
+    await Promise.resolve()
+
+    expect(frames).toEqual([16384])
   })
 })

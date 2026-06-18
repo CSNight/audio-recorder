@@ -516,7 +516,7 @@ function bindRecorderEvents(recorder, state, appendLog) {
   const offStream = recorder.on("encoded-chunk", (e) => {
     console.log(e)
   })
-  const offFrame = recorder.on("frame", ({ frame, runtimeInfo, summary }) => {
+  const offFrame = recorder.on("frame:async", ({ frame, runtimeInfo, summary }) => {
     state.frameCount += 1
     state.lastFrameDurationMs = frame.durationMs
     state.runtimeInfo = runtimeInfo

@@ -24,7 +24,11 @@ import type {
   RecorderSessionSummary,
   RecorderStateChangeEvent,
 } from "@/types"
-import { RecorderInputSource, RecorderState, RecorderWarningCode } from "@/types"
+import {
+  RecorderInputSource,
+  RecorderState,
+  RecorderWarningCode,
+} from "@/types"
 import { EventBus } from "@/core/event-bus"
 
 export class RecorderController {
@@ -34,7 +38,6 @@ export class RecorderController {
   private readonly pluginHost = new PluginHost({
     recorder: this,
     emitIssue: (issue) => this.handleIssue(issue),
-    eventBus: this.eventBus,
     getRuntimeInfo: () => this.getRuntimeInfo(),
     getLatestSummary: () => this.getLatestSummary(),
     createEventContext: () => this.createEventContext(),
@@ -45,6 +48,7 @@ export class RecorderController {
   private inputSession: RecorderInputSession | undefined
   private activeSessionId = "session-0"
   private recorderState: RecorderState = RecorderState.Idle
+  private hasAsyncFrameListeners = false
   private sessionRuntimeInfo: RecorderRuntimeInfo = {
     requestedChannelCount: 1,
     source: RecorderInputSource.Microphone,
@@ -75,6 +79,12 @@ export class RecorderController {
     event: TKey,
     listener: (payload: RecorderEventMap[TKey]) => void
   ): () => void {
+    if (typeof event === "string" && event.startsWith("plugin:")) {
+      return this.pluginHost.on(
+        event,
+        listener as (payload: import("@/plugins/types").RecorderPluginEventContext<import("@/plugins/types").RecorderPluginEventPayload>) => void
+      )
+    }
     return this.eventBus.on(event, listener)
   }
 
@@ -82,6 +92,13 @@ export class RecorderController {
     event: TKey,
     listener: (payload: RecorderEventMap[TKey]) => void
   ): void {
+    if (typeof event === "string" && event.startsWith("plugin:")) {
+      this.pluginHost.off(
+        event,
+        listener as (payload: import("@/plugins/types").RecorderPluginEventContext<import("@/plugins/types").RecorderPluginEventPayload>) => void
+      )
+      return
+    }
     this.eventBus.off(event, listener)
   }
 
@@ -225,6 +242,9 @@ export class RecorderController {
     this.assertState([RecorderState.Ready])
     const session = this.requireSession()
 
+    // 每次录音开始时检测一次，避免热路径每帧都查
+    this.hasAsyncFrameListeners = this.eventBus.listenerCount("frame:async") > 0
+
     await session.start()
     this.syncRuntimeFromSession(session)
     this.transition(RecorderState.Recording)
@@ -318,10 +338,14 @@ export class RecorderController {
     this.latestSessionSummary.durationMs += frame.durationMs
     this.latestSessionSummary.sampleRate = frame.sampleRate
     this.latestSessionSummary.channels = frame.channels
-    if (this.eventBus.hasListeners("frame")) {
-      this.eventBus.emit("frame", this.createFrameEvent(frame))
-    }
     this.pluginHost.onFrame(frame)
+
+    if (this.hasAsyncFrameListeners) {
+      const event = this.createFrameEvent(frame)
+      queueMicrotask(() => {
+        this.eventBus.emit("frame:async", event)
+      })
+    }
   }
 
   private transition(nextState: RecorderState): void {

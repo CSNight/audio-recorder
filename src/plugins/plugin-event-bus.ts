@@ -5,10 +5,11 @@ import type {
   RecorderPluginEventPayload,
 } from "@/plugins/types"
 import type {
-  RecorderEventMap,
   RecorderRuntimeInfo,
   RecorderSessionSummary,
 } from "@/types"
+
+export type PluginEventMap = Record<string, RecorderPluginEventContext<RecorderPluginEventPayload>>
 
 export interface PluginEventBusContext {
   controller: import("@/core/recorder-controller").RecorderController
@@ -18,21 +19,19 @@ export interface PluginEventBusContext {
   summary: RecorderSessionSummary
 }
 
-const RESERVED_EVENT_NAMES = new Set(["statechange", "frame", "issue"])
+const RESERVED_EVENT_NAMES = new Set(["statechange", "frame", "frame:async", "issue"])
 
 export class PluginEventBus implements RecorderPluginEventBus {
   private readonly registeredEvents = new Set<string>()
 
   constructor(
     private readonly pluginName: string,
-    private readonly eventBus: EventBus<RecorderEventMap>,
+    private readonly eventBus: EventBus<PluginEventMap>,
     private readonly createContext: () => PluginEventBusContext
   ) {}
 
   register(event: string): void {
     this.assertRegistrableEvent(event)
-
-    // 事件名先登记再允许 emit，避免插件在运行时随意扩散未声明事件。
     this.registeredEvents.add(event)
   }
 
@@ -42,7 +41,6 @@ export class PluginEventBus implements RecorderPluginEventBus {
   ): void {
     this.assertRegisteredEvent(event)
 
-    // 插件事件统一补齐宿主上下文，外部监听方不需要自行拼接会话信息。
     const pluginEvent: RecorderPluginEventContext<TPayload> = {
       pluginName: this.pluginName,
       payload,
@@ -50,17 +48,15 @@ export class PluginEventBus implements RecorderPluginEventBus {
     }
 
     this.eventBus.emit(
-      event as keyof RecorderEventMap,
-      pluginEvent as unknown as RecorderEventMap[keyof RecorderEventMap]
+      event,
+      pluginEvent as unknown as RecorderPluginEventContext<RecorderPluginEventPayload>
     )
   }
 
   private assertRegistrableEvent(event: string): void {
-    // plugin: 前缀明确属于插件命名空间，不与核心事件冲突
     if (event.startsWith("plugin:")) {
       return
     }
-    // 核心事件名保留给控制器，避免插件伪造 frame/statechange/issue。
     if (RESERVED_EVENT_NAMES.has(event)) {
       throw new Error(
         `Recorder plugin event "${event}" is reserved for the core event bus.`

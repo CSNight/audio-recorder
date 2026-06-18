@@ -1,6 +1,7 @@
 import type { RecorderController } from "@/core/recorder-controller"
-import { PluginEventBus } from "@/plugins/plugin-event-bus"
-import type { RecorderPlugin, RecorderPluginContext } from "@/plugins/types"
+import { EventBus } from "@/core/event-bus"
+import { PluginEventBus, type PluginEventMap, type PluginEventBusContext } from "@/plugins/plugin-event-bus"
+import type { RecorderPlugin, RecorderPluginContext, RecorderPluginEventContext, RecorderPluginEventPayload } from "@/plugins/types"
 import type {
   AudioFrame,
   RecorderIssue,
@@ -11,23 +12,14 @@ import type {
 interface PluginHostOptions {
   recorder: RecorderController
   emitIssue: (issue: RecorderIssue) => void
-  eventBus: import("@/core/event-bus").EventBus<
-    import("@/types").RecorderEventMap
-  >
   getRuntimeInfo: () => RecorderRuntimeInfo
   getLatestSummary: () => RecorderSessionSummary
-  createEventContext: () => {
-    controller: RecorderController
-    sessionId: string
-    emittedAt: number
-    runtimeInfo: RecorderRuntimeInfo
-    summary: RecorderSessionSummary
-  }
+  createEventContext: () => PluginEventBusContext
 }
 
 export class PluginHost {
-  // 保持注册顺序，确保运行期 hook 派发顺序与宿主声明顺序一致。
   private readonly plugins: RecorderPlugin[] = []
+  private readonly pluginEventBus = new EventBus<PluginEventMap>()
   private readonly hookDispatch: Record<
     "onFrame" | "onStart" | "onPause" | "onResume" | "onStop",
     (plugin: RecorderPlugin, frame?: AudioFrame) => void
@@ -41,13 +33,26 @@ export class PluginHost {
 
   constructor(private readonly options: PluginHostOptions) {}
 
+  on(
+    event: string,
+    listener: (payload: RecorderPluginEventContext<RecorderPluginEventPayload>) => void
+  ): () => void {
+    return this.pluginEventBus.on(event, listener)
+  }
+
+  off(
+    event: string,
+    listener: (payload: RecorderPluginEventContext<RecorderPluginEventPayload>) => void
+  ): void {
+    this.pluginEventBus.off(event, listener)
+  }
+
   async use(plugin: RecorderPlugin): Promise<void> {
     if (this.plugins.some((item) => item.name === plugin.name)) {
       throw new Error(`Recorder plugin "${plugin.name}" is already registered.`)
     }
 
     try {
-      // 只向插件暴露受限上下文，避免插件直接依赖控制器内部实现细节。
       await plugin.setup(this.createPluginContext(plugin.name))
       this.plugins.push(plugin)
     } catch (error) {
@@ -81,9 +86,9 @@ export class PluginHost {
   }
 
   async destroy(): Promise<void> {
-    // 逆序销毁与常见资源栈一致，后注册的插件通常依赖前面插件暴露的能力。
     const plugins = [...this.plugins].reverse()
     this.plugins.length = 0
+    this.pluginEventBus.clear()
 
     for (const plugin of plugins) {
       if (!plugin.dispose) {
@@ -106,10 +111,9 @@ export class PluginHost {
       recorder: this.options.recorder,
       getRuntimeInfo: () => this.options.getRuntimeInfo(),
       getLatestSummary: () => this.options.getLatestSummary(),
-      // 插件拿到的是受限事件门面，而不是核心 EventBus 实例本身。
       eventBus: new PluginEventBus(
         pluginName,
-        this.options.eventBus,
+        this.pluginEventBus,
         this.options.createEventContext
       ),
     }
@@ -126,7 +130,6 @@ export class PluginHost {
       try {
         dispatch(plugin, frame)
       } catch (error) {
-        // 单个插件异常只通过 issue 上报，不中断其余插件，避免观察类插件互相拖垮。
         this.options.emitIssue({
           kind: "error",
           error: this.createPluginError(plugin.name, hookName, error),

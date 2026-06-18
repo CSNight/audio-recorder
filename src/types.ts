@@ -139,7 +139,7 @@ export interface RecorderLevelEvent {
 
 export interface RecorderEventMap {
   statechange: RecorderStateChangeEvent
-  frame: RecorderFrameEvent
+  "frame:async": RecorderFrameEvent
   issue: RecorderIssueEvent
   "plugin:level": RecorderPluginEventContext<RecorderLevelEvent>
   [event: string]:

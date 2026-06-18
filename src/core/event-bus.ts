@@ -58,6 +58,10 @@ export class EventBus<TEvents extends EventMap> {
     return eventListeners !== undefined && eventListeners.size > 0
   }
 
+  listenerCount<TKey extends keyof TEvents>(event: TKey): number {
+    return this.listeners.get(event)?.size ?? 0
+  }
+
   emit<TKey extends keyof TEvents>(event: TKey, payload: TEvents[TKey]): void {
     const eventListeners = this.listeners.get(event)
     if (!eventListeners) {

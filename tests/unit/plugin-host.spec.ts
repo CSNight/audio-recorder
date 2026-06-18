@@ -1,18 +1,14 @@
 import { describe, expect, it, vi } from "vitest"
-import { EventBus } from "@/core/event-bus"
 import { PluginHost } from "@/plugins/plugin-host"
 import type { RecorderPlugin } from "@/plugins/types"
-import type { RecorderEventMap } from "@/types"
 import { RecorderInputSource } from "@/types"
 import { createAudioFrame } from "@/utils/audio-frame"
 
 function createHost() {
   const emitIssue = vi.fn()
-  const eventBus = new EventBus<RecorderEventMap>()
   const host = new PluginHost({
     recorder: {} as never,
     emitIssue,
-    eventBus,
     getRuntimeInfo: () => ({
       requestedChannelCount: 1,
       source: RecorderInputSource.Microphone,
@@ -40,7 +36,7 @@ function createHost() {
     }),
   })
 
-  return { host, emitIssue, eventBus }
+  return { host, emitIssue }
 }
 
 describe("PluginHost", () => {
@@ -68,10 +64,10 @@ describe("PluginHost", () => {
   })
 
   it("injects a plugin eventBus instance into plugin context", async () => {
-    const { host, eventBus } = createHost()
+    const { host } = createHost()
     const listener = vi.fn()
 
-    eventBus.on("level", listener)
+    host.on("level", listener)
 
     await host.use({
       name: "level-plugin",
