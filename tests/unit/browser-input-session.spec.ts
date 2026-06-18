@@ -91,7 +91,10 @@ describe("BrowserInputSession", () => {
       handlers: { onFrame, onIssue },
       requestedChannelCount: 1,
       ownsStream: false,
-      inputNode: { connect: vi.fn(), disconnect: vi.fn() } as unknown as AudioNode,
+      inputNode: {
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      } as unknown as AudioNode,
       deactivateInputNode: vi.fn(),
       disableEnvInFix: false,
     })
@@ -136,7 +139,10 @@ describe("BrowserInputSession", () => {
       handlers: { onFrame, onIssue },
       requestedChannelCount: 1,
       ownsStream: false,
-      inputNode: { connect: vi.fn(), disconnect: vi.fn() } as unknown as AudioNode,
+      inputNode: {
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      } as unknown as AudioNode,
       deactivateInputNode: vi.fn(),
       disableEnvInFix: true,
     })
@@ -174,7 +180,10 @@ describe("BrowserInputSession", () => {
       handlers: { onFrame, onIssue },
       requestedChannelCount: 1,
       ownsStream: false,
-      inputNode: { connect: vi.fn(), disconnect: vi.fn() } as unknown as AudioNode,
+      inputNode: {
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      } as unknown as AudioNode,
       deactivateInputNode: vi.fn(),
       disableEnvInFix: false,
     })
@@ -212,6 +221,49 @@ describe("BrowserInputSession", () => {
     )
     expect(lossWarnings).toHaveLength(0)
     expect(onFrame).toHaveBeenCalledTimes(9)
+  })
+
+  it("truncates the sliding window when frames older than 3 seconds are present", async () => {
+    const onFrame = vi.fn()
+    const onIssue = vi.fn()
+    const audioContext = createAudioContextStub(16_000)
+    const session = new BrowserInputSession({
+      audioContext,
+      stream: { getTracks: () => [] } as unknown as MediaStream,
+      handlers: { onFrame, onIssue },
+      requestedChannelCount: 1,
+      ownsStream: false,
+      inputNode: { connect: vi.fn(), disconnect: vi.fn() } as unknown as AudioNode,
+      deactivateInputNode: vi.fn(),
+      disableEnvInFix: false,
+    })
+
+    await session.start()
+
+    const frameData = [new Float32Array(160)]
+    let t = 0
+    vi.spyOn(performance, "now").mockImplementation(() => t)
+
+    // Feed 3 frames at normal cadence to build the window
+    for (let i = 0; i < 3; i++) {
+      t += 10
+      session.acceptFrame(frameData, t)
+    }
+
+    // Jump 4 seconds forward — next frame will make the earlier entries > 3s old
+    t += 4000
+    session.acceptFrame(frameData, t)
+
+    // The window should have been truncated; only the recent frame survives
+    // No frame loss compensation should fire since the window was reset
+    const lossWarnings = onIssue.mock.calls.filter(
+      (call) =>
+        call[0]?.kind === "warning" &&
+        call[0]?.warning?.code === RecorderWarningCode.FrameLossDetected
+    )
+    expect(lossWarnings).toHaveLength(0)
+    // All 4 real frames were processed normally
+    expect(onFrame).toHaveBeenCalledTimes(4)
   })
 
   it("closes owned tracks and prevents invalid lifecycle transitions", async () => {

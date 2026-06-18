@@ -284,6 +284,41 @@ describe("createInputGraph", () => {
     expect(processorOptions?.batchSamples).toBe(0)
   })
 
+  it("falls back to ScriptProcessor when AudioWorkletNode exists but audioContext.audioWorklet is undefined", async () => {
+    class FakeAudioWorkletNode {
+      public readonly port = { onmessage: null }
+      constructor() {}
+    }
+
+    const audioContext = createAudioContextStub()
+    // audioWorklet is undefined on the context even though AudioWorkletNode is globally available
+    ;(audioContext as unknown as { audioWorklet: undefined }).audioWorklet =
+      undefined
+
+    const onIssue = vi.fn()
+
+    vi.stubGlobal("AudioWorkletNode", FakeAudioWorkletNode)
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Windows NT 10.0)" })
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:recorder-worklet")
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {})
+
+    const graph = await createInputGraph(audioContext, 1, {
+      onFrame: vi.fn(),
+      onIssue,
+    })
+
+    expect(audioContext.createScriptProcessor).toHaveBeenCalledWith(4096, 1, 1)
+    expect(graph.inputNode).toBeDefined()
+    expect(onIssue).toHaveBeenCalledWith({
+      kind: "warning",
+      warning: {
+        code: RecorderWarningCode.ScriptProcessorFallback,
+        message:
+          "AudioWorklet is unavailable, falling back to ScriptProcessor. AudioWorklet is not available in the current AudioContext.",
+      },
+    })
+  })
+
   it("falls back to ScriptProcessor when worklet registration throws", async () => {
     class FakeAudioWorkletNode {
       public readonly port = {
