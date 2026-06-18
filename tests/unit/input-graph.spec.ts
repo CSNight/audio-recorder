@@ -198,6 +198,92 @@ describe("createInputGraph", () => {
     expect(createScriptProcessor).not.toHaveBeenCalled()
   })
 
+  it("passes batchSamples > 0 via processorOptions on mobile UA", async () => {
+    const createdOptions: AudioWorkletNodeOptions[] = []
+
+    class FakeAudioWorkletNode {
+      public readonly port = {
+        onmessage: null,
+      }
+
+      constructor(
+        _context: BaseAudioContext,
+        _name: string,
+        options?: AudioWorkletNodeOptions
+      ) {
+        if (options) createdOptions.push(options)
+      }
+    }
+
+    const addModule = vi.fn(async () => {})
+    const audioContext = {
+      audioWorklet: { addModule },
+      createScriptProcessor: vi.fn(),
+      sampleRate: 48_000,
+    } as unknown as AudioContext
+
+    vi.stubGlobal("AudioWorkletNode", FakeAudioWorkletNode)
+    vi.stubGlobal("navigator", {
+      userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
+    })
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:recorder-worklet")
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {})
+
+    await createInputGraph(audioContext, 1, {
+      onFrame: vi.fn(),
+      onIssue: vi.fn(),
+    })
+
+    const processorOptions = createdOptions[0]?.processorOptions as
+      | { batchSamples?: number }
+      | undefined
+    expect(processorOptions?.batchSamples).toBeGreaterThan(0)
+    // 48000 / 60 = 800
+    expect(processorOptions?.batchSamples).toBe(800)
+  })
+
+  it("passes batchSamples = 0 via processorOptions on desktop UA", async () => {
+    const createdOptions: AudioWorkletNodeOptions[] = []
+
+    class FakeAudioWorkletNode {
+      public readonly port = {
+        onmessage: null,
+      }
+
+      constructor(
+        _context: BaseAudioContext,
+        _name: string,
+        options?: AudioWorkletNodeOptions
+      ) {
+        if (options) createdOptions.push(options)
+      }
+    }
+
+    const addModule = vi.fn(async () => {})
+    const audioContext = {
+      audioWorklet: { addModule },
+      createScriptProcessor: vi.fn(),
+      sampleRate: 48_000,
+    } as unknown as AudioContext
+
+    vi.stubGlobal("AudioWorkletNode", FakeAudioWorkletNode)
+    vi.stubGlobal("navigator", {
+      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    })
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:recorder-worklet")
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {})
+
+    await createInputGraph(audioContext, 1, {
+      onFrame: vi.fn(),
+      onIssue: vi.fn(),
+    })
+
+    const processorOptions = createdOptions[0]?.processorOptions as
+      | { batchSamples?: number }
+      | undefined
+    expect(processorOptions?.batchSamples).toBe(0)
+  })
+
   it("falls back to ScriptProcessor when worklet registration throws", async () => {
     class FakeAudioWorkletNode {
       public readonly port = {

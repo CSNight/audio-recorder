@@ -81,6 +81,139 @@ describe("BrowserInputSession", () => {
     })
   })
 
+  it("inserts a silent compensation frame when frame loss exceeds threshold", async () => {
+    const onFrame = vi.fn()
+    const onIssue = vi.fn()
+    const audioContext = createAudioContextStub(16_000)
+    const session = new BrowserInputSession({
+      audioContext,
+      stream: { getTracks: () => [] } as unknown as MediaStream,
+      handlers: { onFrame, onIssue },
+      requestedChannelCount: 1,
+      ownsStream: false,
+      inputNode: { connect: vi.fn(), disconnect: vi.fn() } as unknown as AudioNode,
+      deactivateInputNode: vi.fn(),
+      disableEnvInFix: false,
+    })
+
+    await session.start()
+
+    // Feed 6+ frames with artificially large timestamps to trigger the dual-threshold.
+    // Each frame: 160 samples @ 16kHz = 10ms PCM time.
+    // Timestamps advance by 50ms per frame → 40ms gap each → lost accumulates fast.
+    const frameData = [new Float32Array(160)]
+    let t = 0
+    vi.spyOn(performance, "now").mockImplementation(() => t)
+
+    // Prime the window with 6 frames so length >= 6 guard passes
+    for (let i = 0; i < 6; i++) {
+      t += 50 // 50ms wall clock per frame, 10ms PCM → 40ms lost per frame
+      session.acceptFrame(frameData, t)
+    }
+
+    // After 6 frames: tsIn ≈ 300ms, tsPcm = 60ms → lost = 240ms > 300/3 = 100ms ✓
+    // addTime ≈ 50 - 10 = 40ms > 10/5 = 2ms ✓  → compensation should fire
+    const frameCalls = onFrame.mock.calls.length
+    expect(onIssue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "warning",
+        warning: expect.objectContaining({
+          code: RecorderWarningCode.FrameLossDetected,
+        }),
+      })
+    )
+    // Silent frame + real frame both emitted → more frames than inputs
+    expect(frameCalls).toBeGreaterThan(6)
+  })
+
+  it("reports FrameLossDetected warning but skips silent frame when disableEnvInFix is true", async () => {
+    const onFrame = vi.fn()
+    const onIssue = vi.fn()
+    const audioContext = createAudioContextStub(16_000)
+    const session = new BrowserInputSession({
+      audioContext,
+      stream: { getTracks: () => [] } as unknown as MediaStream,
+      handlers: { onFrame, onIssue },
+      requestedChannelCount: 1,
+      ownsStream: false,
+      inputNode: { connect: vi.fn(), disconnect: vi.fn() } as unknown as AudioNode,
+      deactivateInputNode: vi.fn(),
+      disableEnvInFix: true,
+    })
+
+    await session.start()
+
+    const frameData = [new Float32Array(160)]
+    let t = 0
+    vi.spyOn(performance, "now").mockImplementation(() => t)
+
+    for (let i = 0; i < 6; i++) {
+      t += 50
+      session.acceptFrame(frameData, t)
+    }
+
+    expect(onIssue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "warning",
+        warning: expect.objectContaining({
+          code: RecorderWarningCode.FrameLossDetected,
+        }),
+      })
+    )
+    // No silent frame inserted → exactly 6 onFrame calls
+    expect(onFrame).toHaveBeenCalledTimes(6)
+  })
+
+  it("resets the frame loss window on resume so paused time is not counted as loss", async () => {
+    const onFrame = vi.fn()
+    const onIssue = vi.fn()
+    const audioContext = createAudioContextStub(16_000)
+    const session = new BrowserInputSession({
+      audioContext,
+      stream: { getTracks: () => [] } as unknown as MediaStream,
+      handlers: { onFrame, onIssue },
+      requestedChannelCount: 1,
+      ownsStream: false,
+      inputNode: { connect: vi.fn(), disconnect: vi.fn() } as unknown as AudioNode,
+      deactivateInputNode: vi.fn(),
+      disableEnvInFix: false,
+    })
+
+    await session.start()
+
+    const frameData = [new Float32Array(160)]
+    let t = 0
+    vi.spyOn(performance, "now").mockImplementation(() => t)
+
+    // Record 3 frames normally (no loss)
+    for (let i = 0; i < 3; i++) {
+      t += 10
+      session.acceptFrame(frameData, t)
+    }
+
+    // Pause then jump time forward by 5 seconds (simulating pause)
+    session.pause()
+    t += 5000
+
+    // Resume resets the window
+    await session.resume()
+
+    // Record 6 more frames at normal 10ms cadence
+    for (let i = 0; i < 6; i++) {
+      t += 10
+      session.acceptFrame(frameData, t)
+    }
+
+    // No frame loss warnings expected — paused gap was cleared on resume
+    const lossWarnings = onIssue.mock.calls.filter(
+      (call) =>
+        call[0]?.kind === "warning" &&
+        call[0]?.warning?.code === RecorderWarningCode.FrameLossDetected
+    )
+    expect(lossWarnings).toHaveLength(0)
+    expect(onFrame).toHaveBeenCalledTimes(9)
+  })
+
   it("closes owned tracks and prevents invalid lifecycle transitions", async () => {
     const track: FakeTrack = {
       stop: vi.fn(),
