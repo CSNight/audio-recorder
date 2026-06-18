@@ -27,13 +27,13 @@ function createPluginEventBus() {
 }
 
 describe("PluginEventBus", () => {
-  it("registers plugin events before emit", () => {
+  it("registers plugin:* events before emit", () => {
     const { controller, eventBus, pluginEventBus } = createPluginEventBus()
     const listener = vi.fn()
 
-    eventBus.on("level", listener)
-    pluginEventBus.register("level")
-    pluginEventBus.emit("level", {
+    eventBus.on("plugin:level", listener)
+    pluginEventBus.register("plugin:level")
+    pluginEventBus.emit("plugin:level", {
       level: {
         peak: 0.5,
         rms: 0.25,
@@ -70,14 +70,16 @@ describe("PluginEventBus", () => {
     const { pluginEventBus } = createPluginEventBus()
 
     expect(() =>
-      pluginEventBus.emit("level", {
+      pluginEventBus.emit("plugin:level", {
         level: {
           peak: 0.5,
           rms: 0.25,
           channels: [{ peak: 0.5, rms: 0.25 }],
         },
       })
-    ).toThrow('Recorder plugin event "level" must be registered before emit.')
+    ).toThrow(
+      'Recorder plugin event "plugin:level" must be registered before emit.'
+    )
   })
 
   it("rejects reserved core event names", () => {
@@ -86,5 +88,11 @@ describe("PluginEventBus", () => {
     expect(() => pluginEventBus.register("frame")).toThrow(
       'Recorder plugin event "frame" is reserved for the core event bus.'
     )
+  })
+
+  it("allows plugin: prefix to pass through without error", () => {
+    const { pluginEventBus } = createPluginEventBus()
+
+    expect(() => pluginEventBus.register("plugin:custom")).not.toThrow()
   })
 })

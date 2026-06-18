@@ -1,4 +1,3 @@
-import type { CaptureAdapter } from "@/capture/types"
 import type { RecorderController } from "@/core/recorder-controller"
 import type {
   RecorderPluginEventContext,
@@ -24,6 +23,7 @@ export enum RecorderWarningCode {
   PersistencePluginMissing = "persistence-plugin-missing",
   PersistencePluginUnavailable = "persistence-plugin-unavailable",
   PersistenceActivationFailed = "persistence-activation-failed",
+  FrameLossDetected = "frame-loss-detected",
 }
 
 export enum RecorderInputSource {
@@ -31,22 +31,20 @@ export enum RecorderInputSource {
   ExternalStream = "external-stream",
 }
 
-export enum CaptureSessionState {
-  Ready = "ready",
-  Recording = "recording",
-  Paused = "paused",
-  Stopped = "stopped",
-  Closed = "closed",
-}
-
-export interface AudioCaptureOptions {
+/**
+ * 录音输入参数。所有字段均可选，未传字段走 createRecorder 时的默认值，
+ * createRecorder 也未传的字段在 open() 内部使用合理默认值。
+ */
+export interface RecorderInputOptions {
   sampleRate?: number
   channelCount?: AudioChannelCount
-  echoCancellation?: boolean
-  noiseSuppression?: boolean
-  autoGainControl?: boolean
+  echoCancellation?: boolean // 默认 true
+  noiseSuppression?: boolean // 默认 true
+  autoGainControl?: boolean // 默认 true
   /** 指定麦克风设备 ID，对应 enumerateDevices 返回的 deviceId */
   deviceId?: string
+  /** 默认 false（开启丢帧补偿）；传 true 禁用静音填补，但检测和 warning 仍会触发 */
+  frameLossCompensation?: boolean
 }
 
 /** 麦克风（音频输入）设备描述，由 listMicrophoneDevices() 返回。 */
@@ -85,6 +83,8 @@ export interface RecorderRuntimeInfo {
   requestedChannelCount: AudioChannelCount
   actualChannelCount?: AudioChannelCount
   source: RecorderInputSource
+  /** 实际使用的采集链路，open() 成功后写入 */
+  inputStrategy?: "audio-worklet" | "script-processor"
 }
 
 export interface RecorderSessionSummary {
@@ -141,7 +141,7 @@ export interface RecorderEventMap {
   statechange: RecorderStateChangeEvent
   frame: RecorderFrameEvent
   issue: RecorderIssueEvent
-  level: RecorderPluginEventContext<RecorderLevelEvent>
+  "plugin:level": RecorderPluginEventContext<RecorderLevelEvent>
   [event: string]:
     | RecorderPluginEventContext<RecorderPluginEventPayload>
     | RecorderStateChangeEvent
@@ -149,12 +149,16 @@ export interface RecorderEventMap {
     | RecorderIssueEvent
 }
 
-export interface RecorderOpenOptions {
-  sourceStream?: MediaStream
-  capture?: AudioCaptureOptions
-}
+/**
+ * open() 配置。展平为录音输入参数，无需嵌套 capture 层。
+ * open() 传入的字段优先级高于 createRecorder 时的 input 默认值。
+ */
+export type RecorderOpenOptions = RecorderInputOptions
 
-export interface CreateRecorderOptions {
-  captureAdapter?: CaptureAdapter
+/**
+ * createRecorder() 配置。所有字段均可选，最简用法 createRecorder() 无参即可。
+ * 录音输入参数直接平铺，open() 时若不传对应字段则使用此处配置。
+ */
+export interface CreateRecorderOptions extends RecorderInputOptions {
   storage?: RecorderStorageOptions
 }

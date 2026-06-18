@@ -1,5 +1,5 @@
 import { createPcmBufferStore } from "@/buffer/pcm-buffer-store"
-import type { CaptureAdapter, CaptureSession } from "@/capture/types"
+import type { RecorderInputAdapter, RecorderInputSession } from "@/input/types"
 import {
   createDefaultEncoderRegistry,
   type EncoderMap,
@@ -15,6 +15,7 @@ import type {
   AudioFrame,
   RecorderEventMap,
   RecorderFrameEvent,
+  RecorderInputOptions,
   RecorderIssue,
   RecorderIssueEvent,
   RecorderOpenOptions,
@@ -26,9 +27,8 @@ import { RecorderInputSource, RecorderState } from "@/types"
 import { EventBus } from "@/core/event-bus"
 
 export class RecorderController {
-  // 控制器内统一维护核心事件总线，UI 与内置插件都从这里观察状态与数据流。
   private readonly eventBus = new EventBus<RecorderEventMap>()
-  private readonly captureAdapter: CaptureAdapter
+  private readonly inputAdapter: RecorderInputAdapter
   private readonly encoderRegistry: EncoderRegistry
   private readonly pluginHost = new PluginHost({
     recorder: this,
@@ -39,8 +39,9 @@ export class RecorderController {
     createEventContext: () => this.createEventContext(),
   })
   private readonly storageOptions: RecorderStorageOptions | undefined
+  private readonly defaultInput: RecorderInputOptions
   private framePipeline: RecorderFramePipeline
-  private captureSession: CaptureSession | undefined
+  private inputSession: RecorderInputSession | undefined
   private activeSessionId = "session-0"
   private recorderState: RecorderState = RecorderState.Idle
   private sessionRuntimeInfo: RecorderRuntimeInfo = {
@@ -55,15 +56,17 @@ export class RecorderController {
   }
 
   constructor(options: {
-    captureAdapter: CaptureAdapter
+    inputAdapter: RecorderInputAdapter
     storageOptions: RecorderStorageOptions | undefined
+    defaultInput?: RecorderInputOptions
     framePipeline?: RecorderFramePipeline
     encoderRegistry?: EncoderRegistry
   }) {
-    this.captureAdapter = options.captureAdapter
+    this.inputAdapter = options.inputAdapter
     this.encoderRegistry =
       options.encoderRegistry ?? createDefaultEncoderRegistry()
     this.storageOptions = options.storageOptions
+    this.defaultInput = options.defaultInput ?? {}
     this.framePipeline = options.framePipeline ?? new PcmFramePipeline()
   }
 
@@ -116,12 +119,7 @@ export class RecorderController {
   }
 
   /**
-   * 通用快照编码导出入口：所有格式（pcm / wav / mp3 / 未来扩展）统一走这一个方法，
-   * 不再为每种内置格式单独暴露 exportPCM()/exportWAV() 之类的便捷方法。
-   *
-   * 对于 EncoderMap 中已登记的已知格式（如 "pcm" / "wav" / "mp3"），TypeScript 会
-   * 根据字面量类型自动推断出对应的 options/result 类型；对动态注册的未知格式，
-   * 调用方仍可显式传入泛型参数。
+   * 通用快照编码导出入口：所有格式（pcm / wav / mp3 / 未来扩展）统一走这一个方法。
    */
   exportEncoded<TKey extends keyof EncoderMap>(
     type: TKey,
@@ -140,21 +138,29 @@ export class RecorderController {
   }
 
   async open(options: RecorderOpenOptions = {}): Promise<RecorderRuntimeInfo> {
-    // open 只允许从未打开或已关闭状态进入，确保一次生命周期只绑定一个底层会话。
     this.assertState([RecorderState.Idle, RecorderState.Closed])
 
-    const requestedChannelCount = options.capture?.channelCount ?? 1
-    // 每次 open 都生成新的 sessionId，方便事件流、日志和后续导出链路关联同一轮会话。
-    // 同时保留旧值，避免 open 失败后留下一个“已分配但未真正启用”的会话标识。
+    // sourceStream 是内部字段，从扩展选项中提取后单独传给 adapter
+    const { sourceStream, ...inputOptions } = options as RecorderOpenOptions & {
+      sourceStream?: MediaStream
+    }
+
+    // open() 字段优先，未传的 fallback 到 createRecorder 时存储的默认值
+    const mergedInput: RecorderInputOptions = {
+      ...this.defaultInput,
+      ...inputOptions,
+    }
+
+    const requestedChannelCount = mergedInput.channelCount ?? 1
     const prevSessionId = this.activeSessionId
     this.activeSessionId = this.createSessionId()
     this.sessionRuntimeInfo = {
       requestedChannelCount,
-      source: options.sourceStream
+      source: sourceStream
         ? RecorderInputSource.ExternalStream
         : RecorderInputSource.Microphone,
-      ...(options.capture?.sampleRate !== undefined && {
-        requestedSampleRate: options.capture.sampleRate,
+      ...(mergedInput.sampleRate !== undefined && {
+        requestedSampleRate: mergedInput.sampleRate,
       }),
     }
     this.latestSessionSummary = {
@@ -168,19 +174,18 @@ export class RecorderController {
     await this.framePipeline.initialize?.()
 
     try {
-      // 控制器不直接接触 Web Audio 细节，只通过适配器接收统一的帧/告警/错误回调。
-      this.captureSession = await this.captureAdapter.open(options, {
-        onFrame: (frame) => this.handleFrame(frame),
-        onIssue: (issue) => this.handleIssue(issue),
-      })
+      this.inputSession = await this.inputAdapter.open(
+        { input: mergedInput, ...(sourceStream && { sourceStream }) },
+        {
+          onFrame: (frame) => this.handleFrame(frame),
+          onIssue: (issue) => this.handleIssue(issue),
+        }
+      )
     } catch (error) {
       const wrappedError =
         error instanceof Error ? error : new Error("Failed to open recorder.")
-      // open 失败时回收已初始化的管线（含已打开的持久化会话），避免句柄泄漏。
       await Promise.resolve(this.framePipeline.reset()).catch(() => undefined)
-      // 失败后重建一条干净管线，避免下一次 open 复用到半初始化状态。
       this.framePipeline = new PcmFramePipeline()
-      // 会话未真正建立时恢复旧 sessionId，保持控制器上下文稳定可重试。
       this.activeSessionId = prevSessionId
       this.handleIssue({
         kind: "error",
@@ -189,12 +194,11 @@ export class RecorderController {
       throw wrappedError
     }
 
-    // 适配器真正打开后，控制器才回填实际采样率与声道数。
-    this.syncRuntimeFromSession(this.captureSession)
+    this.syncRuntimeFromSession(this.inputSession)
     this.latestSessionSummary = {
       ...this.latestSessionSummary,
-      sampleRate: this.captureSession.actualSampleRate,
-      channels: this.captureSession.actualChannelCount,
+      sampleRate: this.inputSession.actualSampleRate,
+      channels: this.inputSession.actualChannelCount,
     }
     this.transition(RecorderState.Ready)
 
@@ -202,7 +206,6 @@ export class RecorderController {
   }
 
   async start(): Promise<RecorderRuntimeInfo> {
-    // start 只是驱动底层 session，状态和事件出口仍统一收敛在控制器层。
     this.assertState([RecorderState.Ready])
     const session = this.requireSession()
 
@@ -216,7 +219,6 @@ export class RecorderController {
 
   pause(): void {
     this.assertState([RecorderState.Recording])
-    // pause 不销毁底层图，只停止接收帧并切换状态，便于后续 resume。
     this.requireSession().pause()
     this.transition(RecorderState.Paused)
     this.pluginHost.onPause()
@@ -235,7 +237,6 @@ export class RecorderController {
   }
 
   async stop(): Promise<RecorderSessionSummary> {
-    // stop 结束本轮采集但不释放资源，close 才负责真正断开图和释放流。
     this.assertState([RecorderState.Recording, RecorderState.Paused])
     const session = this.requireSession()
     const summary = await session.stop()
@@ -262,9 +263,6 @@ export class RecorderController {
       RecorderState.Stopped,
     ])
 
-    // 如果在 recording / paused 直接 close，需要先补齐 stop 时序：
-    // session.stop() -> transition(stopped) -> pluginHost.onStop()。
-    // 这样插件和外部监听器总能先看到 stopped，再看到 closed。
     if (
       this.recorderState === RecorderState.Recording ||
       this.recorderState === RecorderState.Paused
@@ -275,10 +273,9 @@ export class RecorderController {
       this.pluginHost.onStop()
     }
 
-    if (this.captureSession) {
-      // close 会关闭底层采集图和可能由适配器持有的 MediaStream。
-      await this.captureSession.close()
-      this.captureSession = undefined
+    if (this.inputSession) {
+      await this.inputSession.close()
+      this.inputSession = undefined
     }
     await this.framePipeline.reset()
 
@@ -286,29 +283,25 @@ export class RecorderController {
   }
 
   async destroy(): Promise<void> {
-    if (this.captureSession) {
-      await this.captureSession.close()
-      this.captureSession = undefined
+    if (this.inputSession) {
+      await this.inputSession.close()
+      this.inputSession = undefined
     }
     await this.framePipeline.reset()
 
-    // destroy 代表控制器实例退出，不再允许保留任何事件订阅。
     this.transition(RecorderState.Destroyed)
     await this.pluginHost.destroy()
     this.eventBus.clear()
   }
 
   private handleFrame(frame: AudioFrame): void {
-    // 每一帧都顺带推进实时摘要，UI 和后续编码模块都可以只读 summary 获取累计结果。
     this.framePipeline.acceptFrame(frame)
-    // 帧回调是热路径（48kHz worklet 下约 375 次/秒），原地累加而非每帧重建对象，降低 GC 压力。
     this.sessionRuntimeInfo.actualSampleRate = frame.sampleRate
     this.sessionRuntimeInfo.actualChannelCount = frame.channels
     this.latestSessionSummary.frames += 1
     this.latestSessionSummary.durationMs += frame.durationMs
     this.latestSessionSummary.sampleRate = frame.sampleRate
     this.latestSessionSummary.channels = frame.channels
-    // 只有存在 frame 监听器时才构建事件对象，无订阅时跳过整套上下文克隆。
     if (this.eventBus.hasListeners("frame")) {
       this.eventBus.emit("frame", this.createFrameEvent(frame))
     }
@@ -322,7 +315,6 @@ export class RecorderController {
 
     const previousState = this.recorderState
     this.recorderState = nextState
-    // 所有状态切换都转成结构化事件，避免 UI 侧自行推测状态机。
     const event: RecorderStateChangeEvent = {
       previousState,
       state: nextState,
@@ -331,12 +323,12 @@ export class RecorderController {
     this.eventBus.emit("statechange", event)
   }
 
-  private requireSession(): CaptureSession {
-    if (!this.captureSession) {
+  private requireSession(): RecorderInputSession {
+    if (!this.inputSession) {
       throw new Error("Recorder session is not open.")
     }
 
-    return this.captureSession
+    return this.inputSession
   }
 
   private async requirePcmSnapshot() {
@@ -349,7 +341,6 @@ export class RecorderController {
   }
 
   private createFramePipeline(): RecorderFramePipeline {
-    // 管线和持久化会话都按录音 session 维度创建，避免跨轮次复用旧缓冲。
     return new PcmFramePipeline(
       createPcmBufferStore({
         sessionId: this.activeSessionId,
@@ -391,7 +382,7 @@ export class RecorderController {
     this.eventBus.emit("issue", event)
   }
 
-  private syncRuntimeFromSession(session: CaptureSession): void {
+  private syncRuntimeFromSession(session: RecorderInputSession): void {
     this.sessionRuntimeInfo = {
       ...this.sessionRuntimeInfo,
       actualSampleRate: session.actualSampleRate,
@@ -416,7 +407,6 @@ export class RecorderController {
   }
 
   private createSessionId(): string {
-    // sessionId 只用于日志追踪和事件关联，不承担安全或全局唯一语义。
     return `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   }
 }

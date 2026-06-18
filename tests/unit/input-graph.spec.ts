@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { createCaptureGraph } from "@/capture/capture-graph"
+import { createInputGraph } from "@/input/input-graph"
 import { RecorderWarningCode } from "@/types"
 
 type AudioProcessHandler = ((event: Event) => void) | null
@@ -26,7 +26,7 @@ function createAudioContextStub(): AudioContext & {
   }
 }
 
-describe("createCaptureGraph", () => {
+describe("createInputGraph", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
@@ -34,17 +34,18 @@ describe("createCaptureGraph", () => {
 
   it("falls back to ScriptProcessor when AudioWorkletNode is unavailable", async () => {
     vi.stubGlobal("AudioWorkletNode", undefined)
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Windows NT 10.0)" })
     const onIssue = vi.fn()
     const onFrame = vi.fn()
     const audioContext = createAudioContextStub()
 
-    const graph = await createCaptureGraph(audioContext, 2, {
+    const graph = await createInputGraph(audioContext, 2, {
       onFrame,
       onIssue,
     })
 
     expect(audioContext.createScriptProcessor).toHaveBeenCalledWith(4096, 2, 2)
-    expect(graph.captureNode).toBeDefined()
+    expect(graph.inputNode).toBeDefined()
     expect(onIssue).toHaveBeenCalledWith({
       kind: "warning",
       warning: {
@@ -57,8 +58,9 @@ describe("createCaptureGraph", () => {
 
   it("routes ScriptProcessor frames into the bound session and can deactivate the handler", async () => {
     vi.stubGlobal("AudioWorkletNode", undefined)
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Windows NT 10.0)" })
     const audioContext = createAudioContextStub()
-    const graph = await createCaptureGraph(audioContext, 1, {
+    const graph = await createInputGraph(audioContext, 1, {
       onFrame: vi.fn(),
       onIssue: vi.fn(),
     })
@@ -76,7 +78,7 @@ describe("createCaptureGraph", () => {
       },
     } as unknown as Event
 
-    const scriptProcessor = graph.captureNode as ScriptProcessorNode & {
+    const scriptProcessor = graph.inputNode as ScriptProcessorNode & {
       onaudioprocess: AudioProcessHandler
     }
     scriptProcessor.onaudioprocess?.(processEvent)
@@ -85,7 +87,7 @@ describe("createCaptureGraph", () => {
     expect(acceptFrame.mock.calls[0]?.[0]).toEqual([channelData])
     expect(typeof acceptFrame.mock.calls[0]?.[1]).toBe("number")
 
-    graph.deactivateCaptureNode()
+    graph.deactivateInputNode()
     expect(scriptProcessor.onaudioprocess).toBeNull()
   })
 
@@ -125,15 +127,16 @@ describe("createCaptureGraph", () => {
     const acceptFrame = vi.fn()
 
     vi.stubGlobal("AudioWorkletNode", FakeAudioWorkletNode)
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Windows NT 10.0)" })
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:recorder-worklet")
     vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {})
     vi.spyOn(performance, "now").mockReturnValue(1234)
 
-    const firstGraph = await createCaptureGraph(audioContext, 2, {
+    const firstGraph = await createInputGraph(audioContext, 2, {
       onFrame: vi.fn(),
       onIssue,
     })
-    const secondGraph = await createCaptureGraph(audioContext, 2, {
+    const secondGraph = await createInputGraph(audioContext, 2, {
       onFrame: vi.fn(),
       onIssue,
     })
@@ -145,7 +148,7 @@ describe("createCaptureGraph", () => {
       outputChannelCount: [2],
     })
     expect(createdNodes[1]?.name).toBe("audio-recorder-frame-processor")
-    expect(secondGraph.captureNode).toBeDefined()
+    expect(secondGraph.inputNode).toBeDefined()
 
     createdNodes[0]?.port.onmessage?.({
       data: {
@@ -190,7 +193,7 @@ describe("createCaptureGraph", () => {
       error: new Error("Synthetic worklet failure."),
     })
 
-    firstGraph.deactivateCaptureNode()
+    firstGraph.deactivateInputNode()
     expect(createdNodes[0]?.port.onmessage).toBeNull()
     expect(createScriptProcessor).not.toHaveBeenCalled()
   })
@@ -215,6 +218,7 @@ describe("createCaptureGraph", () => {
     const onIssue = vi.fn()
 
     vi.stubGlobal("AudioWorkletNode", FakeAudioWorkletNode)
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Windows NT 10.0)" })
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:recorder-worklet")
     vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {})
     ;(
@@ -227,14 +231,14 @@ describe("createCaptureGraph", () => {
       addModule,
     }
 
-    const graph = await createCaptureGraph(audioContext, 1, {
+    const graph = await createInputGraph(audioContext, 1, {
       onFrame: vi.fn(),
       onIssue,
     })
 
     expect(addModule).toHaveBeenCalledTimes(1)
     expect(audioContext.createScriptProcessor).toHaveBeenCalledWith(4096, 1, 1)
-    expect(graph.captureNode).toBeDefined()
+    expect(graph.inputNode).toBeDefined()
     expect(onIssue).toHaveBeenCalledWith({
       kind: "warning",
       warning: {

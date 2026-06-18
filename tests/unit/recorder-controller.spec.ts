@@ -1,27 +1,26 @@
 import { describe, expect, it } from "vitest"
 import type {
-  CaptureAdapter,
-  CaptureHandlers,
-  CaptureIssue,
-  CaptureOpenRequest,
-  CaptureSession,
-  CaptureSessionSummary,
-} from "@/capture/types"
-import { RecorderController, RecorderState, RecorderWarningCode } from "@/index"
+  RecorderInputAdapter,
+  RecorderInputHandlers,
+  RecorderInputRequest,
+  RecorderInputSession,
+  InputSessionSummary,
+} from "@/input/types"
+import { RecorderController } from "@/core/recorder-controller"
+import { RecorderState, RecorderWarningCode } from "@/types"
 import type { RecorderPlugin } from "@/plugins/types"
 import type { RecorderPersistencePlugin } from "@/storage/types"
 import { createAudioFrame } from "@/utils/audio-frame"
 
-class FakeCaptureSession implements CaptureSession {
+class FakeInputSession implements RecorderInputSession {
   closeCalls = 0
-  // 伪 session 只保留控制器关心的最小行为，用于隔离浏览器音频实现细节。
-  private readonly summary: CaptureSessionSummary = {
+  private readonly summary: InputSessionSummary = {
     frames: 0,
     durationMs: 0,
   }
 
   constructor(
-    private readonly handlers: CaptureHandlers,
+    private readonly handlers: RecorderInputHandlers,
     public readonly actualSampleRate: number,
     public readonly actualChannelCount: 1 | 2
   ) {}
@@ -32,7 +31,7 @@ class FakeCaptureSession implements CaptureSession {
 
   async resume(): Promise<void> {}
 
-  async stop(): Promise<CaptureSessionSummary> {
+  async stop(): Promise<InputSessionSummary> {
     return { ...this.summary }
   }
 
@@ -43,65 +42,61 @@ class FakeCaptureSession implements CaptureSession {
   emitFrame(
     frame = createAudioFrame([new Float32Array([0, 0.5, -0.5])], 16_000, 10)
   ): void {
-    // 主动推一帧，验证控制器的摘要累计和 frame 事件出口是否闭环。
     this.summary.frames += 1
     this.summary.durationMs += frame.durationMs
     this.handlers.onFrame(frame)
   }
 }
 
-class FakeCaptureAdapter implements CaptureAdapter {
-  public lastRequest?: CaptureOpenRequest
-  public session?: FakeCaptureSession
+class FakeInputAdapter implements RecorderInputAdapter {
+  public lastRequest?: RecorderInputRequest
+  public session?: FakeInputSession
 
   async open(
-    request: CaptureOpenRequest,
-    handlers: CaptureHandlers
-  ): Promise<CaptureSession> {
-    // 用可控假适配器覆盖 open 入参透传、实际声道回填和 warning 回流。
+    request: RecorderInputRequest,
+    handlers: RecorderInputHandlers
+  ): Promise<RecorderInputSession> {
     this.lastRequest = request
-    this.session = new FakeCaptureSession(
+    this.session = new FakeInputSession(
       handlers,
-      request.capture?.sampleRate ?? 48_000,
-      request.capture?.channelCount === 2 ? 1 : 1
+      request.input?.sampleRate ?? 48_000,
+      request.input?.channelCount === 2 ? 1 : 1
     )
 
-    if (request.capture?.channelCount === 2) {
-      const warningIssue: CaptureIssue = {
+    if (request.input?.channelCount === 2) {
+      handlers.onIssue({
         kind: "warning",
         warning: {
           code: RecorderWarningCode.ChannelCountAdjusted,
           message: "Requested 2 channel(s) but the active stream reported 1.",
         },
-      }
-      handlers.onIssue(warningIssue)
+      })
     }
 
-    if (request.capture?.sampleRate === 9_999) {
-      const errorIssue: CaptureIssue = {
+    if (request.input?.sampleRate === 9_999) {
+      handlers.onIssue({
         kind: "error",
         error: new Error("Synthetic capture failure."),
-      }
-      handlers.onIssue(errorIssue)
+      })
     }
 
     return this.session
   }
 }
 
-class ThrowingCaptureAdapter implements CaptureAdapter {
+class ThrowingInputAdapter implements RecorderInputAdapter {
   constructor(private readonly error: unknown) {}
 
-  async open(): Promise<CaptureSession> {
+  async open(): Promise<RecorderInputSession> {
     throw this.error
   }
 }
 
 describe("RecorderController", () => {
   it("runs the phase 1 lifecycle and emits frames, issues, and summaries", async () => {
-    const adapter = new FakeCaptureAdapter()
+    const adapter = new FakeInputAdapter()
     const recorder = new RecorderController({
-      captureAdapter: adapter,
+      inputAdapter: adapter,
       storageOptions: undefined,
     })
     const states: string[] = []
@@ -131,15 +126,13 @@ describe("RecorderController", () => {
     )
 
     const runtime = await recorder.open({
-      capture: {
-        sampleRate: 16_000,
-        channelCount: 2,
-      },
+      sampleRate: 16_000,
+      channelCount: 2,
     })
 
     expect(runtime.requestedChannelCount).toBe(2)
     expect(runtime.actualChannelCount).toBe(1)
-    expect(adapter.lastRequest?.capture?.sampleRate).toBe(16_000)
+    expect(adapter.lastRequest?.input?.sampleRate).toBe(16_000)
     expect(recorder.getState()).toBe(RecorderState.Ready)
 
     await recorder.start()
@@ -166,9 +159,8 @@ describe("RecorderController", () => {
   })
 
   it("rejects invalid lifecycle transitions", async () => {
-    // 非法状态迁移必须在控制器层被拒绝，而不是把错误下沉到适配器层。
     const recorder = new RecorderController({
-      captureAdapter: new FakeCaptureAdapter(),
+      inputAdapter: new FakeInputAdapter(),
       storageOptions: undefined,
     })
 
@@ -183,9 +175,9 @@ describe("RecorderController", () => {
     )
   })
 
-  it("routes capture issues of kind error into the issue event", async () => {
+  it("routes input issues of kind error into the issue event", async () => {
     const recorder = new RecorderController({
-      captureAdapter: new FakeCaptureAdapter(),
+      inputAdapter: new FakeInputAdapter(),
       storageOptions: undefined,
     })
     const issues: string[] = []
@@ -196,19 +188,14 @@ describe("RecorderController", () => {
       }
     })
 
-    await recorder.open({
-      capture: {
-        sampleRate: 9_999,
-      },
-    })
+    await recorder.open({ sampleRate: 9_999 })
 
     expect(issues).toEqual(["Synthetic capture failure."])
   })
 
   it("supports explicit off for event listeners", async () => {
-    // 显式 off 是事件总线可控性的基础，否则宿主难以安全解绑监听。
     const recorder = new RecorderController({
-      captureAdapter: new FakeCaptureAdapter(),
+      inputAdapter: new FakeInputAdapter(),
       storageOptions: undefined,
     })
     const receivedStates: RecorderState[] = []
@@ -224,10 +211,10 @@ describe("RecorderController", () => {
     expect(receivedStates).toEqual([])
   })
 
-  it("resets internal phase 2 frame buffering when a session is reopened", async () => {
-    const adapter = new FakeCaptureAdapter()
+  it("resets internal frame buffering when a session is reopened", async () => {
+    const adapter = new FakeInputAdapter()
     const recorder = new RecorderController({
-      captureAdapter: adapter,
+      inputAdapter: adapter,
       storageOptions: undefined,
     })
 
@@ -244,26 +231,20 @@ describe("RecorderController", () => {
   })
 
   it("exports buffered PCM and WAV data from the controller", async () => {
-    const adapter = new FakeCaptureAdapter()
+    const adapter = new FakeInputAdapter()
     const recorder = new RecorderController({
-      captureAdapter: adapter,
+      inputAdapter: adapter,
       storageOptions: undefined,
     })
 
-    await recorder.open({
-      capture: {
-        sampleRate: 16_000,
-      },
-    })
+    await recorder.open({ sampleRate: 16_000 })
     await recorder.start()
     adapter.session?.emitFrame(
       createAudioFrame([new Float32Array([0, 0.5, -0.5, 0.25])], 16_000, 10)
     )
 
     const pcm = await recorder.exportEncoded("pcm")
-    const wav = await recorder.exportEncoded("wav", {
-      bitRate: 8,
-    })
+    const wav = await recorder.exportEncoded("wav", { bitRate: 8 })
 
     expect(Array.from(pcm.data)).toEqual([0, 16384, -16384, 8192])
     expect(wav.mimeType).toBe("audio/wav")
@@ -273,7 +254,7 @@ describe("RecorderController", () => {
 
   it("rejects exporting when no buffered PCM data exists", async () => {
     const recorder = new RecorderController({
-      captureAdapter: new FakeCaptureAdapter(),
+      inputAdapter: new FakeInputAdapter(),
       storageOptions: undefined,
     })
 
@@ -287,10 +268,8 @@ describe("RecorderController", () => {
 
   it("emits a warning when persistent mode opens without any persistence plugin", async () => {
     const recorder = new RecorderController({
-      captureAdapter: new FakeCaptureAdapter(),
-      storageOptions: {
-        mode: "persistent",
-      },
+      inputAdapter: new FakeInputAdapter(),
+      storageOptions: { mode: "persistent" },
     })
     const issues: string[] = []
 
@@ -316,7 +295,7 @@ describe("RecorderController", () => {
       },
     }
     const recorder = new RecorderController({
-      captureAdapter: new FakeCaptureAdapter(),
+      inputAdapter: new FakeInputAdapter(),
       storageOptions: {
         mode: "persistent",
         persistencePlugin: failingPlugin,
@@ -345,9 +324,9 @@ describe("RecorderController", () => {
         throw new Error("auto promotion failed")
       },
     }
-    const adapter = new FakeCaptureAdapter()
+    const adapter = new FakeInputAdapter()
     const recorder = new RecorderController({
-      captureAdapter: adapter,
+      inputAdapter: adapter,
       storageOptions: {
         mode: "auto",
         memoryThresholdBytes: 1,
@@ -362,11 +341,7 @@ describe("RecorderController", () => {
       }
     })
 
-    await recorder.open({
-      capture: {
-        sampleRate: 16_000,
-      },
-    })
+    await recorder.open({ sampleRate: 16_000 })
     await recorder.start()
     adapter.session?.emitFrame(
       createAudioFrame([new Float32Array([0, 0.5, -0.5, 0.25])], 16_000, 10)
@@ -380,7 +355,7 @@ describe("RecorderController", () => {
 
   it("wraps non-Error open failures into both the issue event and thrown rejection", async () => {
     const recorder = new RecorderController({
-      captureAdapter: new ThrowingCaptureAdapter("open failed"),
+      inputAdapter: new ThrowingInputAdapter("open failed"),
       storageOptions: undefined,
     })
     const issues: string[] = []
@@ -398,25 +373,23 @@ describe("RecorderController", () => {
 
   it("reports external-stream runtime info when opened with a source stream", async () => {
     const recorder = new RecorderController({
-      captureAdapter: new FakeCaptureAdapter(),
+      inputAdapter: new FakeInputAdapter(),
       storageOptions: undefined,
     })
 
     const runtime = await recorder.open({
       sourceStream: {} as MediaStream,
-      capture: {
-        sampleRate: 16_000,
-      },
-    })
+      sampleRate: 16_000,
+    } as Parameters<typeof recorder.open>[0] & { sourceStream: MediaStream })
 
     expect(runtime.source).toBe("external-stream")
     expect(recorder.getRuntimeInfo().source).toBe("external-stream")
   })
 
   it("destroys the active session, emits destroyed once, and clears listeners afterwards", async () => {
-    const adapter = new FakeCaptureAdapter()
+    const adapter = new FakeInputAdapter()
     const recorder = new RecorderController({
-      captureAdapter: adapter,
+      inputAdapter: adapter,
       storageOptions: undefined,
     })
     const states: RecorderState[] = []
@@ -450,15 +423,11 @@ describe("RecorderController", () => {
 
   it("returns stable snapshots from runtime and summary accessors", async () => {
     const recorder = new RecorderController({
-      captureAdapter: new FakeCaptureAdapter(),
+      inputAdapter: new FakeInputAdapter(),
       storageOptions: undefined,
     })
 
-    await recorder.open({
-      capture: {
-        sampleRate: 16_000,
-      },
-    })
+    await recorder.open({ sampleRate: 16_000 })
 
     const runtime = recorder.getRuntimeInfo()
     const summary = recorder.getLatestSummary()
@@ -470,9 +439,9 @@ describe("RecorderController", () => {
   })
 
   it("runs plugin hooks across the recorder lifecycle", async () => {
-    const adapter = new FakeCaptureAdapter()
+    const adapter = new FakeInputAdapter()
     const recorder = new RecorderController({
-      captureAdapter: adapter,
+      inputAdapter: adapter,
       storageOptions: undefined,
     })
     const calls: string[] = []
@@ -523,15 +492,13 @@ describe("RecorderController", () => {
 
   it("requires plugin events to be registered before emit", async () => {
     const recorder = new RecorderController({
-      captureAdapter: new FakeCaptureAdapter(),
+      inputAdapter: new FakeInputAdapter(),
       storageOptions: undefined,
     })
     const plugin: RecorderPlugin = {
       name: "unregistered-event-plugin",
       setup(context) {
-        context.eventBus.emit("custom-event", {
-          value: 1,
-        })
+        context.eventBus.emit("custom-event", { value: 1 })
       },
     }
 
@@ -542,7 +509,7 @@ describe("RecorderController", () => {
 
   it("rejects duplicate plugin registration", async () => {
     const recorder = new RecorderController({
-      captureAdapter: new FakeCaptureAdapter(),
+      inputAdapter: new FakeInputAdapter(),
       storageOptions: undefined,
     })
     const plugin: RecorderPlugin = {
@@ -560,9 +527,9 @@ describe("RecorderController", () => {
   })
 
   it("registers custom encoders through the controller and exports through the shared registry", async () => {
-    const adapter = new FakeCaptureAdapter()
+    const adapter = new FakeInputAdapter()
     const recorder = new RecorderController({
-      captureAdapter: adapter,
+      inputAdapter: adapter,
       storageOptions: undefined,
     })
 
@@ -574,11 +541,7 @@ describe("RecorderController", () => {
       },
     })
 
-    await recorder.open({
-      capture: {
-        sampleRate: 16_000,
-      },
-    })
+    await recorder.open({ sampleRate: 16_000 })
     await recorder.start()
     adapter.session?.emitFrame(
       createAudioFrame([new Float32Array([0, 0.5, -0.5, 0.25])], 16_000, 10)
@@ -586,9 +549,7 @@ describe("RecorderController", () => {
 
     const exported = await recorder.exportEncoded<{ prefix?: string }, string>(
       "mock-text",
-      {
-        prefix: "pcm",
-      }
+      { prefix: "pcm" }
     )
 
     expect(exported).toBe("pcm:0,16384,-16384,8192")
@@ -596,7 +557,7 @@ describe("RecorderController", () => {
 
   it("rejects encoder registration after destroy", async () => {
     const recorder = new RecorderController({
-      captureAdapter: new FakeCaptureAdapter(),
+      inputAdapter: new FakeInputAdapter(),
       storageOptions: undefined,
     })
 

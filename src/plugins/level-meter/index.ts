@@ -8,9 +8,9 @@ export function createLevelMeterPlugin(): RecorderPlugin {
   return {
     name: "level-meter",
     setup(context) {
-      context.eventBus.register("level")
+      context.eventBus.register("plugin:level")
       emitLevel = (level) => {
-        context.eventBus.emit("level", {
+        context.eventBus.emit("plugin:level", {
           level,
         })
       }

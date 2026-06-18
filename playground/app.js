@@ -280,26 +280,22 @@ createApp({
             currentSource.stream !== null
               ? {
                   sourceStream: currentSource.stream,
-                  capture: {
-                    channelCount: state.requestedChannelCount,
-                    echoCancellation: false,
-                    noiseSuppression: false,
-                    autoGainControl: false,
-                    ...(currentSource.sampleRate !== undefined && {
-                      sampleRate: currentSource.sampleRate,
-                    }),
-                  },
+                  channelCount: state.requestedChannelCount,
+                  echoCancellation: false,
+                  noiseSuppression: false,
+                  autoGainControl: false,
+                  ...(currentSource.sampleRate !== undefined && {
+                    sampleRate: currentSource.sampleRate,
+                  }),
                 }
               : {
-                  capture: {
-                    channelCount: state.requestedChannelCount,
-                    echoCancellation: false,
-                    noiseSuppression: false,
-                    autoGainControl: false,
-                    ...(state.selectedDeviceId !== "" && {
-                      deviceId: state.selectedDeviceId,
-                    }),
-                  },
+                  channelCount: state.requestedChannelCount,
+                  echoCancellation: false,
+                  noiseSuppression: false,
+                  autoGainControl: false,
+                  ...(state.selectedDeviceId !== "" && {
+                    deviceId: state.selectedDeviceId,
+                  }),
                 }
 
           state.runtimeInfo = await recorder.open(openOptions)
@@ -526,7 +522,7 @@ function bindRecorderEvents(recorder, state, appendLog) {
     state.runtimeInfo = runtimeInfo
     state.summary = summary
   })
-  const offLevel = recorder.on("level", ({ payload }) => {
+  const offLevel = recorder.on("plugin:level", ({ payload }) => {
     state.levelPercent = Math.max(
       0,
       Math.min(100, Math.round(payload.level.rms * 180))

@@ -1,0 +1,43 @@
+import type { AudioChannelCount, AudioFrame, RecorderWarning } from "@/types"
+
+export type InputIssue =
+  | {
+      kind: "warning"
+      warning: RecorderWarning
+    }
+  | {
+      kind: "error"
+      error: Error
+    }
+
+export interface RecorderInputHandlers {
+  onFrame: (frame: AudioFrame) => void
+  onIssue: (issue: InputIssue) => void
+}
+
+export interface RecorderInputRequest {
+  sourceStream?: MediaStream | undefined
+  input?: import("@/types").RecorderInputOptions | undefined
+}
+
+export interface InputSessionSummary {
+  frames: number
+  durationMs: number
+}
+
+export interface RecorderInputSession {
+  readonly actualSampleRate: number
+  readonly actualChannelCount: AudioChannelCount
+  start(): Promise<void>
+  pause(): void
+  resume(): Promise<void>
+  stop(): Promise<InputSessionSummary>
+  close(): Promise<void>
+}
+
+export interface RecorderInputAdapter {
+  open(
+    request: RecorderInputRequest,
+    handlers: RecorderInputHandlers
+  ): Promise<RecorderInputSession>
+}

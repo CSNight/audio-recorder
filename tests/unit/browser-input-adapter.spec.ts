@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import {
-  BrowserCaptureAdapter,
+  BrowserInputAdapter,
   listMicrophoneDevices,
-} from "@/capture/browser-capture-adapter"
+} from "@/input/browser-input-adapter"
 
-const createCaptureGraphMock = vi.hoisted(() => vi.fn())
+const createInputGraphMock = vi.hoisted(() => vi.fn())
 
-vi.mock("@/capture/capture-graph", () => ({
-  createCaptureGraph: createCaptureGraphMock,
+vi.mock("@/input/input-graph", () => ({
+  createInputGraph: createInputGraphMock,
 }))
 
 type FakeTrack = {
@@ -65,11 +65,14 @@ function createAudioContextStub(
   } as unknown as AudioContextStub
 }
 
-describe("BrowserCaptureAdapter", () => {
+describe("BrowserInputAdapter", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
-    createCaptureGraphMock.mockReset()
+    createInputGraphMock.mockReset()
+    vi.stubGlobal("navigator", {
+      userAgent: "Mozilla/5.0 (Windows NT 10.0)",
+    })
   })
 
   it("opens an external stream, forwards the requested sample rate, and binds the session", async () => {
@@ -83,15 +86,15 @@ describe("BrowserCaptureAdapter", () => {
       return audioContext
     })
     const bindSession = vi.fn()
-    const captureNode = {
+    const inputNode = {
       connect: vi.fn(),
       disconnect: vi.fn(),
     } as unknown as AudioNode
 
     vi.stubGlobal("AudioContext", AudioContextConstructor)
-    createCaptureGraphMock.mockResolvedValue({
-      captureNode,
-      deactivateCaptureNode: vi.fn(),
+    createInputGraphMock.mockResolvedValue({
+      inputNode,
+      deactivateInputNode: vi.fn(),
       bindSession,
     })
 
@@ -100,11 +103,11 @@ describe("BrowserCaptureAdapter", () => {
       onFrame: vi.fn(),
       onIssue: vi.fn(),
     }
-    const adapter = new BrowserCaptureAdapter()
+    const adapter = new BrowserInputAdapter()
     const session = await adapter.open(
       {
         sourceStream: stream as unknown as MediaStream,
-        capture: {
+        input: {
           sampleRate: 16_000,
           channelCount: 2,
         },
@@ -115,7 +118,7 @@ describe("BrowserCaptureAdapter", () => {
     expect(AudioContextConstructor).toHaveBeenCalledWith({
       sampleRate: 16_000,
     })
-    expect(createCaptureGraphMock).toHaveBeenCalledWith(
+    expect(createInputGraphMock).toHaveBeenCalledWith(
       audioContextInstances[0],
       2,
       handlers
@@ -125,7 +128,7 @@ describe("BrowserCaptureAdapter", () => {
     expect(bindSession.mock.calls[0]?.[0]).toBe(session)
   })
 
-  it("requests microphone input with explicit constraints and falls back to webkitAudioContext", async () => {
+  it("requests microphone input with explicit constraints and applies defaults, falls back to webkitAudioContext", async () => {
     const getUserMedia = vi.fn(
       async () => createStream() as unknown as MediaStream
     )
@@ -142,23 +145,24 @@ describe("BrowserCaptureAdapter", () => {
     vi.stubGlobal("AudioContext", undefined)
     vi.stubGlobal("webkitAudioContext", webkitAudioContext)
     vi.stubGlobal("navigator", {
+      userAgent: "Mozilla/5.0 (Windows NT 10.0)",
       mediaDevices: {
         getUserMedia,
       },
     })
-    createCaptureGraphMock.mockResolvedValue({
-      captureNode: {
+    createInputGraphMock.mockResolvedValue({
+      inputNode: {
         connect: vi.fn(),
         disconnect: vi.fn(),
       } as unknown as AudioNode,
-      deactivateCaptureNode: vi.fn(),
+      deactivateInputNode: vi.fn(),
       bindSession: vi.fn(),
     })
 
-    const adapter = new BrowserCaptureAdapter()
+    const adapter = new BrowserInputAdapter()
     await adapter.open(
       {
-        capture: {
+        input: {
           channelCount: 2,
           echoCancellation: true,
           noiseSuppression: false,
@@ -184,6 +188,42 @@ describe("BrowserCaptureAdapter", () => {
     expect(webkitAudioContextInstances[0]?.constructorArgs).toBeUndefined()
   })
 
+  it("applies default echoCancellation/noiseSuppression/autoGainControl when not specified", async () => {
+    const getUserMedia = vi.fn(
+      async () => createStream() as unknown as MediaStream
+    )
+    vi.stubGlobal("navigator", {
+      userAgent: "Mozilla/5.0 (Windows NT 10.0)",
+      mediaDevices: { getUserMedia },
+    })
+    vi.stubGlobal(
+      "AudioContext",
+      vi.fn(function (this: unknown, options?: AudioContextOptions) {
+        return createAudioContextStub(options)
+      })
+    )
+    createInputGraphMock.mockResolvedValue({
+      inputNode: {
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      } as unknown as AudioNode,
+      deactivateInputNode: vi.fn(),
+      bindSession: vi.fn(),
+    })
+
+    const adapter = new BrowserInputAdapter()
+    await adapter.open({ input: {} }, { onFrame: vi.fn(), onIssue: vi.fn() })
+
+    expect(getUserMedia).toHaveBeenCalledWith({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+      video: false,
+    })
+  })
+
   it("rejects source streams without audio tracks", async () => {
     const AudioContextConstructor = vi.fn(function (
       this: unknown,
@@ -193,7 +233,7 @@ describe("BrowserCaptureAdapter", () => {
     })
 
     vi.stubGlobal("AudioContext", AudioContextConstructor)
-    const adapter = new BrowserCaptureAdapter()
+    const adapter = new BrowserInputAdapter()
 
     await expect(
       adapter.open(
@@ -212,14 +252,14 @@ describe("BrowserCaptureAdapter", () => {
   })
 
   it("rejects microphone opening when getUserMedia is unavailable", async () => {
-    vi.stubGlobal("navigator", {})
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0" })
     vi.stubGlobal(
       "AudioContext",
       vi.fn(function (this: unknown, options?: AudioContextOptions) {
         return createAudioContextStub(options)
       })
     )
-    const adapter = new BrowserCaptureAdapter()
+    const adapter = new BrowserInputAdapter()
 
     await expect(
       adapter.open(
@@ -235,7 +275,7 @@ describe("BrowserCaptureAdapter", () => {
   it("rejects opening when the environment exposes no AudioContext constructor", async () => {
     vi.stubGlobal("AudioContext", undefined)
     vi.stubGlobal("webkitAudioContext", undefined)
-    const adapter = new BrowserCaptureAdapter()
+    const adapter = new BrowserInputAdapter()
 
     await expect(
       adapter.open(
@@ -257,9 +297,8 @@ describe("BrowserCaptureAdapter", () => {
       async () => createStream() as unknown as MediaStream
     )
     vi.stubGlobal("navigator", {
-      mediaDevices: {
-        getUserMedia,
-      },
+      userAgent: "Mozilla/5.0 (Windows NT 10.0)",
+      mediaDevices: { getUserMedia },
     })
     vi.stubGlobal(
       "AudioContext",
@@ -267,19 +306,19 @@ describe("BrowserCaptureAdapter", () => {
         return createAudioContextStub(options)
       })
     )
-    createCaptureGraphMock.mockResolvedValue({
-      captureNode: {
+    createInputGraphMock.mockResolvedValue({
+      inputNode: {
         connect: vi.fn(),
         disconnect: vi.fn(),
       } as unknown as AudioNode,
-      deactivateCaptureNode: vi.fn(),
+      deactivateInputNode: vi.fn(),
       bindSession: vi.fn(),
     })
 
-    const adapter = new BrowserCaptureAdapter()
+    const adapter = new BrowserInputAdapter()
     await adapter.open(
       {
-        capture: {
+        input: {
           deviceId: "mic-device-001",
         },
       },
@@ -288,6 +327,9 @@ describe("BrowserCaptureAdapter", () => {
 
     expect(getUserMedia).toHaveBeenCalledWith({
       audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
         deviceId: { exact: "mic-device-001" },
       },
       video: false,
@@ -340,7 +382,6 @@ describe("listMicrophoneDevices", () => {
     expect(result).toHaveLength(2)
     expect(result[0]?.deviceId).toBe("mic-1")
     expect(result[1]?.deviceId).toBe("mic-2")
-    // AudioInputDevice 不含 kind，过滤逻辑已保证结果全为 audioinput
     expect(result[0]?.label).toBe("Built-in Microphone")
     expect(result[1]?.label).toBe("External Mic")
   })

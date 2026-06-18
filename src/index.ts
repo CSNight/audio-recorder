@@ -1,7 +1,7 @@
 import {
-  BrowserCaptureAdapter,
+  BrowserInputAdapter,
   listMicrophoneDevices,
-} from "@/capture/browser-capture-adapter"
+} from "@/input/browser-input-adapter"
 import { RecorderController } from "@/core/recorder-controller"
 import type { CreateRecorderOptions } from "@/types"
 
@@ -20,13 +20,13 @@ export type {
   RecorderStorageOptions,
 } from "@/storage/types"
 export type {
-  AudioCaptureOptions,
   AudioChannelCount,
   AudioFrame,
   AudioInputDevice,
   CreateRecorderOptions,
   RecorderEventMap,
   RecorderFrameEvent,
+  RecorderInputOptions,
   RecorderIssue,
   RecorderIssueEvent,
   RecorderLevel,
@@ -47,9 +47,10 @@ export {
 export function createRecorder(
   options: CreateRecorderOptions = {}
 ): RecorderController {
-  // 默认走浏览器采集适配器；测试或宿主接入时可注入自定义适配器替换底层采集实现。
+  const { storage, ...inputOptions } = options
   return new RecorderController({
-    captureAdapter: options.captureAdapter ?? new BrowserCaptureAdapter(),
-    storageOptions: options.storage ?? undefined,
+    inputAdapter: new BrowserInputAdapter(),
+    storageOptions: storage ?? undefined,
+    defaultInput: inputOptions,
   })
 }

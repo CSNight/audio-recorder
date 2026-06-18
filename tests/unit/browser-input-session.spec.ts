@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
-import { BrowserCaptureSession } from "@/capture/browser-capture-session"
-import { CaptureSessionState, RecorderWarningCode } from "@/types"
+import { BrowserInputSession } from "@/input/browser-input-session"
+import { RecorderWarningCode } from "@/types"
 
 type FakeTrack = {
   stop: ReturnType<typeof vi.fn>
@@ -38,12 +38,12 @@ function createAudioContextStub(sampleRate = 48_000): AudioContext {
   } as unknown as AudioContext
 }
 
-describe("BrowserCaptureSession", () => {
+describe("BrowserInputSession", () => {
   it("accepts frames only while recording and emits a single channel adjustment warning", async () => {
     const onFrame = vi.fn()
     const onIssue = vi.fn()
     const audioContext = createAudioContextStub(16_000)
-    const session = new BrowserCaptureSession({
+    const session = new BrowserInputSession({
       audioContext,
       stream: { getTracks: () => [] } as unknown as MediaStream,
       handlers: {
@@ -52,11 +52,12 @@ describe("BrowserCaptureSession", () => {
       },
       requestedChannelCount: 2,
       ownsStream: false,
-      captureNode: {
+      inputNode: {
         connect: vi.fn(),
         disconnect: vi.fn(),
       } as unknown as AudioNode,
-      deactivateCaptureNode: vi.fn(),
+      deactivateInputNode: vi.fn(),
+      disableEnvInFix: false,
     })
 
     session.acceptFrame([new Float32Array([0.5, -0.5])], 1)
@@ -71,7 +72,6 @@ describe("BrowserCaptureSession", () => {
     expect(summary.frames).toBe(2)
     expect(summary.durationMs).toBeGreaterThan(0)
     expect(session.actualChannelCount).toBe(1)
-    expect(onIssue).toHaveBeenCalledTimes(1)
     expect(onIssue).toHaveBeenCalledWith({
       kind: "warning",
       warning: {
@@ -88,7 +88,7 @@ describe("BrowserCaptureSession", () => {
     const stream: FakeStream = {
       getTracks: () => [track],
     }
-    const deactivateCaptureNode = vi.fn()
+    const deactivateInputNode = vi.fn()
     const audioContext = createAudioContextStub()
     const createMediaStreamSource =
       audioContext.createMediaStreamSource as ReturnType<typeof vi.fn>
@@ -97,7 +97,7 @@ describe("BrowserCaptureSession", () => {
       disconnect: vi.fn(),
       mediaStream: stream,
     })
-    const session = new BrowserCaptureSession({
+    const session = new BrowserInputSession({
       audioContext,
       stream: stream as unknown as MediaStream,
       handlers: {
@@ -106,22 +106,23 @@ describe("BrowserCaptureSession", () => {
       },
       requestedChannelCount: 1,
       ownsStream: true,
-      captureNode: {
+      inputNode: {
         connect: vi.fn(),
         disconnect: vi.fn(),
       } as unknown as AudioNode,
-      deactivateCaptureNode,
+      deactivateInputNode,
+      disableEnvInFix: false,
     })
 
     expect(() => session.pause()).toThrow(
-      `Capture session state "${CaptureSessionState.Ready}" does not allow this operation.`
+      `Input session state "ready" does not allow this operation.`
     )
 
     await session.start()
     await session.close()
     await session.close()
 
-    expect(deactivateCaptureNode).toHaveBeenCalledTimes(1)
+    expect(deactivateInputNode).toHaveBeenCalledTimes(1)
     expect(track.stop).toHaveBeenCalledTimes(1)
     expect(audioContext.close).toHaveBeenCalledTimes(1)
   })

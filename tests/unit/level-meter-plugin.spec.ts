@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest"
 import type {
-  CaptureAdapter,
-  CaptureHandlers,
-  CaptureSession,
-} from "@/capture/types"
+  RecorderInputAdapter,
+  RecorderInputHandlers,
+  RecorderInputSession,
+  InputSessionSummary,
+} from "@/input/types"
 import { RecorderController } from "@/core/recorder-controller"
 import { createLevelMeterPlugin } from "@/plugins/level-meter/index"
 import { createAudioFrame } from "@/utils/audio-frame"
 
-class FakePluginCaptureSession implements CaptureSession {
+class FakePluginInputSession implements RecorderInputSession {
   constructor(
-    private readonly handlers: CaptureHandlers,
+    private readonly handlers: RecorderInputHandlers,
     public readonly actualSampleRate = 16_000,
     public readonly actualChannelCount = 1 as const
   ) {}
@@ -21,7 +22,7 @@ class FakePluginCaptureSession implements CaptureSession {
 
   async resume(): Promise<void> {}
 
-  async stop(): Promise<{ frames: number; durationMs: number }> {
+  async stop(): Promise<InputSessionSummary> {
     return { frames: 1, durationMs: 1 }
   }
 
@@ -34,28 +35,28 @@ class FakePluginCaptureSession implements CaptureSession {
   }
 }
 
-class FakePluginCaptureAdapter implements CaptureAdapter {
-  session: FakePluginCaptureSession | undefined
+class FakePluginInputAdapter implements RecorderInputAdapter {
+  session: FakePluginInputSession | undefined
 
   async open(
-    _request: Parameters<CaptureAdapter["open"]>[0],
-    handlers: CaptureHandlers
-  ): Promise<CaptureSession> {
-    this.session = new FakePluginCaptureSession(handlers)
+    _request: Parameters<RecorderInputAdapter["open"]>[0],
+    handlers: RecorderInputHandlers
+  ): Promise<RecorderInputSession> {
+    this.session = new FakePluginInputSession(handlers)
     return this.session
   }
 }
 
 describe("createLevelMeterPlugin", () => {
   it("emits normalized level events from recorder frames", async () => {
-    const adapter = new FakePluginCaptureAdapter()
+    const adapter = new FakePluginInputAdapter()
     const recorder = new RecorderController({
-      captureAdapter: adapter,
+      inputAdapter: adapter,
       storageOptions: undefined,
     })
     const levels: { peak: number; rms: number; pluginName: string }[] = []
 
-    recorder.on("level", ({ payload, pluginName }) => {
+    recorder.on("plugin:level", ({ payload, pluginName }) => {
       levels.push({
         peak: payload.level.peak,
         rms: payload.level.rms,
@@ -76,14 +77,14 @@ describe("createLevelMeterPlugin", () => {
   })
 
   it("stops emitting while paused or stopped", async () => {
-    const adapter = new FakePluginCaptureAdapter()
+    const adapter = new FakePluginInputAdapter()
     const recorder = new RecorderController({
-      captureAdapter: adapter,
+      inputAdapter: adapter,
       storageOptions: undefined,
     })
     const levels: number[] = []
 
-    recorder.on("level", ({ payload }) => {
+    recorder.on("plugin:level", ({ payload }) => {
       levels.push(payload.level.peak)
     })
 

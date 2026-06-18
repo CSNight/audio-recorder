@@ -1,4 +1,4 @@
-import type { CaptureHandlers } from "@/capture/types"
+import type { RecorderInputHandlers } from "@/input/types"
 import type { AudioChannelCount } from "@/types"
 import { RecorderWarningCode } from "@/types"
 import { resolveChannelCount } from "@/utils/audio-frame"
@@ -24,37 +24,64 @@ type AudioWorkletProcessorConstructor = {
 
 const RECORDER_WORKLET_PROCESSOR_NAME = "audio-recorder-frame-processor"
 
-interface CaptureGraphSessionSink {
+interface InputGraphSessionSink {
   acceptFrame: (planarFloat: readonly Float32Array[], timestamp: number) => void
 }
 
-export interface CaptureGraph {
-  captureNode: AudioNode
-  deactivateCaptureNode: () => void
-  bindSession: (session: CaptureGraphSessionSink) => void
+export interface InputGraph {
+  inputNode: AudioNode
+  deactivateInputNode: () => void
+  bindSession: (session: InputGraphSessionSink) => void
 }
 
-function createWorkletModuleSource(): string {
+function createWorkletModuleSource(_batchSamples: number): string {
   return `
 class AudioRecorderFrameProcessor extends AudioWorkletProcessor {
+  constructor(options) {
+    super(options)
+    this._batchSamples = (options.processorOptions && options.processorOptions.batchSamples) || 0
+    this._buffer = []
+    this._bufferedSamples = 0
+  }
+
   process(inputs) {
-    // Worklet 线程只负责搬运原始 float PCM，不在音频线程里做重 CPU 转换。
     const input = inputs[0]
     if (!input || input.length === 0) {
       return true
     }
 
-    const frameLength = input[0]?.length ?? 0
+    const frameLength = input[0] ? input[0].length : 0
     if (frameLength === 0) {
       return true
     }
 
-    const planar = input.map((channel) => new Float32Array(channel))
-    this.port.postMessage({
-      type: "frame",
-      planar,
-      channelCount: input.length,
-    })
+    if (this._batchSamples <= 0) {
+      // 桌面端：原有逐 quantum 直发
+      const planar = input.map((channel) => new Float32Array(channel))
+      this.port.postMessage({ type: "frame", planar, channelCount: input.length })
+      return true
+    }
+
+    // 移动端：累积到 batchSamples 才发一次（约 60Hz）
+    this._buffer.push(input.map((channel) => new Float32Array(channel)))
+    this._bufferedSamples += frameLength
+
+    if (this._bufferedSamples >= this._batchSamples) {
+      const channelCount = this._buffer[0].length
+      const merged = []
+      for (let ch = 0; ch < channelCount; ch++) {
+        const combined = new Float32Array(this._bufferedSamples)
+        let offset = 0
+        for (const frame of this._buffer) {
+          combined.set(frame[ch], offset)
+          offset += frame[ch].length
+        }
+        merged.push(combined)
+      }
+      this.port.postMessage({ type: "frame", planar: merged, channelCount })
+      this._buffer = []
+      this._bufferedSamples = 0
+    }
 
     return true
   }
@@ -65,7 +92,8 @@ registerProcessor("${RECORDER_WORKLET_PROCESSOR_NAME}", AudioRecorderFrameProces
 }
 
 async function ensureRecorderWorkletRegistered(
-  audioContext: AudioContext
+  audioContext: AudioContext,
+  batchSamples: number
 ): Promise<void> {
   const recorderAudioContext = audioContext as AudioContext & {
     audioWorklet?: AudioWorklet
@@ -84,11 +112,10 @@ async function ensureRecorderWorkletRegistered(
   }
 
   if (workletRegistry[registryKey]) {
-    // 同一个 AudioContext 只注册一次 processor，避免重复 addModule。
     return
   }
 
-  const moduleSource = createWorkletModuleSource()
+  const moduleSource = createWorkletModuleSource(batchSamples)
   const moduleBlob = new Blob([moduleSource], {
     type: "application/javascript",
   })
@@ -98,7 +125,6 @@ async function ensureRecorderWorkletRegistered(
     await audioWorklet.addModule(moduleUrl)
     workletRegistry[registryKey] = true
   } finally {
-    // addModule 完成后立刻释放 blob URL，避免诊断页反复打开时泄漏。
     URL.revokeObjectURL(moduleUrl)
   }
 }
@@ -120,18 +146,21 @@ function buildWarningMessage(error: unknown): string {
   return `AudioWorklet is unavailable, falling back to ScriptProcessor. ${fallbackReason}`
 }
 
-export async function createCaptureGraph(
+export async function createInputGraph(
   audioContext: AudioContext,
   requestedChannelCount: AudioChannelCount,
-  handlers: CaptureHandlers
-): Promise<CaptureGraph> {
+  handlers: RecorderInputHandlers
+): Promise<InputGraph> {
+  const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
+  // 仅移动端 AudioWorklet 路径启用帧缓冲，目标约 60Hz
+  const batchSamples = isMobile ? Math.round(audioContext.sampleRate / 60) : 0
+
   const workletNodeConstructor = getAudioWorkletNodeConstructor()
   if (workletNodeConstructor) {
     try {
-      // 优先走 AudioWorklet，避免 ScriptProcessor 的兼容性和时序问题。
-      await ensureRecorderWorkletRegistered(audioContext)
+      await ensureRecorderWorkletRegistered(audioContext, batchSamples)
 
-      let activeSession: CaptureGraphSessionSink | undefined
+      let activeSession: InputGraphSessionSink | undefined
       const workletNode = new workletNodeConstructor(
         audioContext,
         RECORDER_WORKLET_PROCESSOR_NAME,
@@ -141,6 +170,7 @@ export async function createCaptureGraph(
           channelCount: requestedChannelCount,
           channelCountMode: "explicit",
           outputChannelCount: [requestedChannelCount],
+          processorOptions: { batchSamples },
         }
       )
 
@@ -161,7 +191,6 @@ export async function createCaptureGraph(
         }
 
         if (payload.type === "frame") {
-          // Worklet 返回的声道数可能超出当前库支持范围，这里先收敛再交给 session。
           const planar = payload.planar.slice(
             0,
             resolveChannelCount(payload.channelCount)
@@ -171,8 +200,8 @@ export async function createCaptureGraph(
       }
 
       return {
-        captureNode: workletNode,
-        deactivateCaptureNode: () => {
+        inputNode: workletNode,
+        deactivateInputNode: () => {
           workletNode.port.onmessage = null
         },
         bindSession: (session) => {
@@ -199,7 +228,7 @@ export async function createCaptureGraph(
     })
   }
 
-  let activeSession: CaptureGraphSessionSink | undefined
+  let activeSession: InputGraphSessionSink | undefined
   // ScriptProcessor is deprecated and kept strictly as the runtime fallback path.
   const scriptProcessorNode = audioContext.createScriptProcessor(
     4096,
@@ -212,7 +241,6 @@ export async function createCaptureGraph(
       return
     }
 
-    // ScriptProcessor 直接从 AudioBuffer 逐声道读取 float 数据，再复用同一套 frame 入口。
     const actualChannelCount = resolveChannelCount(
       event.inputBuffer.numberOfChannels
     )
@@ -225,8 +253,8 @@ export async function createCaptureGraph(
   }
 
   return {
-    captureNode: scriptProcessorNode,
-    deactivateCaptureNode: () => {
+    inputNode: scriptProcessorNode,
+    deactivateInputNode: () => {
       scriptProcessorNode.onaudioprocess = null
     },
     bindSession: (session) => {

@@ -56,6 +56,10 @@ export class PluginEventBus implements RecorderPluginEventBus {
   }
 
   private assertRegistrableEvent(event: string): void {
+    // plugin: 前缀明确属于插件命名空间，不与核心事件冲突
+    if (event.startsWith("plugin:")) {
+      return
+    }
     // 核心事件名保留给控制器，避免插件伪造 frame/statechange/issue。
     if (RESERVED_EVENT_NAMES.has(event)) {
       throw new Error(
