@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import type {
   RecorderInputAdapter,
   RecorderInputHandlers,
@@ -156,6 +156,48 @@ describe("RecorderController", () => {
     expect(summary.sampleRate).toBe(16_000)
     expect(summary.channels).toBe(1)
     expect(recorder.getLatestSummary().durationMs).toBeGreaterThan(0)
+  })
+
+  it("writes inputStrategy to runtimeInfo after open", async () => {
+    const recorder = new RecorderController({
+      inputAdapter: new FakeInputAdapter(),
+      storageOptions: undefined,
+    })
+
+    const runtime = await recorder.open({ sampleRate: 16_000 })
+
+    // inputStrategy is set to whatever checkRecorderCapability returns in this env
+    expect(runtime.inputStrategy).toBeTypeOf("string")
+    expect(["audio-worklet", "script-processor", "unsupported"]).toContain(
+      runtime.inputStrategy
+    )
+  })
+
+  it("emits a ScriptProcessorFallback warning during open when expectedInputStrategy is script-processor", async () => {
+    // Stub globals so capability check returns script-processor
+    vi.stubGlobal("AudioContext", class {})
+    vi.stubGlobal("AudioWorkletNode", undefined)
+    vi.stubGlobal("navigator", {
+      mediaDevices: { getUserMedia: () => Promise.resolve() },
+    })
+
+    const recorder = new RecorderController({
+      inputAdapter: new FakeInputAdapter(),
+      storageOptions: undefined,
+    })
+    const issues: string[] = []
+
+    recorder.on("issue", ({ issue }) => {
+      if (issue.kind === "warning") {
+        issues.push(issue.warning.code)
+      }
+    })
+
+    await recorder.open()
+
+    vi.unstubAllGlobals()
+
+    expect(issues).toContain(RecorderWarningCode.ScriptProcessorFallback)
   })
 
   it("rejects invalid lifecycle transitions", async () => {

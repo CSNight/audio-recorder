@@ -6,6 +6,10 @@ import { RecorderController } from "@/core/recorder-controller"
 import type { CreateRecorderOptions } from "@/types"
 
 export { listMicrophoneDevices }
+export {
+  checkRecorderCapability,
+  type RecorderCapabilityReport,
+} from "@/input/capability-check"
 
 export { RecorderController } from "@/core/recorder-controller"
 export {

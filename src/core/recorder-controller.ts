@@ -1,5 +1,6 @@
 import { createPcmBufferStore } from "@/buffer/pcm-buffer-store"
 import type { RecorderInputAdapter, RecorderInputSession } from "@/input/types"
+import { checkRecorderCapability } from "@/input/capability-check"
 import {
   createDefaultEncoderRegistry,
   type EncoderMap,
@@ -23,7 +24,7 @@ import type {
   RecorderSessionSummary,
   RecorderStateChangeEvent,
 } from "@/types"
-import { RecorderInputSource, RecorderState } from "@/types"
+import { RecorderInputSource, RecorderState, RecorderWarningCode } from "@/types"
 import { EventBus } from "@/core/event-bus"
 
 export class RecorderController {
@@ -154,6 +155,20 @@ export class RecorderController {
     const requestedChannelCount = mergedInput.channelCount ?? 1
     const prevSessionId = this.activeSessionId
     this.activeSessionId = this.createSessionId()
+
+    // 能力预检：若预测走 ScriptProcessor，提前同步上报 warning，无需等到 worklet 失败
+    const capability = checkRecorderCapability()
+    if (capability.expectedInputStrategy === "script-processor") {
+      this.handleIssue({
+        kind: "warning",
+        warning: {
+          code: RecorderWarningCode.ScriptProcessorFallback,
+          message:
+            "AudioWorklet is not supported in this browser. ScriptProcessor will be used as fallback.",
+        },
+      })
+    }
+
     this.sessionRuntimeInfo = {
       requestedChannelCount,
       source: sourceStream
@@ -195,6 +210,7 @@ export class RecorderController {
     }
 
     this.syncRuntimeFromSession(this.inputSession)
+    this.sessionRuntimeInfo.inputStrategy = capability.expectedInputStrategy
     this.latestSessionSummary = {
       ...this.latestSessionSummary,
       sampleRate: this.inputSession.actualSampleRate,
