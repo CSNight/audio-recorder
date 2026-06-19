@@ -44,7 +44,7 @@ createApp({
       sourceMode: PLAYGROUND_SOURCE_MODE.externalTone,
       storageMode: PLAYGROUND_STORAGE_MODE.memory,
       persistenceBackend: PLAYGROUND_PERSISTENCE_BACKEND.indexeddb,
-      requestedChannelCount: 2,
+      requestedChannelCount: 1,
       memoryThresholdBytes: 256 * 1024,
       pendingActionLabel: "",
       recorderState: RecorderState.Idle,
@@ -513,15 +513,18 @@ function bindRecorderEvents(recorder, state, appendLog) {
     appendLog("error", issue.error.message)
   })
 
-  const offStream = recorder.on("encoded-chunk", (e) => {
+  const offStream = recorder.on("plugin:encoded-chunk", (e) => {
     console.log(e)
   })
-  const offFrame = recorder.on("frame:async", ({ frame, runtimeInfo, summary }) => {
-    state.frameCount += 1
-    state.lastFrameDurationMs = frame.durationMs
-    state.runtimeInfo = runtimeInfo
-    state.summary = summary
-  })
+  const offFrame = recorder.on(
+    "frame:async",
+    ({ frame, runtimeInfo, summary }) => {
+      state.frameCount += 1
+      state.lastFrameDurationMs = frame.durationMs
+      state.runtimeInfo = runtimeInfo
+      state.summary = summary
+    }
+  )
   const offLevel = recorder.on("plugin:level", ({ payload }) => {
     state.levelPercent = Math.max(
       0,

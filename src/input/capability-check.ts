@@ -4,7 +4,11 @@ export interface RecorderCapabilityReport {
   hasAudioWorklet: boolean
   hasMediaRecorderWebMPcm: boolean
   hasScriptProcessor: boolean
-  expectedInputStrategy: "audio-worklet" | "script-processor" | "unsupported"
+  expectedInputStrategy:
+    | "media-recorder"
+    | "audio-worklet"
+    | "script-processor"
+    | "unsupported"
 }
 
 /**
@@ -47,6 +51,8 @@ export function checkRecorderCapability(): RecorderCapabilityReport {
   let expectedInputStrategy: RecorderCapabilityReport["expectedInputStrategy"]
   if (!hasAudioContext || !hasGetUserMedia) {
     expectedInputStrategy = "unsupported"
+  } else if (hasMediaRecorderWebMPcm) {
+    expectedInputStrategy = "media-recorder"
   } else if (hasAudioWorklet) {
     expectedInputStrategy = "audio-worklet"
   } else {

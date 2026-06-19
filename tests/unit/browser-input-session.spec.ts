@@ -52,10 +52,8 @@ describe("BrowserInputSession", () => {
       },
       requestedChannelCount: 2,
       ownsStream: false,
-      inputNode: {
-        connect: vi.fn(),
-        disconnect: vi.fn(),
-      } as unknown as AudioNode,
+      connectGraph: vi.fn(),
+      disconnectGraph: vi.fn(),
       deactivateInputNode: vi.fn(),
       disableEnvInFix: false,
     })
@@ -91,10 +89,8 @@ describe("BrowserInputSession", () => {
       handlers: { onFrame, onIssue },
       requestedChannelCount: 1,
       ownsStream: false,
-      inputNode: {
-        connect: vi.fn(),
-        disconnect: vi.fn(),
-      } as unknown as AudioNode,
+      connectGraph: vi.fn(),
+      disconnectGraph: vi.fn(),
       deactivateInputNode: vi.fn(),
       disableEnvInFix: false,
     })
@@ -139,10 +135,8 @@ describe("BrowserInputSession", () => {
       handlers: { onFrame, onIssue },
       requestedChannelCount: 1,
       ownsStream: false,
-      inputNode: {
-        connect: vi.fn(),
-        disconnect: vi.fn(),
-      } as unknown as AudioNode,
+      connectGraph: vi.fn(),
+      disconnectGraph: vi.fn(),
       deactivateInputNode: vi.fn(),
       disableEnvInFix: true,
     })
@@ -180,10 +174,8 @@ describe("BrowserInputSession", () => {
       handlers: { onFrame, onIssue },
       requestedChannelCount: 1,
       ownsStream: false,
-      inputNode: {
-        connect: vi.fn(),
-        disconnect: vi.fn(),
-      } as unknown as AudioNode,
+      connectGraph: vi.fn(),
+      disconnectGraph: vi.fn(),
       deactivateInputNode: vi.fn(),
       disableEnvInFix: false,
     })
@@ -233,7 +225,8 @@ describe("BrowserInputSession", () => {
       handlers: { onFrame, onIssue },
       requestedChannelCount: 1,
       ownsStream: false,
-      inputNode: { connect: vi.fn(), disconnect: vi.fn() } as unknown as AudioNode,
+      connectGraph: vi.fn(),
+      disconnectGraph: vi.fn(),
       deactivateInputNode: vi.fn(),
       disableEnvInFix: false,
     })
@@ -291,10 +284,8 @@ describe("BrowserInputSession", () => {
       },
       requestedChannelCount: 1,
       ownsStream: true,
-      inputNode: {
-        connect: vi.fn(),
-        disconnect: vi.fn(),
-      } as unknown as AudioNode,
+      connectGraph: vi.fn(),
+      disconnectGraph: vi.fn(),
       deactivateInputNode,
       disableEnvInFix: false,
     })

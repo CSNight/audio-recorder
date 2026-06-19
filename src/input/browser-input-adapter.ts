@@ -86,7 +86,13 @@ export class BrowserInputAdapter implements RecorderInputAdapter {
     const inputGraph = await createInputGraph(
       audioContext,
       requestedChannelCount,
-      handlers
+      handlers,
+      {
+        ...(input.preferMediaRecorder !== undefined && {
+          preferMediaRecorder: input.preferMediaRecorder,
+        }),
+        stream,
+      }
     )
 
     const session = new BrowserInputSession({
@@ -95,7 +101,8 @@ export class BrowserInputAdapter implements RecorderInputAdapter {
       handlers,
       requestedChannelCount,
       ownsStream,
-      inputNode: inputGraph.inputNode,
+      connectGraph: (s) => inputGraph.connect(s),
+      disconnectGraph: () => inputGraph.disconnect(),
       deactivateInputNode: inputGraph.deactivateInputNode,
       disableEnvInFix: input.frameLossCompensation ?? false,
     })

@@ -86,16 +86,14 @@ describe("BrowserInputAdapter", () => {
       return audioContext
     })
     const bindSession = vi.fn()
-    const inputNode = {
-      connect: vi.fn(),
-      disconnect: vi.fn(),
-    } as unknown as AudioNode
 
     vi.stubGlobal("AudioContext", AudioContextConstructor)
     createInputGraphMock.mockResolvedValue({
-      inputNode,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
       deactivateInputNode: vi.fn(),
       bindSession,
+      mode: "audio-graph",
     })
 
     const stream = createStream()
@@ -121,7 +119,8 @@ describe("BrowserInputAdapter", () => {
     expect(createInputGraphMock).toHaveBeenCalledWith(
       audioContextInstances[0],
       2,
-      handlers
+      handlers,
+      expect.objectContaining({ stream: expect.any(Object) })
     )
     expect(session.actualSampleRate).toBe(16_000)
     expect(bindSession).toHaveBeenCalledTimes(1)
@@ -151,12 +150,11 @@ describe("BrowserInputAdapter", () => {
       },
     })
     createInputGraphMock.mockResolvedValue({
-      inputNode: {
-        connect: vi.fn(),
-        disconnect: vi.fn(),
-      } as unknown as AudioNode,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
       deactivateInputNode: vi.fn(),
       bindSession: vi.fn(),
+      mode: "audio-graph",
     })
 
     const adapter = new BrowserInputAdapter()
@@ -203,12 +201,11 @@ describe("BrowserInputAdapter", () => {
       })
     )
     createInputGraphMock.mockResolvedValue({
-      inputNode: {
-        connect: vi.fn(),
-        disconnect: vi.fn(),
-      } as unknown as AudioNode,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
       deactivateInputNode: vi.fn(),
       bindSession: vi.fn(),
+      mode: "audio-graph",
     })
 
     const adapter = new BrowserInputAdapter()
@@ -307,12 +304,11 @@ describe("BrowserInputAdapter", () => {
       })
     )
     createInputGraphMock.mockResolvedValue({
-      inputNode: {
-        connect: vi.fn(),
-        disconnect: vi.fn(),
-      } as unknown as AudioNode,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
       deactivateInputNode: vi.fn(),
       bindSession: vi.fn(),
+      mode: "audio-graph",
     })
 
     const adapter = new BrowserInputAdapter()

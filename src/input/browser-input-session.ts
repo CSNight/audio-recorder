@@ -20,14 +20,15 @@ export interface BrowserInputSessionOptions {
   handlers: RecorderInputHandlers
   requestedChannelCount: AudioChannelCount
   ownsStream: boolean
-  inputNode: AudioNode
+  /** 建立采集图连接（由 InputGraph.connect 实现） */
+  connectGraph: (stream: MediaStream) => void
+  /** 断开采集图连接（由 InputGraph.disconnect 实现） */
+  disconnectGraph: () => void
   deactivateInputNode: () => void
   disableEnvInFix: boolean
 }
 
 export class BrowserInputSession implements RecorderInputSession {
-  private readonly sourceNode: MediaStreamAudioSourceNode
-  private readonly sinkNode: GainNode
   private readonly ownsStream: boolean
   private readonly handlers: RecorderInputHandlers
   private readonly summary: InputSessionSummary = {
@@ -35,9 +36,11 @@ export class BrowserInputSession implements RecorderInputSession {
     durationMs: 0,
   }
   private readonly requestedChannelCount: AudioChannelCount
-  private readonly inputNode: AudioNode
+  private readonly connectGraph: (stream: MediaStream) => void
+  private readonly disconnectGraph: () => void
   private readonly deactivateInputNode: () => void
   private readonly audioContext: AudioContext
+  private readonly stream: MediaStream
   private readonly disableEnvInFix: boolean
   private sessionState = InputSessionState.Ready
   private activeChannelCount: AudioChannelCount
@@ -48,23 +51,18 @@ export class BrowserInputSession implements RecorderInputSession {
 
   constructor(options: BrowserInputSessionOptions) {
     this.audioContext = options.audioContext
+    this.stream = options.stream
     this.handlers = options.handlers
     this.requestedChannelCount = options.requestedChannelCount
     this.activeChannelCount = options.requestedChannelCount
     this.ownsStream = options.ownsStream
-    this.inputNode = options.inputNode
+    this.connectGraph = options.connectGraph
+    this.disconnectGraph = options.disconnectGraph
     this.deactivateInputNode = options.deactivateInputNode
     this.disableEnvInFix = options.disableEnvInFix
 
-    this.sourceNode = options.audioContext.createMediaStreamSource(
-      options.stream
-    )
-    this.sinkNode = options.audioContext.createGain()
-    this.sinkNode.gain.value = 0
-
-    this.sourceNode.connect(this.inputNode)
-    this.inputNode.connect(this.sinkNode)
-    this.sinkNode.connect(options.audioContext.destination)
+    // 建立 AudioGraph 连接（MediaRecorder 路径下为占位节点，AudioWorklet/SP 路径下为实际节点）
+    this.connectGraph(options.stream)
   }
 
   get actualSampleRate(): number {
@@ -198,12 +196,10 @@ export class BrowserInputSession implements RecorderInputSession {
 
     this.sessionState = InputSessionState.Closed
     this.deactivateInputNode()
-    this.sourceNode.disconnect()
-    this.inputNode.disconnect()
-    this.sinkNode.disconnect()
+    this.disconnectGraph()
 
     if (this.ownsStream) {
-      for (const track of this.sourceNode.mediaStream.getTracks()) {
+      for (const track of this.stream.getTracks()) {
         track.stop()
       }
     }

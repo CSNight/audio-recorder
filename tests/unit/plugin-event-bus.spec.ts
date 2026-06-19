@@ -1,12 +1,11 @@
 import { describe, expect, it, vi } from "vitest"
 import { EventBus } from "@/core/event-bus"
-import { PluginEventBus } from "@/plugins/plugin-event-bus"
-import type { RecorderEventMap } from "@/types"
+import { PluginEventBus, type PluginEventMap } from "@/plugins/plugin-event-bus"
 import { RecorderInputSource } from "@/types"
 
 function createPluginEventBus() {
   const controller = {} as never
-  const eventBus = new EventBus<RecorderEventMap>()
+  const eventBus = new EventBus<PluginEventMap>()
   const pluginEventBus = new PluginEventBus("test-plugin", eventBus, () => ({
     controller,
     sessionId: "session-test",

@@ -318,6 +318,179 @@ describe("createInputGraph", () => {
       },
     })
   })
+})
+
+describe("createInputGraph — MediaRecorder first tier", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  function createStreamStub(): MediaStream {
+    return {
+      getAudioTracks: () => [{}],
+      getTracks: () => [{}],
+    } as unknown as MediaStream
+  }
+
+  function buildFakeMediaRecorder(opts: {
+    autoFire?: boolean
+    fireDelay?: number
+    throwOnStart?: boolean
+    throwOnNew?: boolean
+  } = {}) {
+    let _ondataavailable: ((e: BlobEvent) => void) | null = null
+    let _onerror: (() => void) | null = null
+    let _onstart: (() => void) | null = null
+    let started = false
+
+    const instance = {
+      get ondataavailable() { return _ondataavailable },
+      set ondataavailable(fn: ((e: BlobEvent) => void) | null) { _ondataavailable = fn },
+      get onerror() { return _onerror },
+      set onerror(fn: (() => void) | null) { _onerror = fn },
+      get onstart() { return _onstart },
+      set onstart(fn: (() => void) | null) { _onstart = fn },
+      start(_timeslice?: number) {
+        if (opts.throwOnStart) throw new Error("start failed")
+        started = true
+        if (opts.autoFire !== false) {
+          const delay = opts.fireDelay ?? 0
+          setTimeout(() => {
+            // 触发 onstart 表示 MediaRecorder 进入 recording 状态
+            if (_onstart) _onstart()
+            if (_ondataavailable) {
+              const blob = new Blob([new Uint8Array(4)], { type: "audio/webm" })
+              _ondataavailable({ data: blob } as BlobEvent)
+            }
+          }, delay)
+        }
+        // autoFire=false 时不触发 onstart，模拟超时场景
+      },
+      stop() {},
+      get started() { return started },
+    }
+    return instance
+  }
+
+  it("skips MediaRecorder path when preferMediaRecorder is false", async () => {
+    const isTypeSupported = vi.fn(() => true)
+    vi.stubGlobal("MediaRecorder", { isTypeSupported })
+    vi.stubGlobal("AudioWorkletNode", undefined)
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Windows NT 10.0)" })
+
+    const audioContext = createAudioContextStub()
+    const stream = createStreamStub()
+
+    await createInputGraph(audioContext, 1, { onFrame: vi.fn(), onIssue: vi.fn() }, {
+      preferMediaRecorder: false,
+      stream,
+    })
+
+    expect(isTypeSupported).not.toHaveBeenCalled()
+  })
+
+  it("skips MediaRecorder path when no stream is provided", async () => {
+    const isTypeSupported = vi.fn(() => true)
+    vi.stubGlobal("MediaRecorder", { isTypeSupported })
+    vi.stubGlobal("AudioWorkletNode", undefined)
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Windows NT 10.0)" })
+
+    const audioContext = createAudioContextStub()
+
+    await createInputGraph(audioContext, 1, { onFrame: vi.fn(), onIssue: vi.fn() })
+
+    // No stream passed — MediaRecorder path not entered
+    expect(isTypeSupported).not.toHaveBeenCalled()
+  })
+
+  it("falls through to ScriptProcessor when isTypeSupported returns false", async () => {
+    vi.stubGlobal("MediaRecorder", { isTypeSupported: () => false })
+    vi.stubGlobal("AudioWorkletNode", undefined)
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Windows NT 10.0)" })
+
+    const audioContext = createAudioContextStub()
+    const stream = createStreamStub()
+    const onIssue = vi.fn()
+
+    const graph = await createInputGraph(audioContext, 1, { onFrame: vi.fn(), onIssue }, {
+      stream,
+    })
+
+    // Falls through to ScriptProcessor
+    expect(graph.inputNode).toBeDefined()
+    expect(audioContext.createScriptProcessor).toHaveBeenCalled()
+  })
+
+  it("emits MediaRecorderFallback warning and falls back when start throws", async () => {
+    const mr = buildFakeMediaRecorder({ throwOnStart: true })
+    const MediaRecorderCtor = vi.fn(() => mr)
+    ;(MediaRecorderCtor as unknown as { isTypeSupported: () => boolean }).isTypeSupported = () => true
+    vi.stubGlobal("MediaRecorder", MediaRecorderCtor)
+    vi.stubGlobal("AudioWorkletNode", undefined)
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Windows NT 10.0)" })
+    vi.spyOn(globalThis, "setTimeout").mockImplementation(
+      (_fn: TimerHandler) => { return 0 as unknown as ReturnType<typeof setTimeout> }
+    )
+
+    const audioContext = {
+      ...createAudioContextStub(),
+      createMediaStreamSource: vi.fn(() => ({ connect: vi.fn() })),
+    } as unknown as AudioContext
+    const stream = createStreamStub()
+    const onIssue = vi.fn()
+
+    const graph = await createInputGraph(audioContext, 1, { onFrame: vi.fn(), onIssue }, { stream })
+
+    // Should have fallen back to ScriptProcessor
+    expect(audioContext.createScriptProcessor).toHaveBeenCalled()
+    expect(onIssue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        warning: expect.objectContaining({ code: RecorderWarningCode.MediaRecorderFallback }),
+      })
+    )
+    expect(graph.inputNode).toBeDefined()
+  })
+
+  it("emits MediaRecorderFallback warning and falls back on 500ms timeout", async () => {
+    vi.useFakeTimers()
+
+    const mr = buildFakeMediaRecorder({ autoFire: false })
+    const MediaRecorderCtor = vi.fn(() => mr)
+    ;(MediaRecorderCtor as unknown as { isTypeSupported: () => boolean }).isTypeSupported = () => true
+    vi.stubGlobal("MediaRecorder", MediaRecorderCtor)
+    vi.stubGlobal("AudioWorkletNode", undefined)
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Windows NT 10.0)" })
+
+    const audioContext = {
+      ...createAudioContextStub(),
+      createMediaStreamSource: vi.fn(() => ({})),
+    } as unknown as AudioContext
+    const stream = createStreamStub()
+    const onIssue = vi.fn()
+
+    const graphPromise = createInputGraph(audioContext, 1, { onFrame: vi.fn(), onIssue }, { stream })
+
+    // Advance past the 500ms timeout
+    await vi.advanceTimersByTimeAsync(600)
+    const graph = await graphPromise
+
+    expect(graph.inputNode).toBeDefined()
+    expect(onIssue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        warning: expect.objectContaining({ code: RecorderWarningCode.MediaRecorderFallback }),
+      })
+    )
+
+    vi.useRealTimers()
+  })
+})
+
+describe("createInputGraph — worklet registration failure", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
 
   it("falls back to ScriptProcessor when worklet registration throws", async () => {
     class FakeAudioWorkletNode {
@@ -332,7 +505,11 @@ describe("createInputGraph", () => {
       ) {}
     }
 
-    const audioContext = createAudioContextStub()
+    const audioContext = {
+      createScriptProcessor: vi.fn(() => ({ onaudioprocess: null })),
+      audioWorklet: undefined as unknown,
+      sampleRate: 48_000,
+    } as unknown as AudioContext
     const addModule = vi.fn(async () => {
       throw new Error("register failed")
     })

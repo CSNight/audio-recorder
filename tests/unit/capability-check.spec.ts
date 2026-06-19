@@ -10,6 +10,23 @@ describe("checkRecorderCapability", () => {
     vi.unstubAllGlobals()
   })
 
+  it("reports media-recorder strategy when MediaRecorder webm/pcm is supported", () => {
+    vi.stubGlobal("AudioContext", class {})
+    vi.stubGlobal("AudioWorkletNode", class {})
+    vi.stubGlobal("navigator", {
+      mediaDevices: { getUserMedia: () => {} },
+    })
+    vi.stubGlobal("MediaRecorder", {
+      isTypeSupported: (type: string) => type === "audio/webm; codecs=pcm",
+    })
+
+    const report = checkRecorderCapability()
+
+    expect(report.hasMediaRecorderWebMPcm).toBe(true)
+    // media-recorder takes priority over audio-worklet
+    expect(report.expectedInputStrategy).toBe("media-recorder")
+  })
+
   it("reports audio-worklet strategy when AudioContext, getUserMedia, and AudioWorkletNode are available", () => {
     vi.stubGlobal("AudioContext", class {})
     vi.stubGlobal("AudioWorkletNode", class {})

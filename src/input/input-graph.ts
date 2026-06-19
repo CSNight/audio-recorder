@@ -2,6 +2,11 @@ import type { RecorderInputHandlers } from "@/input/types"
 import type { AudioChannelCount } from "@/types"
 import { RecorderWarningCode } from "@/types"
 import { resolveChannelCount } from "@/utils/audio-frame"
+import {
+  createWebMExtractScope,
+  webmExtract,
+  type WebMExtractScope,
+} from "@/input/webm-pcm-extractor"
 
 type AudioWorkletProcessorMessage =
   | {
@@ -29,9 +34,15 @@ interface InputGraphSessionSink {
 }
 
 export interface InputGraph {
+  /** 采集节点，AudioWorklet/ScriptProcessor 路径下接入 AudioGraph；MediaRecorder 路径下为占位 GainNode */
   inputNode: AudioNode
+  /** 将 stream 接入采集图，BrowserInputSession.start() 前调用 */
+  connect: (stream: MediaStream) => void
+  /** 断开采集图连接，BrowserInputSession.close() 时调用 */
+  disconnect: () => void
   deactivateInputNode: () => void
   bindSession: (session: InputGraphSessionSink) => void
+  mode: "audio-graph" | "media-recorder"
 }
 
 function createWorkletModuleSource(_batchSamples: number): string {
@@ -91,9 +102,11 @@ registerProcessor("${RECORDER_WORKLET_PROCESSOR_NAME}", AudioRecorderFrameProces
 `
 }
 
+// WeakMap 缓存已注册的 AudioWorklet，避免污染 audioWorklet 对象属性
+const registeredWorklets = new WeakMap<AudioWorklet, boolean>()
+
 async function ensureRecorderWorkletRegistered(
-  audioContext: AudioContext,
-  batchSamples: number
+  audioContext: AudioContext
 ): Promise<void> {
   const recorderAudioContext = audioContext as AudioContext & {
     audioWorklet?: AudioWorklet
@@ -106,16 +119,12 @@ async function ensureRecorderWorkletRegistered(
     )
   }
 
-  const registryKey = "__audioRecorderWorkletRegistered__"
-  const workletRegistry = audioWorklet as AudioWorklet & {
-    [registryKey]?: boolean
-  }
-
-  if (workletRegistry[registryKey]) {
+  if (registeredWorklets.get(audioWorklet)) {
     return
   }
 
-  const moduleSource = createWorkletModuleSource(batchSamples)
+  // batchSamples 通过 processorOptions 传入，不需要注入 module source
+  const moduleSource = createWorkletModuleSource(0)
   const moduleBlob = new Blob([moduleSource], {
     type: "application/javascript",
   })
@@ -123,7 +132,7 @@ async function ensureRecorderWorkletRegistered(
 
   try {
     await audioWorklet.addModule(moduleUrl)
-    workletRegistry[registryKey] = true
+    registeredWorklets.set(audioWorklet, true)
   } finally {
     URL.revokeObjectURL(moduleUrl)
   }
@@ -146,19 +155,265 @@ function buildWarningMessage(error: unknown): string {
   return `AudioWorklet is unavailable, falling back to ScriptProcessor. ${fallbackReason}`
 }
 
+const MEDIA_RECORDER_TIMESLICE_MS = 10 // ondataavailable 回调间隔
+const MEDIA_RECORDER_TIMEOUT_MS = 500 // onstart 超时：超过此时长未进入 recording 状态则降级
+const MEDIA_RECORDER_MIME = "audio/webm; codecs=pcm"
+
+type MediaRecorderConstructorScope = typeof globalThis & {
+  MediaRecorder?: {
+    new (stream: MediaStream, options?: { mimeType?: string }): MediaRecorder
+    isTypeSupported?: (type: string) => boolean
+  }
+}
+
+/**
+ * 尝试以 MediaRecorder (audio/webm;codecs=pcm) 建立采集图。
+ *
+ * 返回成功建立的 InputGraph，或在以下情况返回 null（调用方应降级）：
+ *  - 运行时不支持 MediaRecorder 或指定 MIME 类型
+ *  - 500ms 内未触发 onstart（MediaRecorder 未能进入 recording 状态）
+ *  - 构造或 start() 抛出异常
+ *
+ * connect(stream) 负责建立内部 Web Audio 路由图（强制声道数），
+ * disconnect() 负责断开路由图并释放资源。
+ */
+async function createMediaRecorderInputGraphWithStream(
+  stream: MediaStream,
+  audioContext: AudioContext,
+  requestedChannelCount: number,
+  handlers: RecorderInputHandlers
+): Promise<InputGraph | null> {
+  const scope = globalThis as MediaRecorderConstructorScope
+  if (
+    !scope.MediaRecorder ||
+    !scope.MediaRecorder.isTypeSupported?.(MEDIA_RECORDER_MIME)
+  ) {
+    return null
+  }
+
+  const MediaRecorderCtor = scope.MediaRecorder
+
+  return new Promise<InputGraph | null>((resolve) => {
+    let activeSession: InputGraphSessionSink | undefined
+    let settled = false
+    let mr: MediaRecorder | undefined
+    const extractScope: WebMExtractScope = createWebMExtractScope()
+    const timeout = { id: undefined as ReturnType<typeof setTimeout> | undefined }
+    let hasSRWarned = false
+
+    // 内部 Web Audio 路由图节点
+    let internalSourceNode: MediaStreamAudioSourceNode | undefined
+    let internalChannelRouter: GainNode | undefined
+    let internalDestination: MediaStreamAudioDestinationNode | undefined
+
+    function cleanupInternalGraph(): void {
+      try {
+        internalSourceNode?.disconnect()
+      } catch {
+        /* ignore */
+      }
+      try {
+        internalChannelRouter?.disconnect()
+      } catch {
+        /* ignore */
+      }
+      try {
+        internalDestination?.disconnect()
+      } catch {
+        /* ignore */
+      }
+      internalSourceNode = undefined
+      internalChannelRouter = undefined
+      internalDestination = undefined
+    }
+
+    function fallback(): void {
+      if (settled) return
+      settled = true
+      clearTimeout(timeout.id)
+      if (mr) {
+        try {
+          mr.stop()
+        } catch {
+          /* ignore */
+        }
+        mr.ondataavailable = null
+        mr.onerror = null
+        ;(mr as MediaRecorder & { onstart: null }).onstart = null
+      }
+      cleanupInternalGraph()
+      resolve(null)
+    }
+
+    function succeed(): void {
+      if (settled) return
+      settled = true
+      clearTimeout(timeout.id)
+      const placeholderNode = audioContext.createGain()
+      placeholderNode.gain.value = 0
+      resolve({
+        inputNode: placeholderNode,
+        mode: "media-recorder",
+        connect: (connectStream: MediaStream) => {
+          // 通过 Web Audio 路由图强制声道数，避免 getUserMedia 约束被浏览器忽略
+          internalSourceNode =
+            audioContext.createMediaStreamSource(connectStream)
+          internalChannelRouter = audioContext.createGain()
+          internalChannelRouter.channelCount = requestedChannelCount
+          internalChannelRouter.channelCountMode = "explicit"
+          internalDestination = audioContext.createMediaStreamDestination()
+          internalDestination.channelCount = requestedChannelCount
+          internalDestination.channelCountMode = "explicit"
+          internalSourceNode.connect(internalChannelRouter)
+          internalChannelRouter.connect(internalDestination)
+        },
+        disconnect: cleanupInternalGraph,
+        deactivateInputNode: () => {
+          if (mr) {
+            try {
+              mr.stop()
+            } catch {
+              /* ignore */
+            }
+            mr.ondataavailable = null
+            mr.onerror = null
+          }
+        },
+        bindSession: (session) => {
+          activeSession = session
+        },
+      })
+    }
+
+    // 建立路由图并创建 MediaRecorder
+    try {
+      internalSourceNode = audioContext.createMediaStreamSource(stream)
+      internalChannelRouter = audioContext.createGain()
+      internalChannelRouter.channelCount = requestedChannelCount
+      internalChannelRouter.channelCountMode = "explicit"
+      internalDestination = audioContext.createMediaStreamDestination()
+      internalDestination.channelCount = requestedChannelCount
+      internalDestination.channelCountMode = "explicit"
+      internalSourceNode.connect(internalChannelRouter)
+      internalChannelRouter.connect(internalDestination)
+      mr = new MediaRecorderCtor(internalDestination.stream, {
+        mimeType: MEDIA_RECORDER_MIME,
+      })
+    } catch {
+      cleanupInternalGraph()
+      resolve(null)
+      return
+    }
+
+    // onstart 触发即表示 MediaRecorder 成功进入 recording 状态，路径可用
+    ;(mr as MediaRecorder & { onstart: (() => void) | null }).onstart = () => {
+      succeed()
+    }
+
+    mr.ondataavailable = (event: BlobEvent) => {
+      if (!event.data || event.data.size === 0) return
+      if (!activeSession) return
+
+      event.data
+        .arrayBuffer()
+        .then((buf) => {
+          if (!activeSession) return
+          const inBytes = new Uint8Array(buf)
+          const result = webmExtract(inBytes, extractScope)
+
+          if (result === "invalid") {
+            handlers.onIssue({
+              kind: "warning",
+              warning: {
+                code: RecorderWarningCode.MediaRecorderFallback,
+                message:
+                  "MediaRecorder produced unrecognised WebM/PCM data; falling back.",
+              },
+            })
+            return
+          }
+
+          if (result === null) return
+
+          // 采样率不匹配时只警告一次
+          if (
+            !hasSRWarned &&
+            extractScope.webmSR !== undefined &&
+            extractScope.webmSR !== audioContext.sampleRate
+          ) {
+            hasSRWarned = true
+            handlers.onIssue({
+              kind: "warning",
+              warning: {
+                code: RecorderWarningCode.MediaRecorderFallback,
+                message: `MediaRecorder sample rate (${extractScope.webmSR}) differs from AudioContext (${audioContext.sampleRate}).`,
+              },
+            })
+          }
+
+          activeSession.acceptFrame(result, performance.now())
+        })
+        .catch(() => {
+          /* ignore read errors */
+        })
+    }
+
+    mr.onerror = () => {
+      if (!settled) fallback()
+    }
+
+    timeout.id = setTimeout(() => {
+      if (!settled) fallback()
+    }, MEDIA_RECORDER_TIMEOUT_MS)
+
+    try {
+      mr.start(MEDIA_RECORDER_TIMESLICE_MS)
+    } catch {
+      clearTimeout(timeout.id)
+      cleanupInternalGraph()
+      resolve(null)
+    }
+  })
+}
+
 export async function createInputGraph(
   audioContext: AudioContext,
   requestedChannelCount: AudioChannelCount,
-  handlers: RecorderInputHandlers
+  handlers: RecorderInputHandlers,
+  options?: {
+    preferMediaRecorder?: boolean
+    stream?: MediaStream
+  }
 ): Promise<InputGraph> {
   const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
   // 仅移动端 AudioWorklet 路径启用帧缓冲，目标约 60Hz
   const batchSamples = isMobile ? Math.round(audioContext.sampleRate / 60) : 0
 
+  // ── 第一级：MediaRecorder (audio/webm;codecs=pcm) ─────────────────────────
+  if (options?.preferMediaRecorder !== false && options?.stream) {
+    const mrGraph = await createMediaRecorderInputGraphWithStream(
+      options.stream,
+      audioContext,
+      requestedChannelCount,
+      handlers
+    )
+    if (mrGraph) return mrGraph
+
+    handlers.onIssue({
+      kind: "warning",
+      warning: {
+        code: RecorderWarningCode.MediaRecorderFallback,
+        message:
+          "MediaRecorder (audio/webm;codecs=pcm) unavailable or timed out; falling back to AudioWorklet/ScriptProcessor.",
+      },
+    })
+  }
+
+  // ── 第二级：AudioWorklet ──────────────────────────────────────────────────
   const workletNodeConstructor = getAudioWorkletNodeConstructor()
   if (workletNodeConstructor) {
     try {
-      await ensureRecorderWorkletRegistered(audioContext, batchSamples)
+      await ensureRecorderWorkletRegistered(audioContext)
 
       let activeSession: InputGraphSessionSink | undefined
       const workletNode = new workletNodeConstructor(
@@ -178,9 +433,7 @@ export async function createInputGraph(
         event: MessageEvent<AudioWorkletProcessorMessage>
       ) => {
         const payload = event.data
-        if (!activeSession) {
-          return
-        }
+        if (!activeSession) return
 
         if (payload.type === "worklet-error") {
           handlers.onIssue({
@@ -199,8 +452,39 @@ export async function createInputGraph(
         }
       }
 
+      let sourceNode: MediaStreamAudioSourceNode | undefined
+      let sinkNode: GainNode | undefined
+
       return {
         inputNode: workletNode,
+        mode: "audio-graph",
+        connect: (stream: MediaStream) => {
+          sourceNode = audioContext.createMediaStreamSource(stream)
+          sinkNode = audioContext.createGain()
+          sinkNode.gain.value = 0
+          sourceNode.connect(workletNode)
+          workletNode.connect(sinkNode)
+          sinkNode.connect(audioContext.destination)
+        },
+        disconnect: () => {
+          try {
+            sourceNode?.disconnect()
+          } catch {
+            /* ignore */
+          }
+          try {
+            workletNode.disconnect()
+          } catch {
+            /* ignore */
+          }
+          try {
+            sinkNode?.disconnect()
+          } catch {
+            /* ignore */
+          }
+          sourceNode = undefined
+          sinkNode = undefined
+        },
         deactivateInputNode: () => {
           workletNode.port.onmessage = null
         },
@@ -228,6 +512,7 @@ export async function createInputGraph(
     })
   }
 
+  // ── 第三级：ScriptProcessor（降级兜底）────────────────────────────────────
   let activeSession: InputGraphSessionSink | undefined
   // ScriptProcessor is deprecated and kept strictly as the runtime fallback path.
   const scriptProcessorNode = audioContext.createScriptProcessor(
@@ -237,9 +522,7 @@ export async function createInputGraph(
   )
 
   scriptProcessorNode.onaudioprocess = (event) => {
-    if (!activeSession) {
-      return
-    }
+    if (!activeSession) return
 
     const actualChannelCount = resolveChannelCount(
       event.inputBuffer.numberOfChannels
@@ -252,8 +535,39 @@ export async function createInputGraph(
     activeSession.acceptFrame(planarFloat, performance.now())
   }
 
+  let spSourceNode: MediaStreamAudioSourceNode | undefined
+  let spSinkNode: GainNode | undefined
+
   return {
     inputNode: scriptProcessorNode,
+    mode: "audio-graph",
+    connect: (stream: MediaStream) => {
+      spSourceNode = audioContext.createMediaStreamSource(stream)
+      spSinkNode = audioContext.createGain()
+      spSinkNode.gain.value = 0
+      spSourceNode.connect(scriptProcessorNode)
+      scriptProcessorNode.connect(spSinkNode)
+      spSinkNode.connect(audioContext.destination)
+    },
+    disconnect: () => {
+      try {
+        spSourceNode?.disconnect()
+      } catch {
+        /* ignore */
+      }
+      try {
+        scriptProcessorNode.disconnect()
+      } catch {
+        /* ignore */
+      }
+      try {
+        spSinkNode?.disconnect()
+      } catch {
+        /* ignore */
+      }
+      spSourceNode = undefined
+      spSinkNode = undefined
+    },
     deactivateInputNode: () => {
       scriptProcessorNode.onaudioprocess = null
     },

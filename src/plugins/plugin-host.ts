@@ -1,7 +1,16 @@
 import type { RecorderController } from "@/core/recorder-controller"
 import { EventBus } from "@/core/event-bus"
-import { PluginEventBus, type PluginEventMap, type PluginEventBusContext } from "@/plugins/plugin-event-bus"
-import type { RecorderPlugin, RecorderPluginContext, RecorderPluginEventContext, RecorderPluginEventPayload } from "@/plugins/types"
+import {
+  PluginEventBus,
+  type PluginEventMap,
+  type PluginEventBusContext,
+} from "@/plugins/plugin-event-bus"
+import type {
+  RecorderPlugin,
+  RecorderPluginContext,
+  RecorderPluginEventContext,
+  RecorderPluginEventPayload,
+} from "@/plugins/types"
 import type {
   AudioFrame,
   RecorderIssue,
@@ -35,14 +44,18 @@ export class PluginHost {
 
   on(
     event: string,
-    listener: (payload: RecorderPluginEventContext<RecorderPluginEventPayload>) => void
+    listener: (
+      payload: RecorderPluginEventContext<RecorderPluginEventPayload>
+    ) => void
   ): () => void {
     return this.pluginEventBus.on(event, listener)
   }
 
   off(
     event: string,
-    listener: (payload: RecorderPluginEventContext<RecorderPluginEventPayload>) => void
+    listener: (
+      payload: RecorderPluginEventContext<RecorderPluginEventPayload>
+    ) => void
   ): void {
     this.pluginEventBus.off(event, listener)
   }

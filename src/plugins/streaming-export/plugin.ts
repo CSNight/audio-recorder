@@ -7,20 +7,18 @@ import type { ChunkedEncoderRegistry } from "@/plugins/streaming-export/registry
 import { defaultChunkedEncoderRegistry } from "@/plugins/streaming-export/registry"
 import { ChunkedEncoderBridge } from "@/workers/chunked-encoder-bridge"
 
-const ENCODED_CHUNK_EVENT = "encoded-chunk"
-
 /**
  * createStreamingExportPlugin：实时分片编码插件。
  *
  * 每帧 PCM 喂给指定格式的 ChunkedEncoder（经 ChunkedEncoderBridge），
- * 有产出时通过 "encoded-chunk" 事件发出。
+ * 有产出时通过 "plugin:encoded-chunk" 事件发出。
  * Bridge 在 Worker 可用时将编码移入 Worker 线程，否则主线程同步降级。
  *
  * 用法：
  * ```ts
  * const plugin = createStreamingExportPlugin({ format: "mp3" })
  * recorder.use(plugin)
- * recorder.on("encoded-chunk", ({ payload }) => {
+ * recorder.on("plugin:encoded-chunkk", ({ payload }) => {
  *   // payload: StreamingChunkPayload
  * })
  * ```
@@ -52,9 +50,9 @@ export function createStreamingExportPlugin(
     name: `streaming-export:${format}`,
 
     setup(context) {
-      context.eventBus.register(ENCODED_CHUNK_EVENT)
+      context.eventBus.register("plugin:encoded-chunk")
       emitChunk = (payload) => {
-        context.eventBus.emit(ENCODED_CHUNK_EVENT, payload)
+        context.eventBus.emit("plugin:encoded-chunk", payload)
       }
     },
 

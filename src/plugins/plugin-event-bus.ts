@@ -4,12 +4,12 @@ import type {
   RecorderPluginEventContext,
   RecorderPluginEventPayload,
 } from "@/plugins/types"
-import type {
-  RecorderRuntimeInfo,
-  RecorderSessionSummary,
-} from "@/types"
+import type { RecorderRuntimeInfo, RecorderSessionSummary } from "@/types"
 
-export type PluginEventMap = Record<string, RecorderPluginEventContext<RecorderPluginEventPayload>>
+export type PluginEventMap = Record<
+  string,
+  RecorderPluginEventContext<RecorderPluginEventPayload>
+>
 
 export interface PluginEventBusContext {
   controller: import("@/core/recorder-controller").RecorderController
@@ -19,7 +19,12 @@ export interface PluginEventBusContext {
   summary: RecorderSessionSummary
 }
 
-const RESERVED_EVENT_NAMES = new Set(["statechange", "frame", "frame:async", "issue"])
+const RESERVED_EVENT_NAMES = new Set([
+  "statechange",
+  "frame",
+  "frame:async",
+  "issue",
+])
 
 export class PluginEventBus implements RecorderPluginEventBus {
   private readonly registeredEvents = new Set<string>()

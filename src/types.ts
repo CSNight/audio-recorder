@@ -24,6 +24,7 @@ export enum RecorderWarningCode {
   PersistencePluginUnavailable = "persistence-plugin-unavailable",
   PersistenceActivationFailed = "persistence-activation-failed",
   FrameLossDetected = "frame-loss-detected",
+  MediaRecorderFallback = "media-recorder-fallback",
 }
 
 export enum RecorderInputSource {
@@ -45,6 +46,8 @@ export interface RecorderInputOptions {
   deviceId?: string
   /** 默认 false（开启丢帧补偿）；传 true 禁用静音填补，但检测和 warning 仍会触发 */
   frameLossCompensation?: boolean
+  /** 默认 true；传 false 跳过 MediaRecorder 路径，强制走 AudioWorklet / ScriptProcessor */
+  preferMediaRecorder?: boolean
 }
 
 /** 麦克风（音频输入）设备描述，由 listMicrophoneDevices() 返回。 */
@@ -84,7 +87,7 @@ export interface RecorderRuntimeInfo {
   actualChannelCount?: AudioChannelCount
   source: RecorderInputSource
   /** 实际使用的采集链路，open() 成功后写入 */
-  inputStrategy?: "audio-worklet" | "script-processor"
+  inputStrategy?: "media-recorder" | "audio-worklet" | "script-processor"
 }
 
 export interface RecorderSessionSummary {

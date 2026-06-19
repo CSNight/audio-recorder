@@ -82,7 +82,11 @@ export class RecorderController {
     if (typeof event === "string" && event.startsWith("plugin:")) {
       return this.pluginHost.on(
         event,
-        listener as (payload: import("@/plugins/types").RecorderPluginEventContext<import("@/plugins/types").RecorderPluginEventPayload>) => void
+        listener as (
+          payload: import("@/plugins/types").RecorderPluginEventContext<
+            import("@/plugins/types").RecorderPluginEventPayload
+          >
+        ) => void
       )
     }
     return this.eventBus.on(event, listener)
@@ -95,7 +99,11 @@ export class RecorderController {
     if (typeof event === "string" && event.startsWith("plugin:")) {
       this.pluginHost.off(
         event,
-        listener as (payload: import("@/plugins/types").RecorderPluginEventContext<import("@/plugins/types").RecorderPluginEventPayload>) => void
+        listener as (
+          payload: import("@/plugins/types").RecorderPluginEventContext<
+            import("@/plugins/types").RecorderPluginEventPayload
+          >
+        ) => void
       )
       return
     }
@@ -227,7 +235,9 @@ export class RecorderController {
     }
 
     this.syncRuntimeFromSession(this.inputSession)
-    this.sessionRuntimeInfo.inputStrategy = capability.expectedInputStrategy
+    if (capability.expectedInputStrategy !== "unsupported") {
+      this.sessionRuntimeInfo.inputStrategy = capability.expectedInputStrategy
+    }
     this.latestSessionSummary = {
       ...this.latestSessionSummary,
       sampleRate: this.inputSession.actualSampleRate,
