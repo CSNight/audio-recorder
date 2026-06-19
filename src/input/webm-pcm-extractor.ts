@@ -91,10 +91,7 @@ function readVInt(
   return val
 }
 
-function readBlock(
-  arr: Uint8Array,
-  pos: [number]
-): number[] | undefined {
+function readBlock(arr: Uint8Array, pos: [number]): number[] | undefined {
   const lenVal = readVInt(arr, pos, true)
   if (!lenVal) return undefined
   const len = bytesInt(lenVal)
@@ -185,7 +182,8 @@ export function webmExtract(
           } else if (bytesEq(eid2, [0x86])) {
             // Codec ID
             let str = ""
-            for (let i = 0; i < bytes2.length; i++) str += String.fromCharCode(bytes2[i]!)
+            for (let i = 0; i < bytes2.length; i++)
+              str += String.fromCharCode(bytes2[i]!)
             track.codec = str
           } else if (bytesEq(eid2, [0xe1])) {
             // Audio settings
@@ -200,7 +198,8 @@ export function webmExtract(
                 const reversed = new Uint8Array(bytes3).reverse().buffer
                 let val = 0
                 if (bytes3.length === 4) val = new Float32Array(reversed)[0]!
-                else if (bytes3.length === 8) val = new Float64Array(reversed)[0]!
+                else if (bytes3.length === 8)
+                  val = new Float64Array(reversed)[0]!
                 track.sampleRate = Math.round(val)
               } else if (bytesEq(eid3, [0x62, 0x64])) {
                 // BitDepth

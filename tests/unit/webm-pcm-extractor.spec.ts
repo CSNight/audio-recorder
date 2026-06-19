@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest"
-import {
-  createWebMExtractScope,
-  webmExtract,
-} from "@/input/webm-pcm-extractor"
+import { createWebMExtractScope, webmExtract } from "@/input/webm-pcm-extractor"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WebM binary builder helpers
@@ -11,15 +8,11 @@ import {
 function encodeVIntLength(len: number): Uint8Array {
   // encode length as Matroska VINT (1–4 bytes)
   if (len < 0x7f) return new Uint8Array([len | 0x80])
-  if (len < 0x3fff) return new Uint8Array([((len >> 8) | 0x40), len & 0xff])
+  if (len < 0x3fff) return new Uint8Array([(len >> 8) | 0x40, len & 0xff])
   if (len < 0x1fffff)
-    return new Uint8Array([
-      ((len >> 16) | 0x20),
-      (len >> 8) & 0xff,
-      len & 0xff,
-    ])
+    return new Uint8Array([(len >> 16) | 0x20, (len >> 8) & 0xff, len & 0xff])
   return new Uint8Array([
-    ((len >> 24) | 0x10),
+    (len >> 24) | 0x10,
     (len >> 16) & 0xff,
     (len >> 8) & 0xff,
     len & 0xff,
@@ -104,7 +97,9 @@ function buildWebM(
   const segmentPayload = concat(tracks, simpleBlock)
   // Segment id with "unknown" length marker (0x01 ff ff ff ff ff ff ff)
   const segmentId = new Uint8Array([0x18, 0x53, 0x80, 0x67])
-  const segmentLen = new Uint8Array([0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])
+  const segmentLen = new Uint8Array([
+    0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  ])
   const segment = concat(segmentId, segmentLen, segmentPayload)
 
   // ── EBML Header ───────────────────────────────────────────────────────────
@@ -178,8 +173,10 @@ describe("webmExtract", () => {
 
     // Combined result should contain all samples
     const combined: number[] = []
-    if (Array.isArray(r1)) combined.push(...Array.from((r1 as Float32Array[])[0]!))
-    if (Array.isArray(r2)) combined.push(...Array.from((r2 as Float32Array[])[0]!))
+    if (Array.isArray(r1))
+      combined.push(...Array.from((r1 as Float32Array[])[0]!))
+    if (Array.isArray(r2))
+      combined.push(...Array.from((r2 as Float32Array[])[0]!))
 
     expect(combined).toHaveLength(4)
     expect(combined[0]).toBeCloseTo(0.1)
@@ -290,13 +287,18 @@ describe("webmExtract", () => {
     function makeBlock(s: Float32Array): Uint8Array {
       return element(
         [0xa3],
-        concat(new Uint8Array([0x01, 0x00, 0x00, 0x00]), new Uint8Array(s.buffer))
+        concat(
+          new Uint8Array([0x01, 0x00, 0x00, 0x00]),
+          new Uint8Array(s.buffer)
+        )
       )
     }
 
     const segPayload = concat(tracks, makeBlock(s1), makeBlock(s2))
     const segmentId = new Uint8Array([0x18, 0x53, 0x80, 0x67])
-    const segmentLen = new Uint8Array([0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])
+    const segmentLen = new Uint8Array([
+      0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    ])
     const ebmlPayload = concat(
       element([0x42, 0x86], uint8(1)),
       element([0x42, 0xf7], uint8(1)),

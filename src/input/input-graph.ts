@@ -198,7 +198,9 @@ async function createMediaRecorderInputGraphWithStream(
     let settled = false
     let mr: MediaRecorder | undefined
     const extractScope: WebMExtractScope = createWebMExtractScope()
-    const timeout = { id: undefined as ReturnType<typeof setTimeout> | undefined }
+    const timeout = {
+      id: undefined as ReturnType<typeof setTimeout> | undefined,
+    }
     let hasSRWarned = false
 
     // 内部 Web Audio 路由图节点
