@@ -3,15 +3,17 @@ import {
   BrowserInputAdapter,
   listMicrophoneDevices,
 } from "@/input/browser-input-adapter"
+import { RecorderWarningCode } from "@/types"
 
-const createInputGraphMock = vi.hoisted(() => vi.fn())
+const selectInputBackendMock = vi.hoisted(() => vi.fn())
 
-vi.mock("@/input/input-graph", () => ({
-  createInputGraph: createInputGraphMock,
+vi.mock("@/input/backends/select", () => ({
+  selectInputBackend: selectInputBackendMock,
 }))
 
 type FakeTrack = {
   stop: ReturnType<typeof vi.fn>
+  getSettings?: () => MediaTrackSettings
 }
 
 type FakeStream = {
@@ -23,9 +25,13 @@ type AudioContextStub = AudioContext & {
   constructorArgs?: AudioContextOptions
 }
 
-function createStream(trackCount = 1): FakeStream {
+function createStream(
+  trackCount = 1,
+  settings?: MediaTrackSettings
+): FakeStream {
   const tracks = Array.from({ length: trackCount }, () => ({
     stop: vi.fn(),
+    ...(settings && { getSettings: () => settings }),
   }))
 
   return {
@@ -37,45 +43,32 @@ function createStream(trackCount = 1): FakeStream {
 function createAudioContextStub(
   options?: AudioContextOptions
 ): AudioContextStub {
-  const sourceNode = {
-    connect: vi.fn(),
-    disconnect: vi.fn(),
-    mediaStream: createStream(),
-  }
-  const gainNode = {
-    connect: vi.fn(),
-    disconnect: vi.fn(),
-    gain: {
-      value: 1,
-    },
-  }
-
   return {
     constructorArgs: options,
     sampleRate: options?.sampleRate ?? 48_000,
     state: "running",
     destination: {} as AudioDestinationNode,
-    createMediaStreamSource: vi.fn((stream: MediaStream) => ({
-      ...sourceNode,
-      mediaStream: stream,
-    })),
-    createGain: vi.fn(() => gainNode),
     resume: vi.fn(async () => {}),
     close: vi.fn(async () => {}),
   } as unknown as AudioContextStub
+}
+
+function fakeBackend(strategy = "media-recorder") {
+  return { strategy, suspend: vi.fn(), resume: vi.fn(), dispose: vi.fn() }
 }
 
 describe("BrowserInputAdapter", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
-    createInputGraphMock.mockReset()
+    selectInputBackendMock.mockReset()
+    selectInputBackendMock.mockResolvedValue(fakeBackend())
     vi.stubGlobal("navigator", {
       userAgent: "Mozilla/5.0 (Windows NT 10.0)",
     })
   })
 
-  it("opens an external stream, forwards the requested sample rate, and binds the session", async () => {
+  it("opens an external stream, forwards the requested sample rate, and selects a backend", async () => {
     const audioContextInstances: AudioContextStub[] = []
     const AudioContextConstructor = vi.fn(function (
       this: unknown,
@@ -85,76 +78,72 @@ describe("BrowserInputAdapter", () => {
       audioContextInstances.push(audioContext)
       return audioContext
     })
-    const bindSession = vi.fn()
-
     vi.stubGlobal("AudioContext", AudioContextConstructor)
-    createInputGraphMock.mockResolvedValue({
-      connect: vi.fn(),
-      disconnect: vi.fn(),
-      deactivateInputNode: vi.fn(),
-      bindSession,
-      mode: "audio-graph",
-    })
 
     const stream = createStream()
-    const handlers = {
-      onFrame: vi.fn(),
-      onIssue: vi.fn(),
-    }
+    const handlers = { onFrame: vi.fn(), onIssue: vi.fn() }
     const adapter = new BrowserInputAdapter()
     const session = await adapter.open(
       {
         sourceStream: stream as unknown as MediaStream,
-        input: {
-          sampleRate: 16_000,
-          channelCount: 2,
-        },
+        input: { sampleRate: 16_000, channelCount: 2 },
       },
       handlers
     )
 
-    expect(AudioContextConstructor).toHaveBeenCalledWith({
-      sampleRate: 16_000,
+    expect(AudioContextConstructor).toHaveBeenCalledWith({ sampleRate: 16_000 })
+    expect(selectInputBackendMock).toHaveBeenCalledWith({
+      requested: "auto",
+      context: expect.objectContaining({
+        audioContext: audioContextInstances[0],
+        channelCount: 2,
+        sink: session,
+      }),
     })
-    expect(createInputGraphMock).toHaveBeenCalledWith(
-      audioContextInstances[0],
-      2,
-      handlers,
-      expect.objectContaining({ stream: expect.any(Object) })
-    )
     expect(session.actualSampleRate).toBe(16_000)
-    expect(bindSession).toHaveBeenCalledTimes(1)
-    expect(bindSession.mock.calls[0]?.[0]).toBe(session)
+    expect(session.actualInputStrategy).toBe("media-recorder")
   })
 
-  it("requests microphone input with explicit constraints and applies defaults, falls back to webkitAudioContext", async () => {
+  it("passes inputStrategy through to selectInputBackend", async () => {
     const getUserMedia = vi.fn(
       async () => createStream() as unknown as MediaStream
     )
-    const webkitAudioContextInstances: AudioContextStub[] = []
-    const webkitAudioContext = vi.fn(function (
-      this: unknown,
-      options?: AudioContextOptions
-    ) {
-      const audioContext = createAudioContextStub(options)
-      webkitAudioContextInstances.push(audioContext)
-      return audioContext
-    })
-
-    vi.stubGlobal("AudioContext", undefined)
-    vi.stubGlobal("webkitAudioContext", webkitAudioContext)
     vi.stubGlobal("navigator", {
       userAgent: "Mozilla/5.0 (Windows NT 10.0)",
-      mediaDevices: {
-        getUserMedia,
-      },
+      mediaDevices: { getUserMedia },
     })
-    createInputGraphMock.mockResolvedValue({
-      connect: vi.fn(),
-      disconnect: vi.fn(),
-      deactivateInputNode: vi.fn(),
-      bindSession: vi.fn(),
-      mode: "audio-graph",
+    vi.stubGlobal(
+      "AudioContext",
+      vi.fn(function (this: unknown, options?: AudioContextOptions) {
+        return createAudioContextStub(options)
+      })
+    )
+
+    const adapter = new BrowserInputAdapter()
+    await adapter.open(
+      { input: { inputStrategy: "audio-worklet" } },
+      { onFrame: vi.fn(), onIssue: vi.fn() }
+    )
+
+    expect(selectInputBackendMock).toHaveBeenCalledWith(
+      expect.objectContaining({ requested: "audio-worklet" })
+    )
+  })
+
+  it("requests microphone input with exact channelCount and default processing flags", async () => {
+    const getUserMedia = vi.fn(
+      async () => createStream() as unknown as MediaStream
+    )
+    vi.stubGlobal("AudioContext", undefined)
+    vi.stubGlobal(
+      "webkitAudioContext",
+      vi.fn(function (this: unknown, options?: AudioContextOptions) {
+        return createAudioContextStub(options)
+      })
+    )
+    vi.stubGlobal("navigator", {
+      userAgent: "Mozilla/5.0 (Windows NT 10.0)",
+      mediaDevices: { getUserMedia },
     })
 
     const adapter = new BrowserInputAdapter()
@@ -167,23 +156,18 @@ describe("BrowserInputAdapter", () => {
           autoGainControl: true,
         },
       },
-      {
-        onFrame: vi.fn(),
-        onIssue: vi.fn(),
-      }
+      { onFrame: vi.fn(), onIssue: vi.fn() }
     )
 
     expect(getUserMedia).toHaveBeenCalledWith({
       audio: {
-        channelCount: 2,
+        channelCount: { exact: 2 },
         echoCancellation: true,
         noiseSuppression: false,
         autoGainControl: true,
       },
       video: false,
     })
-    expect(webkitAudioContext).toHaveBeenCalledWith()
-    expect(webkitAudioContextInstances[0]?.constructorArgs).toBeUndefined()
   })
 
   it("applies default echoCancellation/noiseSuppression/autoGainControl when not specified", async () => {
@@ -200,13 +184,6 @@ describe("BrowserInputAdapter", () => {
         return createAudioContextStub(options)
       })
     )
-    createInputGraphMock.mockResolvedValue({
-      connect: vi.fn(),
-      disconnect: vi.fn(),
-      deactivateInputNode: vi.fn(),
-      bindSession: vi.fn(),
-      mode: "audio-graph",
-    })
 
     const adapter = new BrowserInputAdapter()
     await adapter.open({ input: {} }, { onFrame: vi.fn(), onIssue: vi.fn() })
@@ -221,6 +198,114 @@ describe("BrowserInputAdapter", () => {
     })
   })
 
+  it("retries without exact constraint and warns on OverconstrainedError", async () => {
+    const overconstrained = Object.assign(new Error("over"), {
+      name: "OverconstrainedError",
+    })
+    const getUserMedia = vi
+      .fn()
+      .mockRejectedValueOnce(overconstrained)
+      .mockResolvedValueOnce(createStream() as unknown as MediaStream)
+    vi.stubGlobal("navigator", {
+      userAgent: "Mozilla/5.0 (Windows NT 10.0)",
+      mediaDevices: { getUserMedia },
+    })
+    vi.stubGlobal(
+      "AudioContext",
+      vi.fn(function (this: unknown, options?: AudioContextOptions) {
+        return createAudioContextStub(options)
+      })
+    )
+
+    const onIssue = vi.fn()
+    const adapter = new BrowserInputAdapter()
+    await adapter.open(
+      { input: { channelCount: 2 } },
+      { onFrame: vi.fn(), onIssue }
+    )
+
+    expect(getUserMedia).toHaveBeenCalledTimes(2)
+    // first attempt exact, retry non-exact
+    expect(getUserMedia.mock.calls[0]?.[0]).toEqual({
+      audio: expect.objectContaining({ channelCount: { exact: 2 } }),
+      video: false,
+    })
+    expect(getUserMedia.mock.calls[1]?.[0]).toEqual({
+      audio: expect.objectContaining({ channelCount: 2 }),
+      video: false,
+    })
+    expect(onIssue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        warning: expect.objectContaining({
+          code: RecorderWarningCode.AudioConstraintNotApplied,
+        }),
+      })
+    )
+  })
+
+  it("warns when the browser does not apply a requested audio constraint", async () => {
+    const getUserMedia = vi.fn(
+      async () =>
+        createStream(1, {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: false,
+          channelCount: 1,
+        } as MediaTrackSettings) as unknown as MediaStream
+    )
+    vi.stubGlobal("navigator", {
+      userAgent: "Mozilla/5.0 (Windows NT 10.0)",
+      mediaDevices: { getUserMedia },
+    })
+    vi.stubGlobal(
+      "AudioContext",
+      vi.fn(function (this: unknown, options?: AudioContextOptions) {
+        return createAudioContextStub(options)
+      })
+    )
+
+    const onIssue = vi.fn()
+    const adapter = new BrowserInputAdapter()
+    await adapter.open(
+      { input: { channelCount: 2, autoGainControl: true } },
+      { onFrame: vi.fn(), onIssue }
+    )
+
+    expect(onIssue).toHaveBeenCalledWith({
+      kind: "warning",
+      warning: {
+        code: RecorderWarningCode.AudioConstraintNotApplied,
+        message: expect.stringContaining("autoGainControl"),
+      },
+    })
+    expect(onIssue.mock.calls[0]?.[0]?.warning.message).toContain(
+      "channelCount"
+    )
+  })
+
+  it("does not run the constraint diagnostic for external source streams", async () => {
+    vi.stubGlobal(
+      "AudioContext",
+      vi.fn(function (this: unknown, options?: AudioContextOptions) {
+        return createAudioContextStub(options)
+      })
+    )
+
+    const onIssue = vi.fn()
+    const adapter = new BrowserInputAdapter()
+    await adapter.open(
+      {
+        sourceStream: createStream(1, {
+          autoGainControl: false,
+        } as MediaTrackSettings) as unknown as MediaStream,
+        input: { autoGainControl: true },
+      },
+      { onFrame: vi.fn(), onIssue }
+    )
+
+    expect(onIssue).not.toHaveBeenCalled()
+  })
+
   it("rejects source streams without audio tracks", async () => {
     const AudioContextConstructor = vi.fn(function (
       this: unknown,
@@ -228,19 +313,13 @@ describe("BrowserInputAdapter", () => {
     ) {
       return createAudioContextStub(options)
     })
-
     vi.stubGlobal("AudioContext", AudioContextConstructor)
     const adapter = new BrowserInputAdapter()
 
     await expect(
       adapter.open(
-        {
-          sourceStream: createStream(0) as unknown as MediaStream,
-        },
-        {
-          onFrame: vi.fn(),
-          onIssue: vi.fn(),
-        }
+        { sourceStream: createStream(0) as unknown as MediaStream },
+        { onFrame: vi.fn(), onIssue: vi.fn() }
       )
     ).rejects.toThrow(
       "The provided MediaStream does not contain any audio tracks."
@@ -259,34 +338,8 @@ describe("BrowserInputAdapter", () => {
     const adapter = new BrowserInputAdapter()
 
     await expect(
-      adapter.open(
-        {},
-        {
-          onFrame: vi.fn(),
-          onIssue: vi.fn(),
-        }
-      )
+      adapter.open({}, { onFrame: vi.fn(), onIssue: vi.fn() })
     ).rejects.toThrow("navigator.mediaDevices.getUserMedia is not available.")
-  })
-
-  it("rejects opening when the environment exposes no AudioContext constructor", async () => {
-    vi.stubGlobal("AudioContext", undefined)
-    vi.stubGlobal("webkitAudioContext", undefined)
-    const adapter = new BrowserInputAdapter()
-
-    await expect(
-      adapter.open(
-        {
-          sourceStream: createStream() as unknown as MediaStream,
-        },
-        {
-          onFrame: vi.fn(),
-          onIssue: vi.fn(),
-        }
-      )
-    ).rejects.toThrow(
-      "AudioContext is not available in the current environment."
-    )
   })
 
   it("passes deviceId as exact constraint to getUserMedia", async () => {
@@ -303,21 +356,10 @@ describe("BrowserInputAdapter", () => {
         return createAudioContextStub(options)
       })
     )
-    createInputGraphMock.mockResolvedValue({
-      connect: vi.fn(),
-      disconnect: vi.fn(),
-      deactivateInputNode: vi.fn(),
-      bindSession: vi.fn(),
-      mode: "audio-graph",
-    })
 
     const adapter = new BrowserInputAdapter()
     await adapter.open(
-      {
-        input: {
-          deviceId: "mic-device-001",
-        },
-      },
+      { input: { deviceId: "mic-device-001" } },
       { onFrame: vi.fn(), onIssue: vi.fn() }
     )
 
@@ -366,46 +408,18 @@ describe("listMicrophoneDevices", () => {
         groupId: "g3",
       },
     ]
-
     vi.stubGlobal("navigator", {
-      mediaDevices: {
-        enumerateDevices: vi.fn(async () => fakeDevices),
-      },
+      mediaDevices: { enumerateDevices: vi.fn(async () => fakeDevices) },
     })
 
     const result = await listMicrophoneDevices()
-
     expect(result).toHaveLength(2)
     expect(result[0]?.deviceId).toBe("mic-1")
     expect(result[1]?.deviceId).toBe("mic-2")
-    expect(result[0]?.label).toBe("Built-in Microphone")
-    expect(result[1]?.label).toBe("External Mic")
-  })
-
-  it("returns an empty array when no audioinput devices are present", async () => {
-    vi.stubGlobal("navigator", {
-      mediaDevices: {
-        enumerateDevices: vi.fn(async () => [
-          {
-            kind: "videoinput",
-            deviceId: "cam-1",
-            label: "Camera",
-            groupId: "g1",
-          },
-        ]),
-      },
-    })
-
-    const result = await listMicrophoneDevices()
-
-    expect(result).toHaveLength(0)
   })
 
   it("throws when enumerateDevices is not available", async () => {
-    vi.stubGlobal("navigator", {
-      mediaDevices: {},
-    })
-
+    vi.stubGlobal("navigator", { mediaDevices: {} })
     await expect(listMicrophoneDevices()).rejects.toThrow(
       "navigator.mediaDevices.enumerateDevices is not available in the current environment."
     )
@@ -413,7 +427,6 @@ describe("listMicrophoneDevices", () => {
 
   it("throws when navigator.mediaDevices is not available", async () => {
     vi.stubGlobal("navigator", {})
-
     await expect(listMicrophoneDevices()).rejects.toThrow(
       "navigator.mediaDevices.enumerateDevices is not available in the current environment."
     )

@@ -14,9 +14,8 @@
 import { pcmChunkedEncoderDefinition } from "@/plugins/streaming-export/encoders/pcm"
 import { wavChunkedEncoderDefinition } from "@/plugins/streaming-export/encoders/wav"
 import { defaultChunkedEncoderRegistry } from "@/plugins/streaming-export/registry"
+// 注册完成后再挂载消息循环
+import "./chunked-encoder-worker-core"
 
 defaultChunkedEncoderRegistry.register(pcmChunkedEncoderDefinition)
 defaultChunkedEncoderRegistry.register(wavChunkedEncoderDefinition)
-
-// 注册完成后再挂载消息循环
-import "./chunked-encoder-worker-core"

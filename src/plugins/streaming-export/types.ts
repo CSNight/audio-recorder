@@ -40,8 +40,6 @@ export interface ChunkedEncoder {
 /** ChunkedEncoder 工厂定义，注册到 ChunkedEncoderRegistry */
 export interface ChunkedEncoderDefinition<TOptions = unknown> {
   format: string
-  /** 创建 ChunkedEncoder 实例，可接收格式相关选项（bitrate、framesPerChunk 等） */
-  create(options?: TOptions): ChunkedEncoder
   /**
    * 可选：为本编码器创建专属 Worker 实例的工厂函数。
    * 未提供时使用默认的 PCM/WAV Worker（chunked-encoder-worker.ts）。
@@ -49,6 +47,9 @@ export interface ChunkedEncoderDefinition<TOptions = unknown> {
    * 避免拖入默认 Worker 包体。
    */
   workerFactory?: () => Worker
+
+  /** 创建 ChunkedEncoder 实例，可接收格式相关选项（bitrate、framesPerChunk 等） */
+  create(options?: TOptions): ChunkedEncoder
 }
 
 /** createStreamingExportPlugin 的选项 */

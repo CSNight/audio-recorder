@@ -31,6 +31,7 @@ export type {
   RecorderEventMap,
   RecorderFrameEvent,
   RecorderInputOptions,
+  RecorderInputStrategy,
   RecorderIssue,
   RecorderIssueEvent,
   RecorderLevel,

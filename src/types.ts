@@ -7,6 +7,12 @@ import type { RecorderStorageOptions } from "@/storage/types"
 
 export type AudioChannelCount = 1 | 2
 
+/** 三种底层采集链路。auto 由 createInputGraph 按兼容性逐级降级选择。 */
+export type RecorderInputStrategy =
+  | "media-recorder"
+  | "audio-worklet"
+  | "script-processor"
+
 export enum RecorderState {
   Idle = "idle",
   Ready = "ready",
@@ -25,6 +31,7 @@ export enum RecorderWarningCode {
   PersistenceActivationFailed = "persistence-activation-failed",
   FrameLossDetected = "frame-loss-detected",
   MediaRecorderFallback = "media-recorder-fallback",
+  AudioConstraintNotApplied = "audio-constraint-not-applied",
 }
 
 export enum RecorderInputSource {
@@ -46,8 +53,12 @@ export interface RecorderInputOptions {
   deviceId?: string
   /** 默认 false（开启丢帧补偿）；传 true 禁用静音填补，但检测和 warning 仍会触发 */
   frameLossCompensation?: boolean
-  /** 默认 true；传 false 跳过 MediaRecorder 路径，强制走 AudioWorklet / ScriptProcessor */
-  preferMediaRecorder?: boolean
+  /**
+   * 采集链路选择。默认 "auto"：优先 MediaRecorder，按兼容性降级到
+   * AudioWorklet / ScriptProcessor。也可显式指定某一种；该模式不可用时
+   * 发降级 warning 后自动降级到下一个可用模式。
+   */
+  inputStrategy?: "auto" | RecorderInputStrategy
 }
 
 /** 麦克风（音频输入）设备描述，由 listMicrophoneDevices() 返回。 */
@@ -86,8 +97,8 @@ export interface RecorderRuntimeInfo {
   requestedChannelCount: AudioChannelCount
   actualChannelCount?: AudioChannelCount
   source: RecorderInputSource
-  /** 实际使用的采集链路，open() 成功后写入 */
-  inputStrategy?: "media-recorder" | "audio-worklet" | "script-processor"
+  /** 实际使用的采集链路，open() 成功后写入（为实际值，非能力预测值） */
+  inputStrategy?: RecorderInputStrategy
 }
 
 export interface RecorderSessionSummary {

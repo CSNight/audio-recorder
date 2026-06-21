@@ -12,8 +12,7 @@
  */
 import { mp3ChunkedEncoderDefinition } from "./mp3-chunked-encoder"
 import { defaultChunkedEncoderRegistry } from "@/plugins/streaming-export/registry"
-
-defaultChunkedEncoderRegistry.register(mp3ChunkedEncoderDefinition)
-
 // 注册完成后再挂载消息循环
 import "@/workers/chunked-encoder-worker-core"
+
+defaultChunkedEncoderRegistry.register(mp3ChunkedEncoderDefinition)

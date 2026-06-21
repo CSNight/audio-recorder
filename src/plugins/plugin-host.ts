@@ -2,8 +2,8 @@ import type { RecorderController } from "@/core/recorder-controller"
 import { EventBus } from "@/core/event-bus"
 import {
   PluginEventBus,
-  type PluginEventMap,
   type PluginEventBusContext,
+  type PluginEventMap,
 } from "@/plugins/plugin-event-bus"
 import type {
   RecorderPlugin,

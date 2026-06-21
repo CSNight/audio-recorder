@@ -235,9 +235,9 @@ export class RecorderController {
     }
 
     this.syncRuntimeFromSession(this.inputSession)
-    if (capability.expectedInputStrategy !== "unsupported") {
-      this.sessionRuntimeInfo.inputStrategy = capability.expectedInputStrategy
-    }
+    // 上报实际建立的采集链路（来自所选 InputBackend），而非能力预测值
+    this.sessionRuntimeInfo.inputStrategy =
+      this.inputSession.actualInputStrategy
     this.latestSessionSummary = {
       ...this.latestSessionSummary,
       sampleRate: this.inputSession.actualSampleRate,

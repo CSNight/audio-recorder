@@ -1,4 +1,9 @@
-import type { AudioChannelCount, AudioFrame, RecorderWarning } from "@/types"
+import type {
+  AudioChannelCount,
+  AudioFrame,
+  RecorderInputStrategy,
+  RecorderWarning,
+} from "@/types"
 
 export type InputIssue =
   | {
@@ -28,6 +33,8 @@ export interface InputSessionSummary {
 export interface RecorderInputSession {
   readonly actualSampleRate: number
   readonly actualChannelCount: AudioChannelCount
+  /** 实际建立的采集链路（来自所选 InputBackend） */
+  readonly actualInputStrategy: RecorderInputStrategy
   start(): Promise<void>
   pause(): void
   resume(): Promise<void>

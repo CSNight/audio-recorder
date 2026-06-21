@@ -20,8 +20,6 @@ import { defaultChunkedEncoderRegistry } from "@/plugins/streaming-export/regist
 import type { SnapshotEncoderDefinition } from "@/encoders/encoder-registry"
 import type { Mp3ExportOptions, Mp3ExportResult } from "./mp3-snapshot-types"
 import { exportMp3Snapshot } from "./mp3-snapshot-exporter"
-
-// 注入 workerFactory：为 MP3 定义绑定专属 Worker blob
 ;(
   mp3ChunkedEncoderDefinition as typeof mp3ChunkedEncoderDefinition & {
     workerFactory?: () => Worker

@@ -1,9 +1,14 @@
+import type { InputBackend, InputFrameSink } from "@/input/backends/types"
 import type {
+  InputSessionSummary,
   RecorderInputHandlers,
   RecorderInputSession,
-  InputSessionSummary,
 } from "@/input/types"
-import { type AudioChannelCount, RecorderWarningCode } from "@/types"
+import {
+  type AudioChannelCount,
+  type RecorderInputStrategy,
+  RecorderWarningCode,
+} from "@/types"
 import { createAudioFrame, resolveChannelCount } from "@/utils/audio-frame"
 
 const enum InputSessionState {
@@ -20,31 +25,32 @@ export interface BrowserInputSessionOptions {
   handlers: RecorderInputHandlers
   requestedChannelCount: AudioChannelCount
   ownsStream: boolean
-  /** 建立采集图连接（由 InputGraph.connect 实现） */
-  connectGraph: (stream: MediaStream) => void
-  /** 断开采集图连接（由 InputGraph.disconnect 实现） */
-  disconnectGraph: () => void
-  deactivateInputNode: () => void
   disableEnvInFix: boolean
 }
 
-export class BrowserInputSession implements RecorderInputSession {
-  private readonly ownsStream: boolean
-  private readonly handlers: RecorderInputHandlers
-  private readonly summary: InputSessionSummary = {
-    frames: 0,
-    durationMs: 0,
-  }
-  private readonly requestedChannelCount: AudioChannelCount
-  private readonly connectGraph: (stream: MediaStream) => void
-  private readonly disconnectGraph: () => void
-  private readonly deactivateInputNode: () => void
+/**
+ * 单次底层采集会话。作为 InputFrameSink 接收所选 InputBackend 推来的原始 float 帧，
+ * 负责状态门控、丢帧补偿与 Int16 帧生成。
+ *
+ * 装配顺序：先构造 session（作为 sink 建立 backend），再通过 attachBackend 注入 backend，
+ * 不在构造函数内隐式连图，时序显式可控。
+ */
+export class BrowserInputSession
+  implements RecorderInputSession, InputFrameSink
+{
   private readonly audioContext: AudioContext
   private readonly stream: MediaStream
+  private readonly handlers: RecorderInputHandlers
+  private readonly requestedChannelCount: AudioChannelCount
+  private readonly ownsStream: boolean
   private readonly disableEnvInFix: boolean
+
+  private backend: InputBackend | undefined
   private sessionState = InputSessionState.Ready
   private activeChannelCount: AudioChannelCount
   private hasWarnedChannelAdjustment = false
+  private readonly summary: InputSessionSummary = { frames: 0, durationMs: 0 }
+
   // 丢帧补偿滑动窗口
   private envInFixTs: Array<{ t: number; d: number }> = []
   private envInFix = 0
@@ -56,13 +62,7 @@ export class BrowserInputSession implements RecorderInputSession {
     this.requestedChannelCount = options.requestedChannelCount
     this.activeChannelCount = options.requestedChannelCount
     this.ownsStream = options.ownsStream
-    this.connectGraph = options.connectGraph
-    this.disconnectGraph = options.disconnectGraph
-    this.deactivateInputNode = options.deactivateInputNode
     this.disableEnvInFix = options.disableEnvInFix
-
-    // 建立 AudioGraph 连接（MediaRecorder 路径下为占位节点，AudioWorklet/SP 路径下为实际节点）
-    this.connectGraph(options.stream)
   }
 
   get actualSampleRate(): number {
@@ -71,6 +71,18 @@ export class BrowserInputSession implements RecorderInputSession {
 
   get actualChannelCount(): AudioChannelCount {
     return this.activeChannelCount
+  }
+
+  get actualInputStrategy(): RecorderInputStrategy {
+    if (!this.backend) {
+      throw new Error("Input backend has not been attached.")
+    }
+    return this.backend.strategy
+  }
+
+  /** 注入已建立的采集 backend（由适配器在 selectInputBackend 成功后调用）。 */
+  attachBackend(backend: InputBackend): void {
+    this.backend = backend
   }
 
   acceptFrame(planarFloat: readonly Float32Array[], timestamp: number): void {
@@ -132,6 +144,67 @@ export class BrowserInputSession implements RecorderInputSession {
     this.processFrame(planarFloat, timestamp)
   }
 
+  async start(): Promise<void> {
+    this.assertState([
+      InputSessionState.Ready,
+      InputSessionState.Stopped,
+      InputSessionState.Paused,
+    ])
+    this.envInFixTs = []
+    this.sessionState = InputSessionState.Recording
+    this.backend?.resume()
+    await this.audioContext.resume()
+  }
+
+  pause(): void {
+    this.assertState([InputSessionState.Recording])
+    this.sessionState = InputSessionState.Paused
+    this.backend?.suspend()
+  }
+
+  async resume(): Promise<void> {
+    this.assertState([InputSessionState.Paused])
+    this.envInFixTs = []
+    this.sessionState = InputSessionState.Recording
+    this.backend?.resume()
+    await this.audioContext.resume()
+  }
+
+  async stop(): Promise<InputSessionSummary> {
+    this.assertState([
+      InputSessionState.Recording,
+      InputSessionState.Paused,
+      InputSessionState.Ready,
+      InputSessionState.Stopped,
+    ])
+    this.sessionState = InputSessionState.Stopped
+    this.backend?.suspend()
+
+    return {
+      frames: this.summary.frames,
+      durationMs: this.summary.durationMs,
+    }
+  }
+
+  async close(): Promise<void> {
+    if (this.sessionState === InputSessionState.Closed) {
+      return
+    }
+
+    this.sessionState = InputSessionState.Closed
+    this.backend?.dispose()
+
+    if (this.ownsStream) {
+      for (const track of this.stream.getTracks()) {
+        track.stop()
+      }
+    }
+
+    if (this.audioContext.state !== "closed") {
+      await this.audioContext.close()
+    }
+  }
+
   private processFrame(
     planarFloat: readonly Float32Array[],
     timestamp: number
@@ -149,64 +222,6 @@ export class BrowserInputSession implements RecorderInputSession {
     this.summary.frames += 1
     this.summary.durationMs += frame.durationMs
     this.handlers.onFrame(frame)
-  }
-
-  async start(): Promise<void> {
-    this.assertState([
-      InputSessionState.Ready,
-      InputSessionState.Stopped,
-      InputSessionState.Paused,
-    ])
-    this.envInFixTs = []
-    this.sessionState = InputSessionState.Recording
-    await this.audioContext.resume()
-  }
-
-  pause(): void {
-    this.assertState([InputSessionState.Recording])
-    this.sessionState = InputSessionState.Paused
-  }
-
-  async resume(): Promise<void> {
-    this.assertState([InputSessionState.Paused])
-    this.envInFixTs = []
-    this.sessionState = InputSessionState.Recording
-    await this.audioContext.resume()
-  }
-
-  async stop(): Promise<InputSessionSummary> {
-    this.assertState([
-      InputSessionState.Recording,
-      InputSessionState.Paused,
-      InputSessionState.Ready,
-      InputSessionState.Stopped,
-    ])
-    this.sessionState = InputSessionState.Stopped
-
-    return {
-      frames: this.summary.frames,
-      durationMs: this.summary.durationMs,
-    }
-  }
-
-  async close(): Promise<void> {
-    if (this.sessionState === InputSessionState.Closed) {
-      return
-    }
-
-    this.sessionState = InputSessionState.Closed
-    this.deactivateInputNode()
-    this.disconnectGraph()
-
-    if (this.ownsStream) {
-      for (const track of this.stream.getTracks()) {
-        track.stop()
-      }
-    }
-
-    if (this.audioContext.state !== "closed") {
-      await this.audioContext.close()
-    }
   }
 
   private assertState(allowedStates: InputSessionState[]): void {

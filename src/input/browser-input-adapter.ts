@@ -4,8 +4,13 @@ import type {
   RecorderInputRequest,
   RecorderInputSession,
 } from "@/input/types"
+import {
+  acquireMicStream,
+  reportUnappliedConstraints,
+} from "@/input/audio-constraints"
 import { BrowserInputSession } from "@/input/browser-input-session"
-import { createInputGraph } from "@/input/input-graph"
+import { selectInputBackend } from "@/input/backends/select"
+import type { InputBackendContext } from "@/input/backends/types"
 import type { AudioInputDevice, RecorderInputOptions } from "@/types"
 
 type AudioContextConstructor = typeof AudioContext
@@ -22,23 +27,6 @@ function getAudioContextConstructor(): AudioContextConstructor {
   }
 
   return audioContextConstructor
-}
-
-function buildConstraints(input: RecorderInputOptions): MediaTrackConstraints {
-  return {
-    // 三项音频处理默认全开，确保多数浏览器/移动端行为一致
-    echoCancellation: input.echoCancellation ?? true,
-    noiseSuppression: input.noiseSuppression ?? true,
-    autoGainControl: input.autoGainControl ?? true,
-    // 以下仅用户显式传入时才写入约束
-    ...(input.sampleRate !== undefined && { sampleRate: input.sampleRate }),
-    ...(input.channelCount !== undefined && {
-      channelCount: input.channelCount,
-    }),
-    ...(input.deviceId !== undefined && {
-      deviceId: { exact: input.deviceId },
-    }),
-  }
 }
 
 /**
@@ -65,17 +53,22 @@ export class BrowserInputAdapter implements RecorderInputAdapter {
     request: RecorderInputRequest,
     handlers: RecorderInputHandlers
   ): Promise<RecorderInputSession> {
-    const input = request.input ?? {}
+    const input: RecorderInputOptions = request.input ?? {}
     const requestedChannelCount = input.channelCount ?? 1
-    const stream =
-      request.sourceStream ?? (await this.getUserMediaStream(input))
-    const ownsStream = !request.sourceStream
-    const audioTracks = stream.getAudioTracks()
 
-    if (audioTracks.length === 0) {
+    const stream =
+      request.sourceStream ?? (await acquireMicStream(input, handlers.onIssue))
+    const ownsStream = !request.sourceStream
+
+    if (stream.getAudioTracks().length === 0) {
       throw new Error(
         "The provided MediaStream does not contain any audio tracks."
       )
+    }
+
+    // 仅对自有麦克风流诊断约束生效情况；外部流的约束由调用方掌控
+    if (ownsStream) {
+      reportUnappliedConstraints(stream, input, handlers.onIssue)
     }
 
     const AudioContextConstructor = getAudioContextConstructor()
@@ -83,44 +76,38 @@ export class BrowserInputAdapter implements RecorderInputAdapter {
       ? new AudioContextConstructor({ sampleRate: input.sampleRate })
       : new AudioContextConstructor()
 
-    const inputGraph = await createInputGraph(
-      audioContext,
-      requestedChannelCount,
-      handlers,
-      {
-        ...(input.preferMediaRecorder !== undefined && {
-          preferMediaRecorder: input.preferMediaRecorder,
-        }),
-        stream,
-      }
-    )
-
+    // 先建 session（作为 sink），再据此建立并注入 backend——显式装配，无构造期连图
     const session = new BrowserInputSession({
       audioContext,
       stream,
       handlers,
       requestedChannelCount,
       ownsStream,
-      connectGraph: (s) => inputGraph.connect(s),
-      disconnectGraph: () => inputGraph.disconnect(),
-      deactivateInputNode: inputGraph.deactivateInputNode,
       disableEnvInFix: input.frameLossCompensation ?? false,
     })
 
-    inputGraph.bindSession(session)
-    return session
-  }
-
-  private async getUserMediaStream(
-    input: RecorderInputOptions
-  ): Promise<MediaStream> {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      throw new Error("navigator.mediaDevices.getUserMedia is not available.")
+    const context: InputBackendContext = {
+      audioContext,
+      stream,
+      channelCount: requestedChannelCount,
+      sink: session,
+      emitIssue: handlers.onIssue,
     }
 
-    return navigator.mediaDevices.getUserMedia({
-      audio: buildConstraints(input),
-      video: false,
-    })
+    try {
+      const backend = await selectInputBackend({
+        requested: input.inputStrategy ?? "auto",
+        context,
+      })
+      session.attachBackend(backend)
+    } catch (error) {
+      // backend 全部失败：清理 audioContext，向上抛出
+      if (audioContext.state !== "closed") {
+        await audioContext.close().catch(() => undefined)
+      }
+      throw error
+    }
+
+    return session
   }
 }
