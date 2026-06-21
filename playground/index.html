@@ -34,7 +34,11 @@
               <div class="control-row">
                 <label>
                   <div class="stat-label">输入来源</div>
-                  <select v-model="state.sourceMode" data-testid="source-mode" @change="handleSourceModeChange">
+                  <select
+                    v-model="state.sourceMode"
+                    data-testid="source-mode"
+                    @change="handleSourceModeChange"
+                  >
                     <option :value="PLAYGROUND_SOURCE_MODE.microphone">
                       麦克风
                     </option>
@@ -43,24 +47,36 @@
                     </option>
                   </select>
                 </label>
-                <label v-if="state.sourceMode === PLAYGROUND_SOURCE_MODE.microphone">
+                <label
+                  v-if="state.sourceMode === PLAYGROUND_SOURCE_MODE.microphone"
+                >
                   <div class="stat-label">
                     麦克风设备
                     <button
                       class="inline-btn"
                       data-testid="refresh-devices-button"
-                      style="margin-left: 0.4rem; font-size: 0.7rem; padding: 0.1rem 0.4rem;"
+                      style="
+                        margin-left: 0.4rem;
+                        font-size: 0.7rem;
+                        padding: 0.1rem 0.4rem;
+                      "
                       @click="refreshMicrophoneDevices"
-                    >↻ 刷新</button>
+                    >
+                      ↻ 刷新
+                    </button>
                   </div>
-                  <select v-model="state.selectedDeviceId" data-testid="device-select">
+                  <select
+                    v-model="state.selectedDeviceId"
+                    data-testid="device-select"
+                  >
                     <option value="">默认麦克风</option>
                     <option
                       v-for="device in state.microphoneDevices"
                       :key="device.deviceId"
                       :value="device.deviceId"
                     >
-                      {{ device.label || `麦克风 ${device.deviceId.slice(0, 8)}…` }}
+                      {{ device.label || `麦克风 ${device.deviceId.slice(0,
+                      8)}…` }}
                     </option>
                   </select>
                 </label>
@@ -250,10 +266,13 @@
 
             <section class="panel">
               <h2>导出与下载</h2>
-              <p class="supporting" style="margin-bottom: 0.75rem;">
+              <p class="supporting" style="margin-bottom: 0.75rem">
                 停止录音后可下载 PCM 原始数据或 WAV 音频文件。
               </p>
-              <div class="control-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+              <div
+                class="control-grid"
+                style="grid-template-columns: 1fr 1fr 1fr"
+              >
                 <button
                   :disabled="!state.lastExportResult"
                   data-testid="download-pcm-button"
@@ -276,7 +295,11 @@
                   ↓ 下载 MP3
                 </button>
               </div>
-              <div v-if="state.lastExportResult" class="stats-grid" style="margin-top: 0.75rem;">
+              <div
+                v-if="state.lastExportResult"
+                class="stats-grid"
+                style="margin-top: 0.75rem"
+              >
                 <article class="stat">
                   <p class="stat-label">PCM 大小</p>
                   <p class="stat-value" data-testid="export-pcm-bytes">
@@ -298,11 +321,16 @@
                 <article class="stat">
                   <p class="stat-label">声道 / 位深</p>
                   <p class="stat-value" data-testid="export-channels-bitrate">
-                    {{ state.lastExportResult.wav.channels }}ch / {{ state.lastExportResult.wav.bitRate }}bit
+                    {{ state.lastExportResult.wav.channels }}ch / {{
+                    state.lastExportResult.wav.bitRate }}bit
                   </p>
                 </article>
               </div>
-              <p v-else class="supporting" style="margin-top: 0.5rem; opacity: 0.6;">
+              <p
+                v-else
+                class="supporting"
+                style="margin-top: 0.5rem; opacity: 0.6"
+              >
                 尚未完成录音，停止后将自动导出。
               </p>
             </section>
