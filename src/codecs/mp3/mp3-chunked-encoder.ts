@@ -68,7 +68,10 @@ function createMp3ChunkedEncoder(
       }
 
       const left = planar[0]!
-      // 双声道取 planar[1]；单声道时 right 传 left，lamejs 内部会忽略 right
+      // MP3 只支持单声道/双声道。对于多声道音频，降混到双声道：
+      // - 单声道：right = left（lamejs 内部会忽略）
+      // - 双声道：使用原始的 left/right
+      // - 3+ 声道：left = planar[0], right = planar[1]（取前两个声道）
       const right = channels > 1 ? (planar[1] ?? left) : left
 
       const int8Result = enc.encodeBuffer(left, right)

@@ -118,7 +118,7 @@ describe("createAudioWorkletBackend", () => {
       channelCountMode: "clamped-max",
     })
 
-    // frame: slice planar to resolved channel count (3 → 1, only 1/2 supported)
+    // frame: 现在保留所有声道（3个声道全部保留）
     created[0]?.port.onmessage?.({
       data: {
         type: "frame",
@@ -131,7 +131,11 @@ describe("createAudioWorkletBackend", () => {
       },
     } as MessageEvent<unknown>)
     expect(acceptFrame).toHaveBeenCalledTimes(1)
-    expect(acceptFrame.mock.calls[0]?.[0]).toEqual([new Float32Array([0.1])])
+    expect(acceptFrame.mock.calls[0]?.[0]).toEqual([
+      new Float32Array([0.1]),
+      new Float32Array([0.2]),
+      new Float32Array([0.3]),
+    ])
     expect(acceptFrame.mock.calls[0]?.[1]).toBe(1234)
 
     created[0]?.port.onmessage?.({

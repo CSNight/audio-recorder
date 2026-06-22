@@ -5,7 +5,15 @@ import type {
 } from "@/plugins/types"
 import type { RecorderStorageOptions } from "@/storage/types"
 
-export type AudioChannelCount = 1 | 2
+/**
+ * 音频声道数。支持任意正整数，常见值：
+ * - 1: 单声道
+ * - 2: 立体声
+ * - 6: 5.1 环绕声
+ * - 8: 7.1 环绕声
+ * 实际支持的声道数取决于硬件设备和编码器能力。
+ */
+export type AudioChannelCount = number
 
 /** 三种底层采集链路。auto 由 createInputGraph 按兼容性逐级降级选择。 */
 export type RecorderInputStrategy =

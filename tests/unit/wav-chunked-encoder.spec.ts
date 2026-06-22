@@ -80,6 +80,37 @@ describe("WAV ChunkedEncoder", () => {
     expect(view.getInt16(46, true)).toBe(200) // R
   })
 
+  it("reuses the left channel when stereo input omits the right channel", () => {
+    const enc = wavChunkedEncoderDefinition.create({ framesPerChunk: 1 })
+    const result = enc.feedFrame(2, 44100, [new Int16Array([100, -200])])
+
+    expect(result).not.toBeNull()
+    const view = new DataView(result!.buffer, result!.byteOffset)
+    expect(view.getInt16(44, true)).toBe(100)
+    expect(view.getInt16(46, true)).toBe(100)
+    expect(view.getInt16(48, true)).toBe(-200)
+    expect(view.getInt16(50, true)).toBe(-200)
+  })
+
+  it("supports multi-channel audio (3+ channels)", () => {
+    const enc = wavChunkedEncoderDefinition.create({ framesPerChunk: 1 })
+
+    const result = enc.feedFrame(3, 16000, [
+      new Int16Array([100]),
+      new Int16Array([200]),
+      new Int16Array([300]),
+    ])
+
+    expect(result).not.toBeNull()
+    // 验证 WAV header 中的声道数
+    const view = new DataView(result!.buffer, result!.byteOffset)
+    expect(view.getUint16(22, true)).toBe(3) // channels field in WAV header
+    // 验证交织的 PCM 数据（偏移44是 data chunk 开始）
+    expect(view.getInt16(44, true)).toBe(100) // ch0
+    expect(view.getInt16(46, true)).toBe(200) // ch1
+    expect(view.getInt16(48, true)).toBe(300) // ch2
+  })
+
   it("dispose clears buffer so flush returns null", () => {
     const enc = wavChunkedEncoderDefinition.create({ framesPerChunk: 5 })
     enc.feedFrame(1, 16000, mono([1, 2, 3]))

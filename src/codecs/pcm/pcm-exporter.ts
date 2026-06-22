@@ -20,15 +20,7 @@ export function exportPcmSnapshot(
   const targetSampleRate = options.sampleRate ?? snapshot.sampleRate
   const bitRate = normalizeBitRate(options.bitRate)
   const normalized = resample(snapshot, targetSampleRate, options)
-  if (normalized.channels > 2) {
-    throw new Error(
-      `PCM export does not support ${normalized.channels} channels. Only mono (1) and stereo (2) are supported.`
-    )
-  }
-  const interleaved = interleaveChannels(
-    normalized.planar,
-    normalized.channels as 1 | 2
-  )
+  const interleaved = interleaveChannels(normalized.planar, normalized.channels)
 
   return {
     sampleRate: normalized.sampleRate,
@@ -41,24 +33,34 @@ export function exportPcmSnapshot(
 
 function interleaveChannels(
   planar: readonly Int16Array[],
-  channels: 1 | 2
+  channels: number
 ): Int16Array {
   const frameLength = planar[0]?.length ?? 0
 
-  // specialised hot paths avoid optional-chaining overhead in the inner loop.
+  // Mono: 直接拷贝
   if (channels === 1) {
-    // Mono: a direct copy is all that is needed.
     const ch0 = planar[0]
     return ch0 ? new Int16Array(ch0) : new Int16Array(frameLength)
   }
 
-  // Stereo: unrolled two-channel interleave with direct index writes.
-  const interleaved = new Int16Array(frameLength * 2)
-  const ch0 = planar[0]
-  const ch1 = planar[1]
+  // Stereo: 第二声道缺失时复用第一声道（单声道升混）
+  if (channels === 2) {
+    const interleaved = new Int16Array(frameLength * 2)
+    const left = planar[0]
+    const right = planar[1] ?? left
+    for (let i = 0; i < frameLength; i += 1) {
+      interleaved[i * 2] = left ? left[i]! : 0
+      interleaved[i * 2 + 1] = right ? right[i]! : 0
+    }
+    return interleaved
+  }
+
+  // 多声道：通用交织逻辑（3+声道，缺失声道补0）
+  const interleaved = new Int16Array(frameLength * channels)
   for (let i = 0; i < frameLength; i += 1) {
-    interleaved[i * 2] = ch0 ? ch0[i]! : 0
-    interleaved[i * 2 + 1] = ch1 ? ch1[i]! : 0
+    for (let ch = 0; ch < channels; ch += 1) {
+      interleaved[i * channels + ch] = planar[ch] ? planar[ch]![i]! : 0
+    }
   }
 
   return interleaved

@@ -2,7 +2,6 @@ import type {
   ChunkedEncoder,
   ChunkedEncoderDefinition,
 } from "@/plugins/streaming-export/types"
-import type { AudioChannelCount } from "@/types"
 import { createWavHeader } from "@/codecs/wav/wav-header"
 
 /** WAV ChunkedEncoder 选项 */
@@ -18,7 +17,7 @@ export interface WavChunkedEncoderOptions {
  * 每积累 framesPerChunk 帧 PCM，输出一个包含完整 WAV header 的小文件分片。
  * flush() 时若有剩余帧，输出最后一个分片。
  *
- * 每个分片都是独立可解码的完整 WAV 文件，消费方可以直接拼接或逐片处理。
+ * 支持任意声道数。每个分片都是独立可解码的完整 WAV 文件，消费方可以直接拼接或逐片处理。
  */
 function createWavChunkedEncoder(
   options?: WavChunkedEncoderOptions
@@ -38,13 +37,6 @@ function createWavChunkedEncoder(
     channels: number,
     sampleRate: number
   ): Uint8Array {
-    if (channels !== 1 && channels !== 2) {
-      throw new Error(
-        `WAV ChunkedEncoder: unsupported channel count ${channels}. Only 1 or 2 are supported.`
-      )
-    }
-    const wavChannels = channels as AudioChannelCount
-
     let totalSamplesPerChannel = 0
     for (const planar of frames) {
       totalSamplesPerChannel += planar[0]?.length ?? 0
@@ -55,7 +47,7 @@ function createWavChunkedEncoder(
       createWavHeader({
         dataBytes,
         sampleRate,
-        channels: wavChannels,
+        channels,
         bitRate: bitsPerSample,
       })
     )
@@ -65,22 +57,35 @@ function createWavChunkedEncoder(
     // 写入 interleaved PCM
     const view = new DataView(output.buffer)
     let offset = header.byteLength
+
     for (const planar of frames) {
       const frameLength = planar[0]?.length ?? 0
+
       if (channels === 1) {
+        // 单声道快速路径
         const ch = planar[0]!
         for (let i = 0; i < frameLength; i++) {
           view.setInt16(offset, ch[i] ?? 0, true)
           offset += 2
         }
-      } else {
+      } else if (channels === 2) {
+        // 双声道：第二声道缺失时复用第一声道（单声道升混）
         const left = planar[0]!
-        const right = planar[1] ?? planar[0]!
+        const right = planar[1] ?? left
         for (let i = 0; i < frameLength; i++) {
           view.setInt16(offset, left[i] ?? 0, true)
           offset += 2
           view.setInt16(offset, right[i] ?? 0, true)
           offset += 2
+        }
+      } else {
+        // 多声道通用交织逻辑（3+声道，缺失声道补0）
+        for (let i = 0; i < frameLength; i++) {
+          for (let ch = 0; ch < channels; ch++) {
+            const sample = planar[ch]?.[i] ?? 0
+            view.setInt16(offset, sample, true)
+            offset += 2
+          }
         }
       }
     }

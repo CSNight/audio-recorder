@@ -101,6 +101,19 @@ describe("selectInputBackend", () => {
     expect(mrFactory).not.toHaveBeenCalled()
   })
 
+  it("explicit script-processor does not try higher-priority backends first", async () => {
+    spFactory.mockResolvedValue(fakeBackend("script-processor"))
+
+    const backend = await selectInputBackend({
+      requested: "script-processor",
+      context: createContext(),
+    })
+
+    expect(backend.strategy).toBe("script-processor")
+    expect(mrFactory).not.toHaveBeenCalled()
+    expect(workletFactory).not.toHaveBeenCalled()
+  })
+
   it("explicit-but-unavailable: warns then auto-degrades down the standard chain", async () => {
     workletFactory.mockRejectedValue(
       new InputBackendUnavailableError("audio-worklet", "no worklet")
@@ -137,5 +150,75 @@ describe("selectInputBackend", () => {
     await expect(
       selectInputBackend({ requested: "auto", context: createContext() })
     ).rejects.toBe(lastErr)
+  })
+
+  it("does not emit a fallback warning for the last failed candidate", async () => {
+    const emitIssue = vi.fn()
+    mrFactory.mockRejectedValue(
+      new InputBackendUnavailableError("media-recorder", "a")
+    )
+    workletFactory.mockRejectedValue(
+      new InputBackendUnavailableError("audio-worklet", "b")
+    )
+    spFactory.mockRejectedValue(
+      new InputBackendUnavailableError("script-processor", "c")
+    )
+
+    await expect(
+      selectInputBackend({
+        requested: "auto",
+        context: createContext(emitIssue),
+      })
+    ).rejects.toBeInstanceOf(InputBackendUnavailableError)
+
+    expect(emitIssue).toHaveBeenCalledTimes(2)
+    expect(emitIssue.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        warning: expect.objectContaining({
+          code: RecorderWarningCode.MediaRecorderFallback,
+          message: expect.stringContaining('falling back to "audio-worklet"'),
+        }),
+      })
+    )
+    expect(emitIssue.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        warning: expect.objectContaining({
+          code: RecorderWarningCode.ScriptProcessorFallback,
+          message: expect.stringContaining(
+            'falling back to "script-processor"'
+          ),
+        }),
+      })
+    )
+  })
+
+  it("wraps non-Error failures when no backend can be established", async () => {
+    mrFactory.mockRejectedValue("no mr")
+    workletFactory.mockRejectedValue("no worklet")
+    spFactory.mockRejectedValue("no sp")
+
+    await expect(
+      selectInputBackend({ requested: "auto", context: createContext() })
+    ).rejects.toThrow("No input backend could be established.")
+  })
+
+  it("uses Error.message in fallback warnings for generic errors", async () => {
+    mrFactory.mockRejectedValue(new Error("mr exploded"))
+    workletFactory.mockResolvedValue(fakeBackend("audio-worklet"))
+    const emitIssue = vi.fn()
+
+    await selectInputBackend({
+      requested: "auto",
+      context: createContext(emitIssue),
+    })
+
+    expect(emitIssue).toHaveBeenCalledWith({
+      kind: "warning",
+      warning: {
+        code: RecorderWarningCode.MediaRecorderFallback,
+        message:
+          'Input strategy "media-recorder" unavailable, falling back to "audio-worklet". mr exploded',
+      },
+    })
   })
 })

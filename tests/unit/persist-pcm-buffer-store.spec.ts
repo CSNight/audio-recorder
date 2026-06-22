@@ -1,11 +1,23 @@
 import { describe, expect, it, vi } from "vitest"
-import { PersistPcmBufferStore } from "@/buffer/persist-pcm-buffer-store"
+import {
+  mergeSnapshots,
+  PersistPcmBufferStore,
+} from "@/buffer/persist-pcm-buffer-store"
+import type { PcmBufferSnapshot } from "@/buffer/types"
 import type {
   RecorderPersistencePlugin,
   RecorderPersistenceSession,
 } from "@/storage/types"
 import { RecorderWarningCode } from "@/types"
 import { createAudioFrame } from "@/utils/audio-frame"
+
+function inferChannelCount(planar: Int16Array[]): PcmBufferSnapshot["channels"] {
+  if (planar.length === 1 || planar.length === 2) {
+    return planar.length
+  }
+
+  throw new Error("Test snapshots must declare either 1 or 2 channels.")
+}
 
 function createPluginStub(): {
   plugin: RecorderPersistencePlugin
@@ -84,6 +96,28 @@ describe("PersistPcmBufferStore", () => {
 
     expect(persistence.appendSnapshot).toHaveBeenCalledTimes(1)
     expect(snapshot?.frameCount).toBe(1)
+  })
+
+  it("initializes only once when called repeatedly", async () => {
+    const createSession = vi.fn(async () => createPluginStub().session)
+    const store = new PersistPcmBufferStore({
+      sessionId: "session-persist-init-once",
+      startedAt: 100,
+      storage: {
+        mode: "persistent",
+        persistencePlugin: {
+          backend: "indexeddb",
+          isSupported: () => true,
+          createSession,
+        },
+      },
+      emitIssue: undefined,
+    })
+
+    await store.initialize()
+    await store.initialize()
+
+    expect(createSession).toHaveBeenCalledTimes(1)
   })
 
   it("merges multiple persisted snapshots instead of keeping only the last chunk", async () => {
@@ -227,6 +261,37 @@ describe("PersistPcmBufferStore", () => {
     })
   })
 
+  it("uses a fallback activation error message for non-Error failures", async () => {
+    const emitIssue = vi.fn()
+    const store = new PersistPcmBufferStore({
+      sessionId: "session-persist-non-error-init",
+      startedAt: 70,
+      storage: {
+        mode: "persistent",
+        persistencePlugin: {
+          backend: "indexeddb",
+          isSupported: () => true,
+          createSession: async () => {
+            throw "activation failed"
+          },
+        },
+      },
+      emitIssue,
+    })
+
+    await expect(store.initialize()).rejects.toThrow(
+      "Failed to activate persistence storage before recording starts."
+    )
+    expect(emitIssue).toHaveBeenCalledWith({
+      kind: "warning",
+      warning: {
+        code: RecorderWarningCode.PersistenceActivationFailed,
+        message:
+          "Failed to activate persistence storage before recording starts.",
+      },
+    })
+  })
+
   it("rejects appendFrame before initialize", () => {
     const persistence = createPluginStub()
     const store = new PersistPcmBufferStore({
@@ -246,6 +311,43 @@ describe("PersistPcmBufferStore", () => {
     ).toThrow(
       "PersistPcmBufferStore must be initialized before accepting PCM data."
     )
+  })
+
+  it("rejects appendSnapshot before initialize", () => {
+    const store = new PersistPcmBufferStore({
+      sessionId: "session-persist-append-snapshot",
+      startedAt: 81,
+      storage: {
+        mode: "persistent",
+      },
+      emitIssue: undefined,
+    })
+
+    expect(() =>
+      store.appendSnapshot({
+        sampleRate: 16000,
+        channels: 1,
+        frameCount: 1,
+        durationMs: 10,
+        planar: [new Int16Array([1, 2])],
+      })
+    ).toThrow(
+      "PersistPcmBufferStore must be initialized before accepting PCM data."
+    )
+  })
+
+  it("clears safely before initialization", async () => {
+    const store = new PersistPcmBufferStore({
+      sessionId: "session-persist-clear-no-session",
+      startedAt: 82,
+      storage: {
+        mode: "persistent",
+      },
+      emitIssue: undefined,
+    })
+
+    await expect(store.clear()).resolves.toBeUndefined()
+    await expect(store.snapshot()).resolves.toBeUndefined()
   })
 
   it("surfaces write failures in snapshot and can recover after clear", async () => {
@@ -327,5 +429,160 @@ describe("PersistPcmBufferStore", () => {
 
     const snapshot = await reinitializedStore.snapshot()
     expect(Array.from(snapshot?.planar[0] ?? [])).toEqual([8192, -8192])
+  })
+
+  it("emits write issues immediately and skips subsequent queued writes after a failure", async () => {
+    const appendSnapshot = vi
+      .fn<RecorderPersistenceSession["appendSnapshot"]>()
+      .mockRejectedValueOnce("write failed")
+      .mockResolvedValue(undefined)
+    const emitIssue = vi.fn()
+    const store = new PersistPcmBufferStore({
+      sessionId: "session-persist-write-error",
+      startedAt: 90,
+      storage: {
+        mode: "persistent",
+        persistenceChunkBytes: 1,
+        persistencePlugin: {
+          backend: "indexeddb",
+          isSupported: () => true,
+          createSession: async () => ({
+            appendSnapshot,
+            readSnapshots: async () => [],
+            clear: async () => {},
+            close: async () => {},
+          }),
+        },
+      },
+      emitIssue,
+    })
+    await store.initialize()
+
+    store.appendSnapshot({
+      sampleRate: 16000,
+      channels: 1,
+      frameCount: 1,
+      durationMs: 10,
+      planar: [new Int16Array([1])],
+    })
+
+    await expect(store.snapshot()).rejects.toThrow(
+      "Failed to persist PCM snapshot."
+    )
+
+    store.appendSnapshot({
+      sampleRate: 16000,
+      channels: 1,
+      frameCount: 1,
+      durationMs: 10,
+      planar: [new Int16Array([2])],
+    })
+
+    expect(appendSnapshot).toHaveBeenCalledTimes(1)
+    expect(emitIssue).toHaveBeenCalledWith({
+      kind: "error",
+      error: expect.objectContaining({
+        message: "Failed to persist PCM snapshot.",
+      }),
+    })
+  })
+
+  it("surfaces merge fallback errors for non-Error read failures", async () => {
+    const store = new PersistPcmBufferStore({
+      sessionId: "session-persist-read-non-error",
+      startedAt: 91,
+      storage: {
+        mode: "persistent",
+        persistencePlugin: {
+          backend: "indexeddb",
+          isSupported: () => true,
+          createSession: async () => ({
+            appendSnapshot: async () => {},
+            readSnapshots: async () => {
+              throw "read failed"
+            },
+            clear: async () => {},
+            close: async () => {},
+          }),
+        },
+      },
+      emitIssue: undefined,
+    })
+    await store.initialize()
+
+    await expect(store.snapshot()).rejects.toThrow(
+      "Failed to merge persisted snapshots."
+    )
+  })
+})
+
+describe("mergeSnapshots", () => {
+  function snapshot(
+    partial: Partial<PcmBufferSnapshot> & Pick<PcmBufferSnapshot, "planar">
+  ): PcmBufferSnapshot {
+    return {
+      sampleRate: partial.sampleRate ?? 16000,
+      channels: partial.channels ?? inferChannelCount(partial.planar),
+      frameCount: partial.frameCount ?? 1,
+      durationMs: partial.durationMs ?? 10,
+      planar: partial.planar,
+    }
+  }
+
+  it("returns undefined for an empty snapshot list", () => {
+    expect(mergeSnapshots([])).toBeUndefined()
+  })
+
+  it("throws when snapshot layouts differ", () => {
+    expect(() =>
+      mergeSnapshots([
+        snapshot({ channels: 1, planar: [new Int16Array([1])] }),
+        snapshot({
+          sampleRate: 22050,
+          channels: 1,
+          planar: [new Int16Array([2])],
+        }),
+      ])
+    ).toThrow("Persisted PCM snapshots must share the same layout.")
+  })
+
+  it("throws when a snapshot is missing a declared channel", () => {
+    expect(() =>
+      mergeSnapshots([
+        snapshot({
+          channels: 2,
+          planar: [new Int16Array([1]), new Int16Array([2])],
+        }),
+        snapshot({
+          channels: 2,
+          planar: [new Int16Array([3])] as Int16Array[],
+        }),
+      ])
+    ).toThrow("Persisted PCM snapshot is missing channel 1.")
+  })
+
+  it("merges channels, frame counts and durations across compatible snapshots", () => {
+    const merged = mergeSnapshots([
+      snapshot({
+        channels: 2,
+        frameCount: 1,
+        durationMs: 10,
+        planar: [new Int16Array([1, 2]), new Int16Array([3, 4])],
+      }),
+      snapshot({
+        channels: 2,
+        frameCount: 2,
+        durationMs: 20,
+        planar: [new Int16Array([5]), new Int16Array([6])],
+      }),
+    ])
+
+    expect(merged).toEqual({
+      sampleRate: 16000,
+      channels: 2,
+      frameCount: 3,
+      durationMs: 30,
+      planar: [new Int16Array([1, 2, 5]), new Int16Array([3, 4, 6])],
+    })
   })
 })

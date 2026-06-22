@@ -12,8 +12,10 @@ export interface PcmChunkedEncoderOptions {
 /**
  * PCM ChunkedEncoder：每帧直接输出 interleaved PCM，无缓冲累积。
  *
- * 单声道：直接输出 channel[0] 的样本。
- * 双声道：交错排列 L/R 样本（L0, R0, L1, R1, ...）。
+ * 支持任意声道数：
+ * - 单声道：直接输出 channel[0] 的样本
+ * - 多声道：交错排列所有声道（Ch0_S0, Ch1_S0, Ch2_S0, ..., Ch0_S1, Ch1_S1, ...）
+ * - 缺失声道补0
  */
 function createPcmChunkedEncoder(
   options?: PcmChunkedEncoderOptions
@@ -34,17 +36,26 @@ function createPcmChunkedEncoder(
 
       if (bitsPerSample === 16) {
         if (channels === 1) {
+          // 单声道快速路径
           const ch = planar[0]!
           for (let i = 0; i < frameLength; i++) {
             view.setInt16(i * 2, ch[i] ?? 0, true)
           }
-        } else {
-          // 双声道 interleaved
+        } else if (channels === 2) {
+          // 双声道：第二声道缺失时复用第一声道（单声道升混）
           const left = planar[0]!
-          const right = planar[1] ?? planar[0]!
+          const right = planar[1] ?? left
           for (let i = 0; i < frameLength; i++) {
-            view.setInt16(i * 2 * 2, left[i] ?? 0, true)
-            view.setInt16((i * 2 + 1) * 2, right[i] ?? 0, true)
+            view.setInt16(i * 4, left[i] ?? 0, true)
+            view.setInt16(i * 4 + 2, right[i] ?? 0, true)
+          }
+        } else {
+          // 多声道通用交织逻辑（3+声道，缺失声道补0）
+          for (let i = 0; i < frameLength; i++) {
+            for (let ch = 0; ch < channels; ch++) {
+              const sample = planar[ch]?.[i] ?? 0
+              view.setInt16((i * channels + ch) * 2, sample, true)
+            }
           }
         }
       } else {
@@ -54,12 +65,21 @@ function createPcmChunkedEncoder(
           for (let i = 0; i < frameLength; i++) {
             output[i] = ((ch[i] ?? 0) >> 8) + 128
           }
-        } else {
+        } else if (channels === 2) {
+          // 双声道：第二声道缺失时复用第一声道
           const left = planar[0]!
-          const right = planar[1] ?? planar[0]!
+          const right = planar[1] ?? left
           for (let i = 0; i < frameLength; i++) {
             output[i * 2] = ((left[i] ?? 0) >> 8) + 128
             output[i * 2 + 1] = ((right[i] ?? 0) >> 8) + 128
+          }
+        } else {
+          // 多声道：缺失声道补0
+          for (let i = 0; i < frameLength; i++) {
+            for (let ch = 0; ch < channels; ch++) {
+              const sample = planar[ch]?.[i] ?? 0
+              output[i * channels + ch] = (sample >> 8) + 128
+            }
           }
         }
       }

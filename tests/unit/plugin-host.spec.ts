@@ -63,17 +63,48 @@ describe("PluginHost", () => {
     expect(issue?.error.cause).toBe(cause)
   })
 
-  it("injects a plugin eventBus instance into plugin context", async () => {
+  it("does not retain a plugin whose setup failed", async () => {
+    const { host } = createHost()
+    const healthyStart = vi.fn()
+
+    await expect(
+      host.use({
+        name: "broken-setup",
+        setup() {
+          throw new Error("setup failed")
+        },
+        onStart() {
+          throw new Error("should never run")
+        },
+      })
+    ).rejects.toThrow('Recorder plugin "broken-setup" failed during setup.')
+
+    await host.use({
+      name: "healthy",
+      setup() {
+        return
+      },
+      onStart() {
+        healthyStart()
+      },
+    })
+
+    host.onStart()
+
+    expect(healthyStart).toHaveBeenCalledTimes(1)
+  })
+
+  it("injects a plugin eventBus instance into plugin context for plugin-prefixed events", async () => {
     const { host } = createHost()
     const listener = vi.fn()
 
-    host.on("level", listener)
+    host.on("plugin:level", listener)
 
     await host.use({
       name: "level-plugin",
       setup(context) {
-        context.eventBus.register("level")
-        context.eventBus.emit("level", {
+        context.eventBus.register("plugin:level")
+        context.eventBus.emit("plugin:level", {
           level: {
             peak: 0.5,
             rms: 0.25,
@@ -163,6 +194,65 @@ describe("PluginHost", () => {
     )
   })
 
+  it("wraps non-Error runtime hook failures and keeps later hooks running", async () => {
+    const { host, emitIssue } = createHost()
+    const calls: string[] = []
+
+    await host.use({
+      name: "broken-start",
+      setup() {
+        return
+      },
+      onStart() {
+        calls.push("broken")
+        throw "boom"
+      },
+    })
+    await host.use({
+      name: "healthy-start",
+      setup() {
+        return
+      },
+      onStart() {
+        calls.push("healthy")
+      },
+    })
+
+    host.onStart()
+
+    expect(calls).toEqual(["broken", "healthy"])
+    expect(emitIssue).toHaveBeenCalledWith({
+      kind: "error",
+      error: expect.objectContaining({
+        message: 'Recorder plugin "broken-start" failed during onStart.',
+      }),
+    })
+  })
+
+  it("supports explicit off for plugin event listeners", async () => {
+    const { host } = createHost()
+    const listener = vi.fn()
+    const off = host.on("plugin:level", listener)
+
+    off()
+
+    await host.use({
+      name: "level-plugin",
+      setup(context) {
+        context.eventBus.register("plugin:level")
+        context.eventBus.emit("plugin:level", {
+          level: {
+            peak: 0.5,
+            rms: 0.25,
+            channels: [{ peak: 0.5, rms: 0.25 }],
+          },
+        })
+      },
+    })
+
+    expect(listener).not.toHaveBeenCalled()
+  })
+
   it("emits wrapped issues when dispose throws and keeps destroying remaining plugins", async () => {
     const { host, emitIssue } = createHost()
     const calls: string[] = []
@@ -196,5 +286,80 @@ describe("PluginHost", () => {
     expect(issue?.error.message).toBe(
       'Recorder plugin "second" failed during dispose.'
     )
+  })
+
+  it("wraps non-Error dispose failures and continues teardown", async () => {
+    const { host, emitIssue } = createHost()
+    const disposed: string[] = []
+
+    await host.use({
+      name: "broken-dispose",
+      setup() {
+        return
+      },
+      dispose() {
+        disposed.push("broken")
+        throw "dispose exploded"
+      },
+    })
+    await host.use({
+      name: "healthy-dispose",
+      setup() {
+        return
+      },
+      dispose() {
+        disposed.push("healthy")
+      },
+    })
+
+    await host.destroy()
+
+    expect(disposed).toEqual(["healthy", "broken"])
+    expect(emitIssue).toHaveBeenCalledWith({
+      kind: "error",
+      error: expect.objectContaining({
+        message: 'Recorder plugin "broken-dispose" failed during dispose.',
+      }),
+    })
+  })
+
+  it("clears plugin event listeners before dispose runs", async () => {
+    const { host } = createHost()
+    const listener = vi.fn()
+    host.on("plugin:level", listener)
+
+    await host.use({
+      name: "dispose-emitter",
+      setup(context) {
+        context.eventBus.register("plugin:level")
+      },
+      dispose() {
+        host.on("plugin:level", () => {
+          throw new Error("should not be called")
+        })
+      },
+    })
+
+    await host.destroy()
+
+    expect(listener).not.toHaveBeenCalled()
+  })
+
+  it("does not invoke hooks after destroy clears the plugin list", async () => {
+    const { host } = createHost()
+    const onStart = vi.fn()
+
+    await host.use({
+      name: "start-plugin",
+      setup() {
+        return
+      },
+      onStart,
+    })
+
+    await host.destroy()
+    host.onStart()
+
+    expect(onStart).not.toHaveBeenCalled()
   })
 })

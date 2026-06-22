@@ -156,6 +156,14 @@ describe("webmExtract", () => {
     expect(result).toBeNull()
   })
 
+  it("creates a clean default extraction scope", () => {
+    expect(createWebMExtractScope()).toEqual({
+      pos: [0],
+      tracks: {},
+      bytes: new Uint8Array(0),
+    })
+  })
+
   it("accumulates chunks across multiple calls (streaming mode)", () => {
     const samples = new Float32Array([0.1, 0.2, 0.3, 0.4])
     const webm = buildWebM(16000, 1, samples)
@@ -253,6 +261,142 @@ describe("webmExtract", () => {
 
     expect(result).toBe("invalid")
     expect(scope.bad).toBe(1)
+  })
+
+  it("returns 'invalid' when sample rate is below the supported floor", () => {
+    const samples = new Float32Array([0.1, 0.2])
+    const webm = buildWebM(4000, 1, samples)
+    const scope = createWebMExtractScope()
+
+    expect(webmExtract(webm, scope)).toBe("invalid")
+    expect(scope.bad).toBe(1)
+  })
+
+  it("returns 'invalid' when channel count is zero", () => {
+    const samples = new Float32Array([0.1, 0.2])
+    const webm = buildWebM(48000, 0, samples)
+    const scope = createWebMExtractScope()
+
+    expect(webmExtract(webm, scope)).toBe("invalid")
+    expect(scope.bad).toBe(1)
+  })
+
+  it("treats 16-bit FLOAT tracks as 32-bit Chrome-style PCM", () => {
+    function buildWebMFloat16(samples: Float32Array): Uint8Array {
+      const audioEl = concat(
+        element([0xb5], floatBE32(48000)),
+        element([0x62, 0x64], uint8(16)),
+        element([0x9f], uint8(1))
+      )
+      const trackEntry = concat(
+        element([0xd7], uint8(1)),
+        element([0x83], uint8(2)),
+        element([0x86], asciiBytes("A_PCM/FLOAT/IEEE")),
+        element([0xe1], audioEl)
+      )
+      const tracks = element(
+        [0x16, 0x54, 0xae, 0x6b],
+        element([0xae], trackEntry)
+      )
+      const simpleBlock = element(
+        [0xa3],
+        concat(
+          new Uint8Array([0x01, 0x00, 0x00, 0x00]),
+          new Uint8Array(samples.buffer)
+        )
+      )
+      const segmentPayload = concat(tracks, simpleBlock)
+      const segmentId = new Uint8Array([0x18, 0x53, 0x80, 0x67])
+      const segmentLen = new Uint8Array([
+        0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+      ])
+      const ebmlPayload = concat(
+        element([0x42, 0x86], uint8(1)),
+        element([0x42, 0xf7], uint8(1)),
+        element([0x42, 0xf2], uint8(4)),
+        element([0x42, 0xf3], uint8(8)),
+        element([0x42, 0x82], asciiBytes("webm")),
+        element([0x42, 0x87], uint8(2)),
+        element([0x42, 0x85], uint8(2))
+      )
+      return concat(
+        element([0x1a, 0x45, 0xdf, 0xa3], ebmlPayload),
+        segmentId,
+        segmentLen,
+        segmentPayload
+      )
+    }
+
+    const samples = new Float32Array([0.25, -0.25])
+    const scope = createWebMExtractScope()
+    const result = webmExtract(
+      buildWebMFloat16(samples),
+      scope
+    ) as Float32Array[]
+
+    expect(result).toHaveLength(1)
+    expect(result[0]?.[0]).toBeCloseTo(0.25)
+    expect(result[0]?.[1]).toBeCloseTo(-0.25)
+    expect(scope.bad).toBeUndefined()
+  })
+
+  it("returns 'invalid' when a SimpleBlock references an unknown track", () => {
+    const samples = new Float32Array([0.1])
+    const webm = buildWebM(48000, 1, samples)
+    const corrupted = new Uint8Array(webm)
+    const simpleBlockIndex = corrupted.lastIndexOf(0xa3)
+    corrupted[simpleBlockIndex + 2] = 0x02
+    const scope = createWebMExtractScope()
+
+    expect(webmExtract(corrupted, scope)).toBe("invalid")
+    expect(scope.bad).toBe(1)
+  })
+
+  it("returns null when metadata defines no audio track", () => {
+    function buildWebMNoAudio(): Uint8Array {
+      const trackEntry = concat(
+        element([0xd7], uint8(1)),
+        element([0x83], uint8(1)),
+        element([0x86], asciiBytes("V_FAKE"))
+      )
+      const tracks = element(
+        [0x16, 0x54, 0xae, 0x6b],
+        element([0xae], trackEntry)
+      )
+      const segmentPayload = tracks
+      const segmentId = new Uint8Array([0x18, 0x53, 0x80, 0x67])
+      const segmentLen = new Uint8Array([
+        0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+      ])
+      const ebmlPayload = concat(
+        element([0x42, 0x86], uint8(1)),
+        element([0x42, 0xf7], uint8(1)),
+        element([0x42, 0xf2], uint8(4)),
+        element([0x42, 0xf3], uint8(8)),
+        element([0x42, 0x82], asciiBytes("webm")),
+        element([0x42, 0x87], uint8(2)),
+        element([0x42, 0x85], uint8(2))
+      )
+      return concat(
+        element([0x1a, 0x45, 0xdf, 0xa3], ebmlPayload),
+        segmentId,
+        segmentLen,
+        segmentPayload
+      )
+    }
+
+    const scope = createWebMExtractScope()
+    expect(webmExtract(buildWebMNoAudio(), scope)).toBeNull()
+    expect(scope.bad).toBeUndefined()
+  })
+
+  it("returns null when the Segment id is not fully available yet", () => {
+    const full = buildWebM(48000, 1, new Float32Array([0.1]))
+    const segmentStart = full.indexOf(0x18)
+    const truncated = full.slice(0, segmentStart + 2)
+    const scope = createWebMExtractScope()
+
+    expect(webmExtract(truncated, scope)).toBeNull()
   })
 
   it("exposes the correct webmSR from track metadata", () => {

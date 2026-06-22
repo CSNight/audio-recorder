@@ -10,7 +10,7 @@
     "build": "vite build && tsc -p tsconfig.build.json",
     "preview": "vite preview",
     "prepare": "husky",
-    "typecheck": "tsc -p tsconfig.build.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run test:unit && npm run test:functional",
     "test:unit": "vitest run --coverage",
     "test:functional": "playwright test",

@@ -3,8 +3,11 @@ import type { AudioChannelCount, AudioFrame } from "@/types"
 export function resolveChannelCount(
   requested?: number | null
 ): AudioChannelCount {
-  // Phase 1 只支持单声道/双声道，其他输入统一收敛到单声道语义。
-  return requested === 2 ? 2 : 1
+  // 支持任意声道数，只验证合法性
+  if (requested == null || requested < 1 || !Number.isInteger(requested)) {
+    return 1 // 无效输入时回退到单声道
+  }
+  return requested
 }
 
 export function toInt16Sample(sample: number): number {

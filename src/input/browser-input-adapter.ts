@@ -55,9 +55,9 @@ export async function listMicrophoneDevices(): Promise<AudioInputDevice[]> {
 /**
  * 取流上音轨实际生效的声道数（track.getSettings().channelCount）。
  *
- * AudioWorklet / ScriptProcessor 的图声道数应以硬件实际支持为准，不按用户请求值
- * 强行调整：用户请求值已在 getUserMedia 约束阶段交给原生协商，拿到流后实际声道数
- * 才是真相。getSettings 不上报 channelCount（部分浏览器）时回退到 fallback。
+ * getUserMedia 的 channelCount 约束在部分浏览器中可能不生效或被忽略。
+ * 这里读取硬件实际返回的声道数，以硬件实际支持为准。
+ * getSettings 不上报 channelCount（部分浏览器）时回退到 fallback。
  */
 function resolveTrackChannelCount(
   stream: MediaStream,
@@ -65,7 +65,8 @@ function resolveTrackChannelCount(
 ): AudioChannelCount {
   const track = stream.getAudioTracks()[0]
   const actual = track?.getSettings?.().channelCount
-  if (actual === 1 || actual === 2) {
+  // 支持任意正整数声道数
+  if (actual != null && actual >= 1 && Number.isInteger(actual)) {
     return actual
   }
   return fallback
@@ -93,9 +94,8 @@ export class BrowserInputAdapter implements RecorderInputAdapter {
       reportUnappliedConstraints(stream, input, handlers.onIssue)
     }
 
-    // AudioWorklet / ScriptProcessor 的图声道数以硬件实际支持为准（track.getSettings），
-    // 不按用户请求值强行调整：用户请求值已在 getUserMedia 约束阶段交给原生协商，
-    // 拿到流后实际声道数才是真相。getSettings 不上报时回退到请求值。
+    // 读取硬件实际返回的声道数。注意：getUserMedia 的 channelCount 约束
+    // 在部分浏览器中可能不生效，这里以硬件实际返回为准。
     const actualTrackChannelCount = resolveTrackChannelCount(
       stream,
       requestedChannelCount

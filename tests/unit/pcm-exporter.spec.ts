@@ -70,4 +70,19 @@ describe("exportPcmSnapshot", () => {
       })
     ).toThrow("PCM export bitRate 12 is not supported.")
   })
+
+  it("reuses the left channel when stereo snapshot has incomplete planar data", () => {
+    const snapshot: PcmBufferSnapshot = {
+      sampleRate: 16_000,
+      channels: 2,
+      frameCount: 2,
+      durationMs: 0.5,
+      planar: [new Int16Array([1000, -1000])],
+    }
+
+    const result = exportPcmSnapshot(snapshot)
+
+    // 单声道升混到双声道：复用第一声道
+    expect(Array.from(result.data)).toEqual([1000, 1000, -1000, -1000])
+  })
 })

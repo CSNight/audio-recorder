@@ -27,11 +27,17 @@ export function exportMp3Snapshot(
 
   const { sampleRate, channels, durationMs } = normalized
   const left = normalized.planar[0] ?? new Int16Array(0)
-  // 单声道时 right 复用 left（lamejs mono 模式会忽略 right）
+  // MP3 只支持单声道/双声道。对于多声道音频：
+  // - 单声道：right 复用 left（lamejs mono 模式会忽略 right）
+  // - 双声道：使用原始的 left/right
+  // - 3+ 声道：取前两个声道作为 left/right
   const right = channels > 1 ? (normalized.planar[1] ?? left) : left
 
+  // lamejs 只接受 1 或 2 作为 channels 参数
+  const mp3Channels = Math.min(channels, 2)
+
   const encoder = new (Mp3Encoder as unknown as LameMp3EncoderConstructor)(
-    channels,
+    mp3Channels,
     sampleRate,
     bitrateKbps
   ) as LameMp3Encoder
@@ -65,7 +71,7 @@ export function exportMp3Snapshot(
 
   return {
     sampleRate,
-    channels: channels as 1 | 2,
+    channels: mp3Channels as 1 | 2,
     bitrateKbps,
     durationMs,
     data,

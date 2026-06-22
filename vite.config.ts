@@ -28,7 +28,10 @@ export default defineConfig({
       fileName: (_format, entryName) => `${entryName}.js`,
     },
     rolldownOptions: {
-      output: { minify: true },
+      output: {
+        minify: true,
+        chunkFileNames: "chunks/[name]-[hash].js",
+      },
     },
     sourcemap: false,
     target: "es2022",

@@ -29,9 +29,10 @@ class FakePluginInputSession implements RecorderInputSession {
 
   async close(): Promise<void> {}
 
-  emitFrame(): void {
+  emitFrame(frame?: ReturnType<typeof createAudioFrame>): void {
     this.handlers.onFrame(
-      createAudioFrame([new Float32Array([0, 0.5, -0.5, 0.25])], 16_000, 10)
+      frame ??
+        createAudioFrame([new Float32Array([0, 0.5, -0.5, 0.25])], 16_000, 10)
     )
   }
 }
@@ -101,5 +102,64 @@ describe("createLevelMeterPlugin", () => {
     adapter.session?.emitFrame()
 
     expect(levels).toHaveLength(2)
+  })
+
+  it("emits zero levels for empty frames and handles stereo channel peaks independently", async () => {
+    const adapter = new FakePluginInputAdapter()
+    const recorder = new RecorderController({
+      inputAdapter: adapter,
+      storageOptions: undefined,
+    })
+    const levels: Array<{
+      peak: number
+      rms: number
+      channels: Array<{ peak: number; rms: number }>
+    }> = []
+
+    recorder.on("plugin:level", ({ payload }) => {
+      levels.push(payload.level)
+    })
+
+    await recorder.use(createLevelMeterPlugin())
+    await recorder.open()
+    await recorder.start()
+
+    adapter.session?.emitFrame(
+      createAudioFrame([new Float32Array(0)], 16_000, 1)
+    )
+    await recorder.stop()
+    await recorder.close()
+
+    const stereoAdapter = new FakePluginInputAdapter()
+    const stereoRecorder = new RecorderController({
+      inputAdapter: stereoAdapter,
+      storageOptions: undefined,
+    })
+
+    stereoRecorder.on("plugin:level", ({ payload }) => {
+      levels.push(payload.level)
+    })
+
+    await stereoRecorder.use(createLevelMeterPlugin())
+    await stereoRecorder.open({ channelCount: 2 })
+    await stereoRecorder.start()
+    stereoAdapter.session?.emitFrame(
+      createAudioFrame(
+        [new Float32Array([1, 0]), new Float32Array([0.25, -0.5])],
+        16_000,
+        2
+      )
+    )
+
+    expect(levels).toHaveLength(2)
+    expect(levels[0]).toEqual({
+      peak: 0,
+      rms: 0,
+      channels: [{ peak: 0, rms: 0 }],
+    })
+    expect(levels[1]?.peak).toBeCloseTo(1, 4)
+    expect(levels[1]?.channels[0]?.peak).toBeCloseTo(1, 4)
+    expect(levels[1]?.channels[1]?.peak).toBeCloseTo(0.5, 4)
+    expect(levels[1]?.channels[1]?.rms).toBeGreaterThan(0.3)
   })
 })

@@ -173,14 +173,8 @@ describe("RecorderController", () => {
 
     const runtime = await recorder.open({ sampleRate: 16_000 })
 
-    // inputStrategy is set to whatever checkRecorderCapability returns in this env
-    // In jsdom "unsupported" is possible, so inputStrategy may be undefined
-    expect(
-      runtime.inputStrategy === undefined ||
-        ["media-recorder", "audio-worklet", "script-processor"].includes(
-          runtime.inputStrategy
-        )
-    ).toBe(true)
+    expect(runtime.inputStrategy).toBe("media-recorder")
+    expect(recorder.getRuntimeInfo().inputStrategy).toBe("media-recorder")
   })
 
   it("emits a ScriptProcessorFallback warning during open when expectedInputStrategy is script-processor", async () => {
