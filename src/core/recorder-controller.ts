@@ -1,12 +1,7 @@
 import { createPcmBufferStore } from "@/buffer/pcm-buffer-store"
 import type { RecorderInputAdapter, RecorderInputSession } from "@/input/types"
 import { checkRecorderCapability } from "@/input/capability-check"
-import {
-  createDefaultEncoderRegistry,
-  type EncoderMap,
-  type EncoderRegistry,
-  type SnapshotEncoderDefinition,
-} from "@/encoders/encoder-registry"
+import type { EncoderMap, SnapshotEncoderDefinition } from "@/types"
 import { PcmFramePipeline } from "@/pipeline/pcm-frame-pipeline"
 import type { RecorderFramePipeline } from "@/pipeline/types"
 import { PluginHost } from "@/plugins/plugin-host"
@@ -34,7 +29,7 @@ import { EventBus } from "@/core/event-bus"
 export class RecorderController {
   private readonly eventBus = new EventBus<RecorderEventMap>()
   private readonly inputAdapter: RecorderInputAdapter
-  private readonly encoderRegistry: EncoderRegistry
+  private readonly encoders = new Map<string, SnapshotEncoderDefinition>()
   private readonly pluginHost = new PluginHost({
     recorder: this,
     emitIssue: (issue) => this.handleIssue(issue),
@@ -65,11 +60,10 @@ export class RecorderController {
     storageOptions: RecorderStorageOptions | undefined
     defaultInput?: RecorderInputOptions
     framePipeline?: RecorderFramePipeline
-    encoderRegistry?: EncoderRegistry
+    encoders?: SnapshotEncoderDefinition[]
   }) {
     this.inputAdapter = options.inputAdapter
-    this.encoderRegistry =
-      options.encoderRegistry ?? createDefaultEncoderRegistry()
+    options.encoders?.forEach((e) => this.encoders.set(e.type, e))
     this.storageOptions = options.storageOptions
     this.defaultInput = options.defaultInput ?? {}
     this.framePipeline = options.framePipeline ?? new PcmFramePipeline()
@@ -141,7 +135,12 @@ export class RecorderController {
       )
     }
 
-    this.encoderRegistry.register(definition)
+    if (this.encoders.has(definition.type)) {
+      throw new Error(
+        `Recorder encoder "${definition.type}" is already registered.`
+      )
+    }
+    this.encoders.set(definition.type, definition as SnapshotEncoderDefinition)
   }
 
   /**
@@ -158,9 +157,15 @@ export class RecorderController {
   ): Promise<TResult>
 
   exportEncoded(type: string, options?: unknown): Promise<unknown> {
-    return this.requirePcmSnapshot().then((snapshot) =>
-      this.encoderRegistry.export(type, snapshot, options)
-    )
+    return this.requirePcmSnapshot().then((snapshot) => {
+      const encoder = this.encoders.get(type)
+      if (!encoder) {
+        throw new Error(
+          `Recorder encoder "${type}" is not registered. Pass it via createRecorder({ encoders: [...] }) or recorder.registerEncoder(...).`
+        )
+      }
+      return encoder.export(snapshot, options)
+    })
   }
 
   async open(options: RecorderOpenOptions = {}): Promise<RecorderRuntimeInfo> {

@@ -2,7 +2,7 @@ import type {
   ChunkedEncoder,
   ChunkedEncoderDefinition,
 } from "@/plugins/streaming-export/types"
-import { createWavHeader } from "@/codecs/wav/wav-header"
+import { createWavHeader } from "./wav-header"
 
 /** WAV ChunkedEncoder 选项 */
 export interface WavChunkedEncoderOptions {

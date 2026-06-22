@@ -1,7 +1,7 @@
 import {
   deserializePcmSnapshot,
   serializePcmSnapshot,
-} from "@/storage/snapshot-codec"
+} from "@scope/audio-recorder"
 import type {
   RecorderPersistencePlugin,
   RecorderPersistenceSession,

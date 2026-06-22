@@ -6,10 +6,6 @@
  * - 可在 Worker 和主线程中直接实例化，使用同一份代码
  */
 
-import type { Mp3ChunkedEncoderOptions } from "@/codecs/mp3/mp3-chunked-encoder"
-import type { WavChunkedEncoderOptions } from "@/plugins/streaming-export/encoders/wav"
-import type { PcmChunkedEncoderOptions } from "@/plugins/streaming-export/encoders/pcm"
-
 /** 实时编码块的事件 payload，通过 "encoded-chunk" 事件发出 */
 export interface StreamingChunkPayload {
   chunk: Uint8Array
@@ -37,14 +33,13 @@ export interface ChunkedEncoder {
   dispose(): void
 }
 
-/** ChunkedEncoder 工厂定义，注册到 ChunkedEncoderRegistry */
+/** ChunkedEncoder 工厂定义 */
 export interface ChunkedEncoderDefinition<TOptions = unknown> {
   format: string
   /**
    * 可选：为本编码器创建专属 Worker 实例的工厂函数。
-   * 未提供时使用默认的 PCM/WAV Worker（chunked-encoder-worker.ts）。
-   * MP3 等可选编解码器提供此字段，以便将 lamejs 等重型依赖隔离到独立 Worker blob 中，
-   * 避免拖入默认 Worker 包体。
+   * 未提供时退回主线程同步编码。
+   * MP3 等可选编解码器提供此字段，以便将 lamejs 等重型依赖隔离到独立 Worker blob 中。
    */
   workerFactory?: () => Worker
 
@@ -55,10 +50,14 @@ export interface ChunkedEncoderDefinition<TOptions = unknown> {
 /** createStreamingExportPlugin 的选项 */
 export interface StreamingExportPluginOptions {
   format: string
-  encoderOptions?:
-    | Mp3ChunkedEncoderOptions
-    | WavChunkedEncoderOptions
-    | PcmChunkedEncoderOptions
+  encoderOptions?: unknown
+  /**
+   * 要使用的编码器定义列表。
+   * 用户必须显式传入对应格式的 ChunkedEncoderDefinition，例如：
+   *   import { pcmChunkedEncoderDefinition } from "audio-recorder/codecs/pcm"
+   *   createStreamingExportPlugin({ format: "pcm", encoders: [pcmChunkedEncoderDefinition] })
+   */
+  encoders: ChunkedEncoderDefinition[]
   /** Worker 编码不可用时是否允许降级到主线程同步编码，默认 true */
   allowMainThreadFallback?: boolean
 }

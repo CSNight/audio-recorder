@@ -7,10 +7,15 @@
  * 始终在主线程同步执行，不经过 Worker（snapshot 已是完整数据，无"实时流"语义）。
  */
 import type { PcmBufferSnapshot } from "@/buffer/types"
-import { resample } from "@/utils/resample"
+import { resample } from "@scope/audio-recorder"
 import { Mp3Encoder } from "./vendor/lame.all.js"
-import type { LameMp3Encoder, LameMp3EncoderConstructor } from "./types"
-import type { Mp3ExportOptions, Mp3ExportResult } from "./mp3-snapshot-types"
+import type {
+  LameMp3Encoder,
+  LameMp3EncoderConstructor,
+  Mp3ExportOptions,
+  Mp3ExportResult,
+} from "./types"
+import type { SnapshotEncoderDefinition } from "@/types"
 
 /** lamejs 标准 MPEG 帧大小（每帧 1152 样本） */
 const MPEG_FRAME_SIZE = 1152
@@ -76,4 +81,12 @@ export function exportMp3Snapshot(
     durationMs,
     data,
   }
+}
+export const mp3SnapshotEncoderDefinition: SnapshotEncoderDefinition<
+  "pcm",
+  Mp3ExportOptions,
+  Mp3ExportResult
+> = {
+  type: "pcm",
+  export: (snapshot, options) => exportMp3Snapshot(snapshot, options),
 }

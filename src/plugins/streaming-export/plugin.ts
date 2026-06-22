@@ -1,10 +1,9 @@
 import type { RecorderPlugin } from "@/plugins/types"
 import type {
+  ChunkedEncoderDefinition,
   StreamingChunkPayload,
   StreamingExportPluginOptions,
 } from "@/plugins/streaming-export/types"
-import type { ChunkedEncoderRegistry } from "@/plugins/streaming-export/registry"
-import { defaultChunkedEncoderRegistry } from "@/plugins/streaming-export/registry"
 import { ChunkedEncoderBridge } from "@/workers/chunked-encoder-bridge"
 
 /**
@@ -16,35 +15,43 @@ import { ChunkedEncoderBridge } from "@/workers/chunked-encoder-bridge"
  *
  * 用法：
  * ```ts
- * const plugin = createStreamingExportPlugin({ format: "mp3" })
+ * import { pcmChunkedEncoderDefinition } from "audio-recorder/codecs/pcm"
+ * const plugin = createStreamingExportPlugin({
+ *   format: "pcm",
+ *   encoders: [pcmChunkedEncoderDefinition],
+ * })
  * recorder.use(plugin)
- * recorder.on("plugin:encoded-chunkk", ({ payload }) => {
+ * recorder.on("plugin:encoded-chunk", ({ payload }) => {
  *   // payload: StreamingChunkPayload
  * })
  * ```
  */
 export function createStreamingExportPlugin(
-  options: StreamingExportPluginOptions,
-  registry: ChunkedEncoderRegistry = defaultChunkedEncoderRegistry
+  options: StreamingExportPluginOptions
 ): RecorderPlugin {
-  const { format, encoderOptions, allowMainThreadFallback } = options
+  const { format, encoderOptions, allowMainThreadFallback, encoders } = options
 
-  let bridge: ChunkedEncoderBridge | null = null
+  // 构建局部查表，不依赖任何全局注册表
+  const encoderMap: Record<string, ChunkedEncoderDefinition> = {}
+  for (const def of encoders) {
+    encoderMap[def.format] = def
+  }
+
+  const definition = encoderMap[format]
+  if (!definition) {
+    throw new Error(
+      `ChunkedEncoder for format "${format}" not found. ` +
+        `Please pass the corresponding ChunkedEncoderDefinition via options.encoders. ` +
+        `Available formats: ${Object.keys(encoderMap).join(", ") || "(none)"}`
+    )
+  }
+
+  let bridge: ChunkedEncoderBridge | undefined
   let sequenceIndex = 0
   let isActive = false
   // sessionId 用于区分 stop 后异步回调是否属于当前 session，防止跨 session 的 chunk 发出
   let currentSessionId = 0
   let emitChunk: ((payload: StreamingChunkPayload) => void) | undefined
-
-  function createBridge() {
-    bridge?.dispose()
-    bridge = new ChunkedEncoderBridge({
-      format,
-      encoderOptions,
-      registry,
-      allowMainThreadFallback,
-    })
-  }
 
   return {
     name: `streaming-export:${format}`,
@@ -57,14 +64,20 @@ export function createStreamingExportPlugin(
     },
 
     onStart() {
-      createBridge()
+      bridge?.dispose()
+      bridge = new ChunkedEncoderBridge({
+        format,
+        encoderOptions,
+        definition,
+        allowMainThreadFallback,
+      })
       sequenceIndex = 0
       currentSessionId++
       isActive = true
     },
 
     onFrame(frame) {
-      if (!isActive || bridge === null) {
+      if (!isActive || bridge === undefined) {
         return
       }
 
@@ -73,8 +86,8 @@ export function createStreamingExportPlugin(
 
       // fire-and-forget：编码在 Worker / 主线程完成后回调 emit
       bridge
-        .feedFrame(frame.channels, frame.sampleRate, frame.planar)
-        .then((chunk) => {
+        ?.feedFrame(frame.channels, frame.sampleRate, frame.planar)
+        ?.then((chunk) => {
           // 若 session 已切换（stop 后又 start），丢弃过期 chunk
           if (
             chunk !== null &&
@@ -90,7 +103,7 @@ export function createStreamingExportPlugin(
             })
           }
         })
-        .catch(() => {
+        ?.catch(() => {
           // Worker 错误已在 bridge 内部通过 onerror 处理；bridge disposed 时也会 reject，此处静默
         })
     },
@@ -112,12 +125,9 @@ export function createStreamingExportPlugin(
       const capturedSeq = sequenceIndex++
       const capturedSessionId = currentSessionId
 
-      // flush 持有独立的 bridge 引用，dispose() 不会影响这个 Promise 的发起
-      // dispose() 若在 flush Promise 解析前被调用，bridge 会 reject pending Promise，
-      // catch 块会静默处理，isFinal chunk 丢失是可接受的（组件已卸载）
       bridge
-        .flush()
-        .then((finalChunk) => {
+        ?.flush()
+        ?.then((finalChunk) => {
           if (
             finalChunk !== null &&
             emitChunk &&
@@ -132,18 +142,16 @@ export function createStreamingExportPlugin(
             })
           }
         })
-        .catch(() => {
+        ?.catch(() => {
           // 静默：bridge disposed 或 Worker 错误，isFinal chunk 丢失
         })
     },
 
     dispose() {
       isActive = false
-      // 递增 sessionId 使所有在途 Promise 回调中的 capturedSessionId 不再匹配，
-      // 确保 dispose 后不会再触发 emitChunk
       currentSessionId++
       bridge?.dispose()
-      bridge = null
+      bridge = undefined
       emitChunk = undefined
     },
   }

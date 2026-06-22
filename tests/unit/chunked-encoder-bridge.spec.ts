@@ -1,21 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { ChunkedEncoderBridge } from "@/workers/chunked-encoder-bridge"
-import { ChunkedEncoderRegistry } from "@/plugins/streaming-export/registry"
-import { pcmChunkedEncoderDefinition } from "@/plugins/streaming-export/encoders/pcm"
-import { wavChunkedEncoderDefinition } from "@/plugins/streaming-export/encoders/wav"
+import { pcmChunkedEncoderDefinition } from "@/codecs/pcm/pcm-chunked-encoder"
+import { wavChunkedEncoderDefinition } from "@/codecs/wav/wav-chunked-encoder"
 
 /**
  * vitest 在 Node.js 下 typeof Worker === 'undefined'，
  * 所以 ChunkedEncoderBridge 自动回退到主线程同步模式。
  * 这些测试覆盖主线程 fallback 路径。
  */
-
-function buildRegistry() {
-  const registry = new ChunkedEncoderRegistry()
-  registry.register(pcmChunkedEncoderDefinition)
-  registry.register(wavChunkedEncoderDefinition)
-  return registry
-}
 
 function mono(samples: number[]): Int16Array[] {
   return [new Int16Array(samples)]
@@ -52,7 +44,7 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
   it("feedFrame returns PCM chunk synchronously via Promise", async () => {
     const bridge = new ChunkedEncoderBridge({
       format: "pcm",
-      registry: buildRegistry(),
+      definition: pcmChunkedEncoderDefinition,
     })
 
     const result = await bridge.feedFrame(1, 16000, mono([100, 200]))
@@ -65,7 +57,7 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
   it("flush returns null for PCM encoder (no buffer)", async () => {
     const bridge = new ChunkedEncoderBridge({
       format: "pcm",
-      registry: buildRegistry(),
+      definition: pcmChunkedEncoderDefinition,
     })
     await bridge.feedFrame(1, 16000, mono([1, 2]))
     const result = await bridge.flush()
@@ -77,7 +69,7 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
     const bridge = new ChunkedEncoderBridge({
       format: "wav",
       encoderOptions: { framesPerChunk: 10 },
-      registry: buildRegistry(),
+      definition: wavChunkedEncoderDefinition,
     })
 
     // 不够 10 帧，feedFrame 应返回 null
@@ -95,7 +87,7 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
   it("rejects feedFrame and flush after dispose", async () => {
     const bridge = new ChunkedEncoderBridge({
       format: "pcm",
-      registry: buildRegistry(),
+      definition: pcmChunkedEncoderDefinition,
     })
     bridge.dispose()
 
@@ -105,20 +97,13 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
     await expect(bridge.flush()).rejects.toThrow("disposed")
   })
 
-  it("throws on unknown format", () => {
-    expect(
-      () =>
-        new ChunkedEncoderBridge({ format: "ogg", registry: buildRegistry() })
-    ).toThrow()
-  })
-
   it("throws when allowMainThreadFallback is false and Worker is unavailable", () => {
     // vitest 运行在 Node 下，typeof Worker === 'undefined'，模拟 Worker 不可用
     expect(
       () =>
         new ChunkedEncoderBridge({
           format: "pcm",
-          registry: buildRegistry(),
+          definition: pcmChunkedEncoderDefinition,
           allowMainThreadFallback: false,
         })
     ).toThrow("allowMainThreadFallback")
@@ -128,19 +113,17 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
     vi.stubGlobal("Worker", class {})
 
     const worker = new FakeWorker()
-    const registry = new ChunkedEncoderRegistry()
-    registry.register({
-      format: "custom",
-      workerFactory: () => worker as unknown as Worker,
-      create: vi.fn(() => {
-        throw new Error("main-thread fallback should not be used")
-      }),
-    })
 
     const bridge = new ChunkedEncoderBridge({
       format: "custom",
       encoderOptions: { bitrate: 128 },
-      registry,
+      definition: {
+        format: "custom",
+        workerFactory: () => worker as unknown as Worker,
+        create: vi.fn(() => {
+          throw new Error("main-thread fallback should not be used")
+        }),
+      },
     })
 
     expect(worker.messages[0]).toEqual({
@@ -179,18 +162,19 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
     vi.stubGlobal("Worker", class {})
 
     const worker = new FakeWorker()
-    const registry = new ChunkedEncoderRegistry()
-    registry.register({
-      format: "custom",
-      workerFactory: () => worker as unknown as Worker,
-      create: () => ({
-        feedFrame: () => null,
-        flush: () => null,
-        dispose: () => undefined,
-      }),
-    })
 
-    const bridge = new ChunkedEncoderBridge({ format: "custom", registry })
+    const bridge = new ChunkedEncoderBridge({
+      format: "custom",
+      definition: {
+        format: "custom",
+        workerFactory: () => worker as unknown as Worker,
+        create: () => ({
+          feedFrame: () => null,
+          flush: () => null,
+          dispose: () => undefined,
+        }),
+      },
+    })
 
     const feedPromise = bridge.feedFrame(1, 16000, mono([1]))
     const flushPromise = bridge.flush()
@@ -205,18 +189,19 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
     vi.stubGlobal("Worker", class {})
 
     const worker = new FakeWorker()
-    const registry = new ChunkedEncoderRegistry()
-    registry.register({
-      format: "custom",
-      workerFactory: () => worker as unknown as Worker,
-      create: () => ({
-        feedFrame: () => null,
-        flush: () => null,
-        dispose: () => undefined,
-      }),
-    })
 
-    const bridge = new ChunkedEncoderBridge({ format: "custom", registry })
+    const bridge = new ChunkedEncoderBridge({
+      format: "custom",
+      definition: {
+        format: "custom",
+        workerFactory: () => worker as unknown as Worker,
+        create: () => ({
+          feedFrame: () => null,
+          flush: () => null,
+          dispose: () => undefined,
+        }),
+      },
+    })
     const feedPromise = bridge.feedFrame(1, 16000, mono([9]))
 
     bridge.dispose()
@@ -229,73 +214,87 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
   it("falls back to the main thread when worker construction fails", async () => {
     vi.stubGlobal("Worker", class {})
 
-    const registry = new ChunkedEncoderRegistry()
-    registry.register({
+    const bridge = new ChunkedEncoderBridge({
       format: "custom",
-      workerFactory: () => {
-        throw new Error("worker construction failed")
-      },
-      create: () => ({
-        feedFrame: (_channels, _sampleRate, planar) => {
-          const firstChannel = planar[0]
-          if (!firstChannel) {
-            throw new Error("expected at least one channel")
-          }
-
-          return Uint8Array.from(
-            new Uint8Array(
-              firstChannel.buffer,
-              firstChannel.byteOffset,
-              firstChannel.byteLength
-            )
-          )
+      definition: {
+        format: "custom",
+        workerFactory: () => {
+          throw new Error("worker construction failed")
         },
-        flush: () => null,
-        dispose: () => undefined,
-      }),
-    })
+        create: () => ({
+          feedFrame: (_channels, _sampleRate, planar) => {
+            const firstChannel = planar[0]
+            if (!firstChannel) {
+              throw new Error("expected at least one channel")
+            }
 
-    const bridge = new ChunkedEncoderBridge({ format: "custom", registry })
+            return Uint8Array.from(
+              new Uint8Array(
+                firstChannel.buffer,
+                firstChannel.byteOffset,
+                firstChannel.byteLength
+              )
+            )
+          },
+          flush: () => null,
+          dispose: () => undefined,
+        }),
+      },
+    })
     const result = await bridge.feedFrame(1, 16000, mono([5, 6]))
 
     expect(result).toEqual(new Uint8Array([5, 0, 6, 0]))
   })
 
   it("converts main-thread encoder errors into rejected promises", async () => {
-    const registry = new ChunkedEncoderRegistry()
-    registry.register({
-      format: "feed-error",
-      create: () => ({
-        feedFrame: () => {
-          throw "feed failed"
-        },
-        flush: () => null,
-        dispose: () => undefined,
-      }),
-    })
-    registry.register({
-      format: "flush-error",
-      create: () => ({
-        feedFrame: () => null,
-        flush: () => {
-          throw "flush failed"
-        },
-        dispose: () => undefined,
-      }),
-    })
-
     const feedBridge = new ChunkedEncoderBridge({
       format: "feed-error",
-      registry,
+      definition: {
+        format: "feed-error",
+        create: () => ({
+          feedFrame: () => {
+            throw "feed failed"
+          },
+          flush: () => null,
+          dispose: () => undefined,
+        }),
+      },
     })
     const flushBridge = new ChunkedEncoderBridge({
       format: "flush-error",
-      registry,
+      definition: {
+        format: "flush-error",
+        create: () => ({
+          feedFrame: () => null,
+          flush: () => {
+            throw "flush failed"
+          },
+          dispose: () => undefined,
+        }),
+      },
     })
 
     await expect(feedBridge.feedFrame(1, 16000, mono([1]))).rejects.toThrow(
       "feed failed"
     )
     await expect(flushBridge.flush()).rejects.toThrow("flush failed")
+  })
+
+  it("falls back to the main thread when definition has no workerFactory", async () => {
+    const bridge = new ChunkedEncoderBridge({
+      format: "no-worker",
+      definition: {
+        format: "no-worker",
+        create: () => ({
+          feedFrame: () => new Uint8Array([42]),
+          flush: () => null,
+          dispose: () => undefined,
+        }),
+      },
+    })
+
+    const result = await bridge.feedFrame(1, 16000, mono([1]))
+    expect(result).toEqual(new Uint8Array([42]))
+    bridge.dispose()
   })
 })

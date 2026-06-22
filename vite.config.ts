@@ -23,11 +23,15 @@ export default defineConfig({
         "codecs/mp3/index": fileURLToPath(
           new URL("./src/codecs/mp3/index.ts", import.meta.url)
         ),
+        "codecs/base/index": fileURLToPath(
+          new URL("./src/codecs/wav/index.ts", import.meta.url)
+        ),
       },
       formats: ["es"],
       fileName: (_format, entryName) => `${entryName}.js`,
     },
     rolldownOptions: {
+      external: ["@scope/audio-recorder"],
       output: {
         minify: true,
         chunkFileNames: "chunks/[name]-[hash].js",

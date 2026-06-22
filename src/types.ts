@@ -1,9 +1,13 @@
+import type { PcmBufferSnapshot } from "@/buffer/types"
 import type { RecorderController } from "@/core/recorder-controller"
 import type {
   RecorderPluginEventContext,
   RecorderPluginEventPayload,
 } from "@/plugins/types"
 import type { RecorderStorageOptions } from "@/storage/types"
+import type { PcmExportOptions, PcmExportResult } from "@/codecs/pcm/types"
+import type { WavExportOptions, WavExportResult } from "@/codecs/wav/types"
+import type { Mp3ExportOptions, Mp3ExportResult } from "@/codecs/mp3/types"
 
 /**
  * 音频声道数。支持任意正整数，常见值：
@@ -183,4 +187,29 @@ export type RecorderOpenOptions = RecorderInputOptions
  */
 export interface CreateRecorderOptions extends RecorderInputOptions {
   storage?: RecorderStorageOptions
+  encoders?: SnapshotEncoderDefinition[]
+}
+
+/**
+ * 快照编码器定义。每种格式（pcm / wav / mp3 / 未来扩展）通过实现该接口，
+ * 以依赖注入的方式传给 createRecorder({ encoders: [...] }) 或
+ * recorder.registerEncoder(...)，而非内置在库中隐式注册。
+ */
+export interface SnapshotEncoderDefinition<
+  TType extends string = string,
+  TOptions = unknown,
+  TResult = unknown,
+> {
+  type: TType
+  export(snapshot: PcmBufferSnapshot, options?: TOptions): TResult
+}
+
+/**
+ * Discriminated union map that links encoder names to their option/result
+ * types, enabling fully type-safe `export()` calls without casting at call sites.
+ */
+export interface EncoderMap {
+  pcm: { options: PcmExportOptions; result: PcmExportResult }
+  wav: { options: WavExportOptions; result: WavExportResult }
+  mp3: { options: Mp3ExportOptions; result: Mp3ExportResult }
 }

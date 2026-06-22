@@ -5,25 +5,19 @@
  *
  * feedFrame / flush 均返回 Promise，由 plugin.ts 以 fire-and-forget 方式调用。
  *
- * Worker 来源优先级：
- * 1. definition.workerFactory()  — 编解码器自带专属 Worker（如 mp3-worker.ts）
- * 2. defaultWorkerFactory()      — 默认 PCM/WAV Worker（chunked-encoder-worker.ts，inline blob）
+ * Worker 来源：
+ * - definition.workerFactory()  — 编解码器自带专属 Worker（如 mp3-worker.ts、pcm-worker.ts、wav-worker.ts）
+ * - 若 definition 无 workerFactory，则降级到主线程同步执行
  *
- * 使用 `?worker&inline` 将默认 Worker 内联为 base64 blob，避免额外的网络请求，
- * 同时在 CSP 严格环境下仍可正常实例化（blob: URL 通常被允许）。
+ * 使用 `?worker&inline` 将各 codec Worker 内联为 base64 blob，避免额外的网络请求。
  */
 
-import type { ChunkedEncoder } from "@/plugins/streaming-export/types"
-import type { ChunkedEncoderRegistry } from "@/plugins/streaming-export/registry"
-import InlineDefaultWorker from "./chunked-encoder-worker.ts?worker&inline"
-
-/** 默认 Worker 工厂（PCM/WAV 通用，不含 MP3/lamejs） */
-const defaultWorkerFactory = (): Worker => new InlineDefaultWorker()
+import type { ChunkedEncoder, ChunkedEncoderDefinition } from "@/plugins/streaming-export/types"
 
 export interface ChunkedEncoderBridgeOptions {
   format: string
   encoderOptions?: unknown
-  registry: ChunkedEncoderRegistry
+  definition: ChunkedEncoderDefinition
   /**
    * Worker 编码不可用时是否允许降级到主线程同步编码。
    * 默认 true。设为 false 时若 Worker 不可用则抛出错误。
@@ -53,13 +47,9 @@ export class ChunkedEncoderBridge {
   constructor(opts: ChunkedEncoderBridgeOptions) {
     const allowFallback = opts.allowMainThreadFallback ?? true
 
-    if (typeof Worker !== "undefined") {
+    if (typeof Worker !== "undefined" && opts.definition.workerFactory) {
       try {
-        // 优先使用编解码器自带的专属 Worker（如 mp3-worker.ts），
-        // 回退到默认的 PCM/WAV inline Worker
-        const definition = opts.registry.get(opts.format)
-        const workerFactory = definition.workerFactory ?? defaultWorkerFactory
-        this.worker = workerFactory()
+        this.worker = opts.definition.workerFactory()
 
         this.worker.onmessage = (
           event: MessageEvent<WorkerOutgoingMessage>
@@ -105,7 +95,7 @@ export class ChunkedEncoderBridge {
           `ChunkedEncoderBridge: Worker is not available and allowMainThreadFallback is false.`
         )
       }
-      this.encoder = opts.registry.get(opts.format).create(opts.encoderOptions)
+      this.encoder = opts.definition.create(opts.encoderOptions)
     }
   }
 
@@ -133,10 +123,6 @@ export class ChunkedEncoderBridge {
       }
     }
 
-    // Worker 模式：postMessage（结构化克隆，不 transfer）+ 挂起 Promise
-    // 不使用 Transferable 是因为主线程后续可能还需要访问 planar 数据，
-    // 且单帧数据量（128-4096 samples）克隆开销远小于零拷贝引发的正确性问题：
-    // 多声道共享同一 ArrayBuffer 时 transfer 会导致第二个声道 detached。
     const seqId = this.nextSeqId++
     return new Promise<Uint8Array | null>((resolve, reject) => {
       this.pending.set(seqId, { resolve, reject })

@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { RecorderController } from "@/core/recorder-controller"
 import { createStreamingExportPlugin } from "@/plugins/streaming-export/plugin"
-import { ChunkedEncoderRegistry } from "@/plugins/streaming-export/registry"
-import type { StreamingChunkPayload } from "@/plugins/streaming-export/types"
+import type {
+  ChunkedEncoderDefinition,
+  StreamingChunkPayload,
+} from "@/plugins/streaming-export/types"
 import type { RecorderPluginEventContext } from "@/plugins/types"
 import type {
   RecorderInputAdapter,
@@ -97,13 +99,18 @@ function isStreamingChunkEvent(
 }
 
 describe("createStreamingExportPlugin", () => {
+  it("throws when no encoder definition matches the requested format", () => {
+    expect(() =>
+      createStreamingExportPlugin({ format: "test", encoders: [] })
+    ).toThrow(/ChunkedEncoder for format "test" not found/)
+  })
+
   it("emits encoded chunks through the recorder plugin event channel", async () => {
     const adapter = new FakeStreamingInputAdapter()
     const recorder = new RecorderController({
       inputAdapter: adapter,
       storageOptions: undefined,
     })
-    const registry = new ChunkedEncoderRegistry()
     const events: Array<{
       sequenceIndex: number
       isFinal: boolean
@@ -112,7 +119,7 @@ describe("createStreamingExportPlugin", () => {
       pluginName: string
     }> = []
 
-    registry.register({
+    const definition: ChunkedEncoderDefinition = {
       format: "test",
       create: () => ({
         feedFrame: (_channels, _sampleRate, planar) =>
@@ -123,7 +130,7 @@ describe("createStreamingExportPlugin", () => {
         flush: () => new Uint8Array([255]),
         dispose: () => undefined,
       }),
-    })
+    }
 
     recorder.on("plugin:encoded-chunk", (event) => {
       if (!isStreamingChunkEvent(event)) {
@@ -141,7 +148,7 @@ describe("createStreamingExportPlugin", () => {
     })
 
     await recorder.use(
-      createStreamingExportPlugin({ format: "test" }, registry)
+      createStreamingExportPlugin({ format: "test", encoders: [definition] })
     )
     await recorder.open()
     await recorder.start()
@@ -172,11 +179,10 @@ describe("createStreamingExportPlugin", () => {
       inputAdapter: adapter,
       storageOptions: undefined,
     })
-    const registry = new ChunkedEncoderRegistry()
     const workers: FakeWorker[] = []
     const emitted: number[][] = []
 
-    registry.register({
+    const definition: ChunkedEncoderDefinition = {
       format: "test",
       workerFactory: () => {
         const worker = new FakeWorker()
@@ -188,7 +194,7 @@ describe("createStreamingExportPlugin", () => {
         flush: () => null,
         dispose: () => undefined,
       }),
-    })
+    }
 
     recorder.on("plugin:encoded-chunk", (event) => {
       if (!isStreamingChunkEvent(event)) {
@@ -200,7 +206,7 @@ describe("createStreamingExportPlugin", () => {
     })
 
     await recorder.use(
-      createStreamingExportPlugin({ format: "test" }, registry)
+      createStreamingExportPlugin({ format: "test", encoders: [definition] })
     )
     await recorder.open()
     await recorder.start()
@@ -238,11 +244,10 @@ describe("createStreamingExportPlugin", () => {
       inputAdapter: adapter,
       storageOptions: undefined,
     })
-    const registry = new ChunkedEncoderRegistry()
     const emitted: number[][] = []
     const worker = new FakeWorker()
 
-    registry.register({
+    const definition: ChunkedEncoderDefinition = {
       format: "test",
       workerFactory: () => worker as unknown as Worker,
       create: () => ({
@@ -250,7 +255,7 @@ describe("createStreamingExportPlugin", () => {
         flush: () => null,
         dispose: () => undefined,
       }),
-    })
+    }
 
     recorder.on("plugin:encoded-chunk", (event) => {
       if (!isStreamingChunkEvent(event)) {
@@ -262,7 +267,7 @@ describe("createStreamingExportPlugin", () => {
     })
 
     await recorder.use(
-      createStreamingExportPlugin({ format: "test" }, registry)
+      createStreamingExportPlugin({ format: "test", encoders: [definition] })
     )
     await recorder.open()
     await recorder.start()
@@ -286,17 +291,16 @@ describe("createStreamingExportPlugin", () => {
       inputAdapter: adapter,
       storageOptions: undefined,
     })
-    const registry = new ChunkedEncoderRegistry()
     const events: Array<{ isFinal: boolean; chunk: number[] }> = []
 
-    registry.register({
+    const definition: ChunkedEncoderDefinition = {
       format: "test",
       create: () => ({
         feedFrame: () => new Uint8Array([1]),
         flush: () => null,
         dispose: () => undefined,
       }),
-    })
+    }
 
     recorder.on("plugin:encoded-chunk", (event) => {
       if (!isStreamingChunkEvent(event)) {
@@ -311,7 +315,7 @@ describe("createStreamingExportPlugin", () => {
     })
 
     await recorder.use(
-      createStreamingExportPlugin({ format: "test" }, registry)
+      createStreamingExportPlugin({ format: "test", encoders: [definition] })
     )
     await recorder.open()
     await recorder.start()
@@ -334,11 +338,10 @@ describe("createStreamingExportPlugin", () => {
       inputAdapter: adapter,
       storageOptions: undefined,
     })
-    const registry = new ChunkedEncoderRegistry()
     const issues: string[] = []
     const worker = new FakeWorker()
 
-    registry.register({
+    const definition: ChunkedEncoderDefinition = {
       format: "test",
       workerFactory: () => worker as unknown as Worker,
       create: () => ({
@@ -346,7 +349,7 @@ describe("createStreamingExportPlugin", () => {
         flush: () => null,
         dispose: () => undefined,
       }),
-    })
+    }
 
     recorder.on("issue", ({ issue }) => {
       if (issue.kind === "error") {
@@ -355,7 +358,7 @@ describe("createStreamingExportPlugin", () => {
     })
 
     await recorder.use(
-      createStreamingExportPlugin({ format: "test" }, registry)
+      createStreamingExportPlugin({ format: "test", encoders: [definition] })
     )
     await recorder.open()
     await recorder.start()

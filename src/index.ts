@@ -12,11 +12,8 @@ export {
 } from "@/input/capability-check"
 
 export { RecorderController } from "@/core/recorder-controller"
-export {
-  EncoderRegistry,
-  createDefaultEncoderRegistry,
-} from "@/encoders/encoder-registry"
-export type { SnapshotEncoderDefinition } from "@/encoders/encoder-registry"
+export type { SnapshotEncoderDefinition, EncoderMap } from "@/types"
+
 export type {
   RecorderPersistencePlugin,
   RecorderPersistenceSession,
@@ -48,14 +45,20 @@ export {
   RecorderState,
   RecorderWarningCode,
 } from "@/types"
+export { resample } from "@/utils/resample"
+export {
+  serializePcmSnapshot,
+  deserializePcmSnapshot,
+} from "@/utils/snapshot-codec"
 
 export function createRecorder(
   options: CreateRecorderOptions = {}
 ): RecorderController {
-  const { storage, ...inputOptions } = options
+  const { storage, encoders, ...inputOptions } = options
   return new RecorderController({
     inputAdapter: new BrowserInputAdapter(),
     storageOptions: storage ?? undefined,
     defaultInput: inputOptions,
+    encoders: encoders ?? [],
   })
 }

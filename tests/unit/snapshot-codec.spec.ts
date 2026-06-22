@@ -3,7 +3,7 @@ import type { PcmBufferSnapshot } from "@/buffer/types"
 import {
   deserializePcmSnapshot,
   serializePcmSnapshot,
-} from "@/storage/snapshot-codec"
+} from "@/utils/snapshot-codec"
 
 describe("snapshot codec", () => {
   it("serializes and deserializes stereo PCM snapshots", () => {
