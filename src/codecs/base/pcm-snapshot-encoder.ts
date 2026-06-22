@@ -1,5 +1,5 @@
 import { exportPcmSnapshot } from "./pcm-exporter"
-import type { PcmExportOptions, PcmExportResult } from "./types"
+import type { PcmExportOptions, PcmExportResult } from "./pcm-types"
 import type { SnapshotEncoderDefinition } from "@/types"
 
 export const pcmSnapshotEncoderDefinition: SnapshotEncoderDefinition<

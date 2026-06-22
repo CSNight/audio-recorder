@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { wavChunkedEncoderDefinition } from "@/codecs/wav/wav-chunked-encoder"
+import { wavChunkedEncoderDefinition } from "@/codecs/base/wav-chunked-encoder"
 
 function mono(samples: number[]): Int16Array[] {
   return [new Int16Array(samples)]

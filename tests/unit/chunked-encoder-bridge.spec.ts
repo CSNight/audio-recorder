@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { ChunkedEncoderBridge } from "@/workers/chunked-encoder-bridge"
-import { pcmChunkedEncoderDefinition } from "@/codecs/pcm/pcm-chunked-encoder"
-import { wavChunkedEncoderDefinition } from "@/codecs/wav/wav-chunked-encoder"
+import { pcmChunkedEncoderDefinition } from "@/codecs/base/pcm-chunked-encoder"
+import { wavChunkedEncoderDefinition } from "@/codecs/base/wav-chunked-encoder"
 
 /**
  * vitest 在 Node.js 下 typeof Worker === 'undefined'，

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { pcmChunkedEncoderDefinition } from "@/codecs/pcm/pcm-chunked-encoder"
+import { pcmChunkedEncoderDefinition } from "@/codecs/base/pcm-chunked-encoder"
 
 /** 构造 planar Int16Array 数组 */
 function mono(samples: number[]): Int16Array[] {

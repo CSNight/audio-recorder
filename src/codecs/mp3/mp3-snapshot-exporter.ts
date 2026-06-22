@@ -83,10 +83,10 @@ export function exportMp3Snapshot(
   }
 }
 export const mp3SnapshotEncoderDefinition: SnapshotEncoderDefinition<
-  "pcm",
+  "mp3",
   Mp3ExportOptions,
   Mp3ExportResult
 > = {
-  type: "pcm",
+  type: "mp3",
   export: (snapshot, options) => exportMp3Snapshot(snapshot, options),
 }

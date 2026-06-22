@@ -1,5 +1,5 @@
 import type { PcmBufferSnapshot } from "@/buffer/types"
-import type { PcmExportOptions, PcmExportResult } from "@/codecs/pcm/types"
+import type { PcmExportOptions, PcmExportResult } from "./pcm-types"
 import { resample } from "@scope/audio-recorder"
 
 function normalizeBitRate(bitRate: PcmExportOptions["bitRate"]): 8 | 16 {

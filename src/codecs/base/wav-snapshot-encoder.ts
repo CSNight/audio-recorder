@@ -1,5 +1,5 @@
 import { exportWavSnapshot } from "./wav-exporter"
-import type { WavExportOptions, WavExportResult } from "./types"
+import type { WavExportOptions, WavExportResult } from "./wav-types"
 import type { SnapshotEncoderDefinition } from "@/types"
 
 export const wavSnapshotEncoderDefinition: SnapshotEncoderDefinition<

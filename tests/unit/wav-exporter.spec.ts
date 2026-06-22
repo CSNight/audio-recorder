@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { PcmBufferSnapshot } from "@/buffer/types"
-import { exportWavSnapshot } from "@/codecs/wav/wav-exporter"
+import { exportWavSnapshot } from "@/codecs/base/wav-exporter"
 
 function readAscii(view: DataView, offset: number, length: number): string {
   return Array.from({ length }, (_, index) =>

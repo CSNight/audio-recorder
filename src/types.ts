@@ -5,8 +5,8 @@ import type {
   RecorderPluginEventPayload,
 } from "@/plugins/types"
 import type { RecorderStorageOptions } from "@/storage/types"
-import type { PcmExportOptions, PcmExportResult } from "@/codecs/pcm/types"
-import type { WavExportOptions, WavExportResult } from "@/codecs/wav/types"
+import type { PcmExportOptions, PcmExportResult } from "@/codecs/base/pcm-types"
+import type { WavExportOptions, WavExportResult } from "@/codecs/base/wav-types"
 import type { Mp3ExportOptions, Mp3ExportResult } from "@/codecs/mp3/types"
 
 /**

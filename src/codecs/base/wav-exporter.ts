@@ -1,6 +1,6 @@
 import type { PcmBufferSnapshot } from "@/buffer/types"
-import { exportPcmSnapshot } from "@/codecs/pcm/pcm-exporter"
-import type { WavExportOptions, WavExportResult } from "@/codecs/wav/types"
+import { exportPcmSnapshot } from "./pcm-exporter"
+import type { WavExportOptions, WavExportResult } from "./wav-types"
 import { createWavHeader } from "./wav-header"
 
 const WAV_MIME_TYPE = "audio/wav"
