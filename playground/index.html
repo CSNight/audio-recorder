@@ -90,6 +90,20 @@
                     <option :value="2">双声道</option>
                   </select>
                 </label>
+                <label>
+                  <div class="stat-label">采集策略</div>
+                  <select
+                    v-model="state.inputStrategy"
+                    data-testid="input-strategy"
+                  >
+                    <option value="auto">自动（优先 MediaRecorder）</option>
+                    <option value="media-recorder">MediaRecorder</option>
+                    <option value="audio-worklet">AudioWorklet</option>
+                    <option value="script-processor">
+                      ScriptProcessor（已废弃）
+                    </option>
+                  </select>
+                </label>
               </div>
               <div class="control-row">
                 <label>
@@ -217,6 +231,12 @@
                   <p class="stat-value" id="channels-value">
                     {{ state.runtimeInfo?.actualChannelCount ??
                     state.runtimeInfo?.requestedChannelCount ?? "-" }}
+                  </p>
+                </article>
+                <article class="stat">
+                  <p class="stat-label">实际采集链路</p>
+                  <p class="stat-value" data-testid="input-strategy-value">
+                    {{ state.runtimeInfo?.inputStrategy ?? "-" }}
                   </p>
                 </article>
                 <article class="stat">

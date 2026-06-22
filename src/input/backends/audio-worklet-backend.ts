@@ -169,9 +169,13 @@ export async function createAudioWorkletBackend(
       {
         numberOfInputs: 1,
         numberOfOutputs: 1,
+        // clamped-max：节点声道数 = min(channelCount, 上游 source 实际声道数)。
+        // channelCount 取 track.getSettings() 解析出的实际硬件声道数（非用户请求值），
+        // 但即便它偏大（如 getSettings 未上报时回退到请求值 2、而硬件实际单声道），
+        // clamped-max 也只会向下钳到真实声道数，绝不向上补出假声道（避免假立体声）。
+        // process() 拿到的 input 声道数即真实值，原样回传，与上报的 actualChannelCount 一致。
         channelCount,
-        channelCountMode: "explicit",
-        outputChannelCount: [channelCount],
+        channelCountMode: "clamped-max",
         processorOptions: { batchSamples },
       }
     )

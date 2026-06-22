@@ -5,23 +5,20 @@ import { type RecorderInputOptions, RecorderWarningCode } from "@/types"
  * 由录音输入参数构建 getUserMedia 音频约束。
  *
  * - 三处理项（AEC/NS/AGC）默认全开，确保多数浏览器/移动端行为一致；
- * - channelCount / deviceId 仅显式传入时写入，且使用 { exact } 强约束：
- *   声道数交给原生协商（避免历史上为强制声道数而绕 Web Audio 图的做法）。
+ * - channelCount 仅显式传入时写入，使用 { exact } 强约束：声道数由原生设备协商，
+ *   设备无法满足时 getUserMedia 会诚实抛 OverconstrainedError（不静默降级）；
+ * - deviceId 用 { exact }。
  */
 export function buildAudioConstraints(
-  input: RecorderInputOptions,
-  options: { exactChannelCount?: boolean } = {}
+  input: RecorderInputOptions
 ): MediaTrackConstraints {
-  const exactChannelCount = options.exactChannelCount ?? true
   return {
     echoCancellation: input.echoCancellation ?? true,
     noiseSuppression: input.noiseSuppression ?? true,
     autoGainControl: input.autoGainControl ?? true,
     ...(input.sampleRate !== undefined && { sampleRate: input.sampleRate }),
     ...(input.channelCount !== undefined && {
-      channelCount: exactChannelCount
-        ? { exact: input.channelCount }
-        : input.channelCount,
+      channelCount: { exact: input.channelCount },
     }),
     ...(input.deviceId !== undefined && {
       deviceId: { exact: input.deviceId },
@@ -38,13 +35,13 @@ function isOverconstrainedError(error: unknown): boolean {
 }
 
 /**
- * 获取麦克风流。首次以 { exact } 声道约束请求；若设备不支持（OverconstrainedError，
- * 例如蓝牙 HFP 单声道设备被请求双声道），发 AudioConstraintNotApplied 警告后
- * 去掉 exact 重试一次，保证 open() 不因声道数硬失败。
+ * 获取麦克风流。以 { exact } 声道约束请求；若设备无法满足用户要求的声道数
+ * （OverconstrainedError，例如蓝牙 HFP 单声道设备被请求双声道），**不再静默降级**——
+ * 直接抛出错误中止录音，由调用方将其作为 error 事件上报。用户显式要求的声道数
+ * 拿不到属于硬失败，不应悄悄回退成另一个声道数继续录。
  */
 export async function acquireMicStream(
-  input: RecorderInputOptions,
-  emitIssue: (issue: InputIssue) => void
+  input: RecorderInputOptions
 ): Promise<MediaStream> {
   if (!navigator.mediaDevices?.getUserMedia) {
     throw new Error("navigator.mediaDevices.getUserMedia is not available.")
@@ -56,20 +53,14 @@ export async function acquireMicStream(
       video: false,
     })
   } catch (error) {
-    if (!isOverconstrainedError(error) || input.channelCount === undefined) {
-      throw error
+    if (isOverconstrainedError(error) && input.channelCount !== undefined) {
+      throw new Error(
+        `Device does not support the requested channelCount ${input.channelCount}. ` +
+          `Recording aborted (set a channelCount the device supports, e.g. 1).`,
+        { cause: error }
+      )
     }
-    emitIssue({
-      kind: "warning",
-      warning: {
-        code: RecorderWarningCode.AudioConstraintNotApplied,
-        message: `Device does not support exact channelCount ${input.channelCount}; retrying without exact constraint.`,
-      },
-    })
-    return navigator.mediaDevices.getUserMedia({
-      audio: buildAudioConstraints(input, { exactChannelCount: false }),
-      video: false,
-    })
+    throw error
   }
 }
 

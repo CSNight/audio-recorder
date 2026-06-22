@@ -13,7 +13,8 @@ class FakePluginInputSession implements RecorderInputSession {
   constructor(
     private readonly handlers: RecorderInputHandlers,
     public readonly actualSampleRate = 16_000,
-    public readonly actualChannelCount = 1 as const
+    public readonly actualChannelCount = 1 as const,
+    public readonly actualInputStrategy = "audio-worklet" as const
   ) {}
 
   async start(): Promise<void> {}

@@ -11,7 +11,11 @@ import {
 import { BrowserInputSession } from "@/input/browser-input-session"
 import { selectInputBackend } from "@/input/backends/select"
 import type { InputBackendContext } from "@/input/backends/types"
-import type { AudioInputDevice, RecorderInputOptions } from "@/types"
+import type {
+  AudioChannelCount,
+  AudioInputDevice,
+  RecorderInputOptions,
+} from "@/types"
 
 type AudioContextConstructor = typeof AudioContext
 type AudioContextScope = typeof globalThis & {
@@ -48,6 +52,25 @@ export async function listMicrophoneDevices(): Promise<AudioInputDevice[]> {
     .map((d) => ({ deviceId: d.deviceId, label: d.label, groupId: d.groupId }))
 }
 
+/**
+ * 取流上音轨实际生效的声道数（track.getSettings().channelCount）。
+ *
+ * AudioWorklet / ScriptProcessor 的图声道数应以硬件实际支持为准，不按用户请求值
+ * 强行调整：用户请求值已在 getUserMedia 约束阶段交给原生协商，拿到流后实际声道数
+ * 才是真相。getSettings 不上报 channelCount（部分浏览器）时回退到 fallback。
+ */
+function resolveTrackChannelCount(
+  stream: MediaStream,
+  fallback: AudioChannelCount
+): AudioChannelCount {
+  const track = stream.getAudioTracks()[0]
+  const actual = track?.getSettings?.().channelCount
+  if (actual === 1 || actual === 2) {
+    return actual
+  }
+  return fallback
+}
+
 export class BrowserInputAdapter implements RecorderInputAdapter {
   async open(
     request: RecorderInputRequest,
@@ -56,8 +79,7 @@ export class BrowserInputAdapter implements RecorderInputAdapter {
     const input: RecorderInputOptions = request.input ?? {}
     const requestedChannelCount = input.channelCount ?? 1
 
-    const stream =
-      request.sourceStream ?? (await acquireMicStream(input, handlers.onIssue))
+    const stream = request.sourceStream ?? (await acquireMicStream(input))
     const ownsStream = !request.sourceStream
 
     if (stream.getAudioTracks().length === 0) {
@@ -71,6 +93,14 @@ export class BrowserInputAdapter implements RecorderInputAdapter {
       reportUnappliedConstraints(stream, input, handlers.onIssue)
     }
 
+    // AudioWorklet / ScriptProcessor 的图声道数以硬件实际支持为准（track.getSettings），
+    // 不按用户请求值强行调整：用户请求值已在 getUserMedia 约束阶段交给原生协商，
+    // 拿到流后实际声道数才是真相。getSettings 不上报时回退到请求值。
+    const actualTrackChannelCount = resolveTrackChannelCount(
+      stream,
+      requestedChannelCount
+    )
+
     const AudioContextConstructor = getAudioContextConstructor()
     const audioContext = input.sampleRate
       ? new AudioContextConstructor({ sampleRate: input.sampleRate })
@@ -81,7 +111,7 @@ export class BrowserInputAdapter implements RecorderInputAdapter {
       audioContext,
       stream,
       handlers,
-      requestedChannelCount,
+      requestedChannelCount: actualTrackChannelCount,
       ownsStream,
       disableEnvInFix: input.frameLossCompensation ?? false,
     })
@@ -89,7 +119,7 @@ export class BrowserInputAdapter implements RecorderInputAdapter {
     const context: InputBackendContext = {
       audioContext,
       stream,
-      channelCount: requestedChannelCount,
+      channelCount: actualTrackChannelCount,
       sink: session,
       emitIssue: handlers.onIssue,
     }

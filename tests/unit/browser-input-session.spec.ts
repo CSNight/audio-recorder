@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 import { BrowserInputSession } from "@/input/browser-input-session"
 import type { InputBackend } from "@/input/backends/types"
+import type { RecorderInputHandlers } from "@/input/types"
 import type { AudioChannelCount } from "@/types"
 import { RecorderWarningCode } from "@/types"
 
@@ -44,7 +45,10 @@ function createSession(options: {
     audioContext: options.audioContext ?? createAudioContextStub(16_000),
     stream:
       options.stream ?? ({ getTracks: () => [] } as unknown as MediaStream),
-    handlers: { onFrame, onIssue },
+    handlers: {
+      onFrame: onFrame as RecorderInputHandlers["onFrame"],
+      onIssue: onIssue as RecorderInputHandlers["onIssue"],
+    },
     requestedChannelCount: options.requestedChannelCount ?? 1,
     ownsStream: options.ownsStream ?? false,
     disableEnvInFix: options.disableEnvInFix ?? false,

@@ -7,7 +7,11 @@ import type {
   InputSessionSummary,
 } from "@/input/types"
 import { RecorderController } from "@/core/recorder-controller"
-import { RecorderState, RecorderWarningCode } from "@/types"
+import {
+  RecorderState,
+  RecorderWarningCode,
+  type RecorderInputStrategy,
+} from "@/types"
 import type { RecorderPlugin } from "@/plugins/types"
 import type { RecorderPersistencePlugin } from "@/storage/types"
 import { createAudioFrame } from "@/utils/audio-frame"
@@ -18,6 +22,8 @@ class FakeInputSession implements RecorderInputSession {
     frames: 0,
     durationMs: 0,
   }
+
+  public actualInputStrategy: RecorderInputStrategy = "media-recorder"
 
   constructor(
     private readonly handlers: RecorderInputHandlers,

@@ -198,14 +198,11 @@ describe("BrowserInputAdapter", () => {
     })
   })
 
-  it("retries without exact constraint and warns on OverconstrainedError", async () => {
+  it("throws and aborts on OverconstrainedError for an exact channelCount", async () => {
     const overconstrained = Object.assign(new Error("over"), {
       name: "OverconstrainedError",
     })
-    const getUserMedia = vi
-      .fn()
-      .mockRejectedValueOnce(overconstrained)
-      .mockResolvedValueOnce(createStream() as unknown as MediaStream)
+    const getUserMedia = vi.fn().mockRejectedValueOnce(overconstrained)
     vi.stubGlobal("navigator", {
       userAgent: "Mozilla/5.0 (Windows NT 10.0)",
       mediaDevices: { getUserMedia },
@@ -219,28 +216,21 @@ describe("BrowserInputAdapter", () => {
 
     const onIssue = vi.fn()
     const adapter = new BrowserInputAdapter()
-    await adapter.open(
-      { input: { channelCount: 2 } },
-      { onFrame: vi.fn(), onIssue }
-    )
 
-    expect(getUserMedia).toHaveBeenCalledTimes(2)
-    // first attempt exact, retry non-exact
+    // 用户显式要求的声道数拿不到属于硬失败：抛错中止，不悄悄回退
+    await expect(
+      adapter.open(
+        { input: { channelCount: 2 } },
+        { onFrame: vi.fn(), onIssue }
+      )
+    ).rejects.toThrow(/does not support the requested channelCount 2/)
+
+    // 只尝试一次 exact 约束，不再发起非 exact 重试
+    expect(getUserMedia).toHaveBeenCalledTimes(1)
     expect(getUserMedia.mock.calls[0]?.[0]).toEqual({
       audio: expect.objectContaining({ channelCount: { exact: 2 } }),
       video: false,
     })
-    expect(getUserMedia.mock.calls[1]?.[0]).toEqual({
-      audio: expect.objectContaining({ channelCount: 2 }),
-      video: false,
-    })
-    expect(onIssue).toHaveBeenCalledWith(
-      expect.objectContaining({
-        warning: expect.objectContaining({
-          code: RecorderWarningCode.AudioConstraintNotApplied,
-        }),
-      })
-    )
   })
 
   it("warns when the browser does not apply a requested audio constraint", async () => {

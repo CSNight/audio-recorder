@@ -115,7 +115,7 @@ describe("createAudioWorkletBackend", () => {
     expect(created[0]?.name).toBe("audio-recorder-frame-processor")
     expect(created[0]?.options).toMatchObject({
       channelCount: 2,
-      outputChannelCount: [2],
+      channelCountMode: "clamped-max",
     })
 
     // frame: slice planar to resolved channel count (3 → 1, only 1/2 supported)

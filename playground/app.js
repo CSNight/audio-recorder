@@ -45,6 +45,7 @@ createApp({
       storageMode: PLAYGROUND_STORAGE_MODE.memory,
       persistenceBackend: PLAYGROUND_PERSISTENCE_BACKEND.indexeddb,
       requestedChannelCount: 1,
+      inputStrategy: "auto", // "auto" | media-recorder | audio-worklet | script-processor
       memoryThresholdBytes: 256 * 1024,
       pendingActionLabel: "",
       recorderState: RecorderState.Idle,
@@ -281,6 +282,7 @@ createApp({
               ? {
                   sourceStream: currentSource.stream,
                   channelCount: state.requestedChannelCount,
+                  inputStrategy: state.inputStrategy,
                   echoCancellation: false,
                   noiseSuppression: false,
                   autoGainControl: false,
@@ -290,6 +292,7 @@ createApp({
                 }
               : {
                   channelCount: state.requestedChannelCount,
+                  inputStrategy: state.inputStrategy,
                   echoCancellation: false,
                   noiseSuppression: false,
                   autoGainControl: false,
