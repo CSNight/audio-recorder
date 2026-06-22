@@ -45,6 +45,10 @@
     "./codecs/mp3": {
       "types": "./dist/codecs/mp3/index.d.ts",
       "import": "./dist/codecs/mp3/index.js"
+    },
+    "./codecs/base": {
+      "types": "./dist/codecs/base/index.d.ts",
+      "import": "./dist/codecs/base/index.js"
     }
   },
   "devDependencies": {

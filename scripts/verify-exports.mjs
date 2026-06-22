@@ -15,6 +15,8 @@ const required = [
   "dist/plugins/streaming-export/index.d.ts",
   "dist/codecs/mp3/index.js",
   "dist/codecs/mp3/index.d.ts",
+  "dist/codecs/base/index.js",
+  "dist/codecs/base/index.d.ts",
 ]
 const rootExport = packageJson.exports?.["."]
 const levelMeterExport = packageJson.exports?.["./plugins/level-meter"]
@@ -22,6 +24,8 @@ const opfsExport = packageJson.exports?.["./storage/opfs"]
 const indexedDbExport = packageJson.exports?.["./storage/indexeddb"]
 const streamingExportExport =
   packageJson.exports?.["./plugins/streaming-export"]
+const mp3Export = packageJson.exports?.["./codecs/mp3"]
+const baseCodecExport = packageJson.exports?.["./codecs/base"]
 
 if (
   !rootExport ||
@@ -74,6 +78,28 @@ if (
 ) {
   console.error(
     "The package.json streaming-export export must match dist/plugins/streaming-export/index.js and dist/plugins/streaming-export/index.d.ts."
+  )
+  process.exit(1)
+}
+
+if (
+  !mp3Export ||
+  mp3Export.import !== "./dist/codecs/mp3/index.js" ||
+  mp3Export.types !== "./dist/codecs/mp3/index.d.ts"
+) {
+  console.error(
+    "The package.json mp3 export must match dist/codecs/mp3/index.js and dist/codecs/mp3/index.d.ts."
+  )
+  process.exit(1)
+}
+
+if (
+  !baseCodecExport ||
+  baseCodecExport.import !== "./dist/codecs/base/index.js" ||
+  baseCodecExport.types !== "./dist/codecs/base/index.d.ts"
+) {
+  console.error(
+    "The package.json base codec export must match dist/codecs/base/index.js and dist/codecs/base/index.d.ts."
   )
   process.exit(1)
 }
