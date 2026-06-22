@@ -11,7 +11,9 @@ import type {
 import { RecorderWarningCode } from "@/types"
 import { createAudioFrame } from "@/utils/audio-frame"
 
-function inferChannelCount(planar: Int16Array[]): PcmBufferSnapshot["channels"] {
+function inferChannelCount(
+  planar: Int16Array[]
+): PcmBufferSnapshot["channels"] {
   if (planar.length === 1 || planar.length === 2) {
     return planar.length
   }
