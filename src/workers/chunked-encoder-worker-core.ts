@@ -15,7 +15,10 @@
  *   { type: "result",    result: Uint8Array | null, seqId: number }
  *   { type: "error",     message: string,            seqId: number }
  */
-import type { ChunkedEncoder, ChunkedEncoderDefinition } from "@/plugins/streaming-export/types"
+import type {
+  ChunkedEncoder,
+  ChunkedEncoderDefinition,
+} from "@/plugins/streaming-export/types"
 
 type WorkerIncomingMessage =
   | { type: "init"; format: string; options?: unknown }
@@ -82,7 +85,11 @@ export function createWorkerMessageHandler(
       }
 
       try {
-        const result = encoder.feedFrame(msg.channels, msg.sampleRate, msg.planar)
+        const result = encoder.feedFrame(
+          msg.channels,
+          msg.sampleRate,
+          msg.planar
+        )
         if (result !== null) {
           const copy = result.slice()
           postMsg({ type: "result", result: copy, seqId: msg.seqId }, [

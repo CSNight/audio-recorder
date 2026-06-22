@@ -18,7 +18,6 @@
  */
 import InlineMp3Worker from "./mp3-worker.ts?worker&inline"
 import { mp3ChunkedEncoderDefinition } from "./mp3-chunked-encoder"
-
 ;(
   mp3ChunkedEncoderDefinition as typeof mp3ChunkedEncoderDefinition & {
     workerFactory?: () => Worker

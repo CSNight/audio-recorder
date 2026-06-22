@@ -12,7 +12,10 @@
  * 使用 `?worker&inline` 将各 codec Worker 内联为 base64 blob，避免额外的网络请求。
  */
 
-import type { ChunkedEncoder, ChunkedEncoderDefinition } from "@/plugins/streaming-export/types"
+import type {
+  ChunkedEncoder,
+  ChunkedEncoderDefinition,
+} from "@/plugins/streaming-export/types"
 
 export interface ChunkedEncoderBridgeOptions {
   format: string
