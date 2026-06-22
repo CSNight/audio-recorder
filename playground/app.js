@@ -14,7 +14,16 @@ import { createLevelMeterPlugin } from "/dist/plugins/level-meter/index.js"
 import { createIndexedDbPersistencePlugin } from "/dist/storage/indexeddb/index.js"
 import { createOpfsPersistencePlugin } from "/dist/storage/opfs/index.js"
 import { createStreamingExportPlugin } from "/dist/plugins/streaming-export/index.js"
-import { createMp3Encoder } from "/dist/codecs/mp3/index.js"
+import {
+  pcmSnapshotEncoderDefinition,
+  wavSnapshotEncoderDefinition,
+  pcmChunkedEncoderDefinition,
+  wavChunkedEncoderDefinition,
+} from "/dist/codecs/base/index.js"
+import {
+  mp3ChunkedEncoderDefinition,
+  mp3SnapshotEncoderDefinition,
+} from "/dist/codecs/mp3/index.js"
 
 const PLAYGROUND_SOURCE_MODE = {
   microphone: RecorderInputSource.Microphone,
@@ -207,13 +216,18 @@ createApp({
       await recorder.use(createLevelMeterPlugin())
       await recorder.use(
         createStreamingExportPlugin({
-          format: "mp3",
+          format: "wav",
+          encoders: [
+            mp3ChunkedEncoderDefinition,
+            pcmChunkedEncoderDefinition,
+            wavChunkedEncoderDefinition,
+          ],
           encoderOptions: { bitRate: 32 },
           allowMainThreadFallback: true,
         })
       )
       // 注册 MP3 快照编码器（可选编解码器，不在默认注册表中，需显式注册）
-      recorder.registerEncoder(createMp3Encoder())
+      recorder.registerEncoder(mp3SnapshotEncoderDefinition)
       recorderDisposers = bindRecorderEvents(recorder, state, appendLog)
     }
 
@@ -557,6 +571,7 @@ function createPlaygroundRecorder(
       memoryThresholdBytes,
       persistencePluginFactory
     ),
+    encoders: [pcmSnapshotEncoderDefinition, wavSnapshotEncoderDefinition],
   })
 }
 

@@ -24,7 +24,7 @@ export default defineConfig({
           new URL("./src/codecs/mp3/index.ts", import.meta.url)
         ),
         "codecs/base/index": fileURLToPath(
-          new URL("./src/codecs/wav/index.ts", import.meta.url)
+          new URL("./src/codecs/base/index.ts", import.meta.url)
         ),
       },
       formats: ["es"],
