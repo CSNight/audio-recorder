@@ -56,7 +56,10 @@ describe("exportG711Snapshot", () => {
       channels: 2,
       frameCount: 1,
       durationMs: (3 / 8000) * 1000,
-      planar: [new Int16Array([100, 200, 300]), new Int16Array([999, 999, 999])],
+      planar: [
+        new Int16Array([100, 200, 300]),
+        new Int16Array([999, 999, 999]),
+      ],
     }
 
     const monoResult = exportG711Snapshot(monoSnap)
@@ -81,11 +84,7 @@ describe("exportG711Snapshot", () => {
   })
 
   it("all output bytes are within valid G.711 range 0-255", () => {
-    const snapshot = makeSnapshot(
-      [-32768, -16384, 0, 16383, 32767],
-      8000,
-      1
-    )
+    const snapshot = makeSnapshot([-32768, -16384, 0, 16383, 32767], 8000, 1)
     const result = exportG711Snapshot(snapshot, { variant: "alaw" })
 
     for (const byte of result.data) {
@@ -96,11 +95,7 @@ describe("exportG711Snapshot", () => {
 
   it("returns correct durationMs after resampling", () => {
     // 8000 样本 @ 8000Hz = 1000ms
-    const snapshot = makeSnapshot(
-      new Array(8000).fill(0),
-      8000,
-      1
-    )
+    const snapshot = makeSnapshot(new Array(8000).fill(0), 8000, 1)
     const result = exportG711Snapshot(snapshot)
     expect(result.durationMs).toBeCloseTo(1000, 0)
   })

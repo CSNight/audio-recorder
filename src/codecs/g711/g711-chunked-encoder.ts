@@ -16,8 +16,7 @@ import type { G711ChunkedEncoderOptions } from "./types"
 function createG711ChunkedEncoder(
   options?: G711ChunkedEncoderOptions
 ): ChunkedEncoder {
-  const encodeFn =
-    options?.variant === "ulaw" ? encodeUlaw : encodeAlaw
+  const encodeFn = options?.variant === "ulaw" ? encodeUlaw : encodeAlaw
 
   return {
     feedFrame(_channels, _sampleRate, planar) {

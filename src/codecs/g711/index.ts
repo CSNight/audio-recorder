@@ -17,4 +17,8 @@ import { g711ChunkedEncoderDefinition } from "./g711-chunked-encoder"
 
 export { g711ChunkedEncoderDefinition } from "./g711-chunked-encoder"
 export { g711SnapshotEncoderDefinition } from "./g711-snapshot-exporter"
-export type { G711ChunkedEncoderOptions, G711ExportOptions, G711ExportResult } from "./types"
+export type {
+  G711ChunkedEncoderOptions,
+  G711ExportOptions,
+  G711ExportResult,
+} from "./types"

@@ -10,10 +10,9 @@
 
 // 用于定位段号的查找表（索引为 pcm_val>>8 & 0x7F，值为段号+1）
 const SEG_TABLE = new Uint8Array([
-  1, 2, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5,
-  6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-  7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-  7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+  1, 2, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+  6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+  7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
 ])
 
 /**
@@ -30,7 +29,7 @@ export function encodeAlaw(sample: number): number {
     pcmVal = -pcmVal - 1
   }
 
-  const seg = ((SEG_TABLE[(pcmVal >> 8) & 0x7f] ?? 8) - 1)
+  const seg = (SEG_TABLE[(pcmVal >> 8) & 0x7f] ?? 8) - 1
 
   let aval = seg << 4
   if (seg < 2) {
@@ -51,13 +50,13 @@ export function encodeUlaw(sample: number): number {
   let mask: number
   if (pcmVal < 0) {
     pcmVal = 0x84 - pcmVal // 负数：加偏置取反（正值化）
-    mask = 0x7f            // 最终 XOR mask（bit7=0 表示负）
+    mask = 0x7f // 最终 XOR mask（bit7=0 表示负）
   } else {
-    pcmVal += 0x84         // 正数：加偏置
-    mask = 0xff            // 最终 XOR mask（bit7=1 表示正）
+    pcmVal += 0x84 // 正数：加偏置
+    mask = 0xff // 最终 XOR mask（bit7=1 表示正）
   }
 
-  const seg = ((SEG_TABLE[(pcmVal >> 8) & 0x7f] ?? 8) - 1)
+  const seg = (SEG_TABLE[(pcmVal >> 8) & 0x7f] ?? 8) - 1
 
   const uval = (seg << 4) | ((pcmVal >> (seg + 3)) & 0xf)
   return uval ^ mask
