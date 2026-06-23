@@ -26,6 +26,9 @@ export default defineConfig({
         "codecs/base/index": fileURLToPath(
           new URL("./src/codecs/base/index.ts", import.meta.url)
         ),
+        "codecs/g711/index": fileURLToPath(
+          new URL("./src/codecs/g711/index.ts", import.meta.url)
+        ),
       },
       formats: ["es"],
       fileName: (_format, entryName) => `${entryName}.js`,

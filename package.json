@@ -49,6 +49,10 @@
     "./codecs/base": {
       "types": "./dist/codecs/base/index.d.ts",
       "import": "./dist/codecs/base/index.js"
+    },
+    "./codecs/g711": {
+      "types": "./dist/codecs/g711/index.d.ts",
+      "import": "./dist/codecs/g711/index.js"
     }
   },
   "devDependencies": {
