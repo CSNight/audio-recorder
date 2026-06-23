@@ -37,12 +37,12 @@ npm run dev
 ## 快速使用
 
 ```ts
-import { createRecorder } from "@scope/audio-recorder"
+import { createRecorder } from "audio-recorder"
 import {
   pcmSnapshotEncoderDefinition,
   wavSnapshotEncoderDefinition,
-} from "@scope/audio-recorder/codecs/base"
-import { mp3SnapshotEncoderDefinition } from "@scope/audio-recorder/codecs/mp3"
+} from "audio-recorder/codecs/base"
+import { mp3SnapshotEncoderDefinition } from "audio-recorder/codecs/mp3"
 
 const recorder = createRecorder({
   channelCount: 1,
@@ -67,19 +67,19 @@ console.log(summary.durationMs, wav.arrayBuffer.byteLength)
 
 根入口只暴露最小核心 API，扩展能力通过子路径显式引入：
 
-- `@scope/audio-recorder/codecs/base`
-- `@scope/audio-recorder/codecs/mp3`
-- `@scope/audio-recorder/plugins/streaming-export`
-- `@scope/audio-recorder/plugins/level-meter`
-- `@scope/audio-recorder/storage/opfs`
-- `@scope/audio-recorder/storage/indexeddb`
+- `audio-recorder/codecs/base`
+- `audio-recorder/codecs/mp3`
+- `audio-recorder/plugins/streaming-export`
+- `audio-recorder/plugins/level-meter`
+- `audio-recorder/storage/opfs`
+- `audio-recorder/storage/indexeddb`
 
 实时 chunk 导出示例：
 
 ```ts
-import { createRecorder } from "@scope/audio-recorder"
-import { createStreamingExportPlugin } from "@scope/audio-recorder/plugins/streaming-export"
-import { wavChunkedEncoderDefinition } from "@scope/audio-recorder/codecs/base"
+import { createRecorder } from "audio-recorder"
+import { createStreamingExportPlugin } from "audio-recorder/plugins/streaming-export"
+import { wavChunkedEncoderDefinition } from "audio-recorder/codecs/base"
 
 const recorder = createRecorder()
 
@@ -98,8 +98,8 @@ recorder.on("plugin:encoded-chunk", ({ payload }) => {
 持久化溢写示例：
 
 ```ts
-import { createRecorder } from "@scope/audio-recorder"
-import { createIndexedDbPersistencePlugin } from "@scope/audio-recorder/storage/indexeddb"
+import { createRecorder } from "audio-recorder"
+import { createIndexedDbPersistencePlugin } from "audio-recorder/storage/indexeddb"
 
 const recorder = createRecorder({
   storage: {

@@ -1,5 +1,5 @@
 {
-  "name": "@scope/audio-recorder",
+  "name": "audio-recorder",
   "private": true,
   "version": "0.1.0",
   "type": "module",

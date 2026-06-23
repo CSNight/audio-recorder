@@ -7,7 +7,7 @@
  * 始终在主线程同步执行，不经过 Worker（snapshot 已是完整数据，无"实时流"语义）。
  */
 import type { PcmBufferSnapshot } from "@/buffer/types"
-import { resample } from "@scope/audio-recorder"
+import { resample } from "audio-recorder"
 import { Mp3Encoder } from "./vendor/lame.all.js"
 import type {
   LameMp3Encoder,

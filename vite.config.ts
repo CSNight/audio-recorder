@@ -31,7 +31,7 @@ export default defineConfig({
       fileName: (_format, entryName) => `${entryName}.js`,
     },
     rolldownOptions: {
-      external: ["@scope/audio-recorder"],
+      external: ["audio-recorder"],
       output: {
         minify: true,
         chunkFileNames: "chunks/[name]-[hash].js",
