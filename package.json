@@ -53,6 +53,14 @@
     "./codecs/g711": {
       "types": "./dist/codecs/g711/index.d.ts",
       "import": "./dist/codecs/g711/index.js"
+    },
+    "./codecs/opus": {
+      "types": "./dist/codecs/opus/index.d.ts",
+      "import": "./dist/codecs/opus/index.js"
+    },
+    "./codecs/flac": {
+      "types": "./dist/codecs/flac/index.d.ts",
+      "import": "./dist/codecs/flac/index.js"
     }
   },
   "devDependencies": {

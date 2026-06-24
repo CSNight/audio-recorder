@@ -201,7 +201,10 @@ export interface SnapshotEncoderDefinition<
   TResult = unknown,
 > {
   type: TType
-  export(snapshot: PcmBufferSnapshot, options?: TOptions): TResult
+  export(
+    snapshot: PcmBufferSnapshot,
+    options?: TOptions
+  ): TResult | Promise<TResult>
 }
 
 /**

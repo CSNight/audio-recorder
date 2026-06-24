@@ -25,6 +25,16 @@ import {
   mp3SnapshotEncoderDefinition,
 } from "/dist/codecs/mp3/index.js"
 import { g711SnapshotEncoderDefinition } from "/dist/codecs/g711/index.js"
+import {
+  opusOggChunkedEncoderDefinition,
+  opusWebmChunkedEncoderDefinition,
+  opusOggSnapshotEncoderDefinition,
+  opusWebmSnapshotEncoderDefinition,
+} from "/dist/codecs/opus/index.js"
+import {
+  flacChunkedEncoderDefinition,
+  flacSnapshotEncoderDefinition,
+} from "/dist/codecs/flac/index.js"
 
 const PLAYGROUND_SOURCE_MODE = {
   microphone: RecorderInputSource.Microphone,
@@ -222,6 +232,9 @@ createApp({
             mp3ChunkedEncoderDefinition,
             pcmChunkedEncoderDefinition,
             wavChunkedEncoderDefinition,
+            opusOggChunkedEncoderDefinition,
+            opusWebmChunkedEncoderDefinition,
+            flacChunkedEncoderDefinition,
           ],
           encoderOptions: { bitRate: 32 },
           allowMainThreadFallback: true,
@@ -364,19 +377,32 @@ createApp({
       await runLoggedAction(
         async () => {
           state.summary = await recorder.stop()
-          const [pcmResult, wavResult, mp3Result, g711Result] =
-            await Promise.all([
-              recorder.exportEncoded("pcm"),
-              recorder.exportEncoded("wav"),
-              recorder.exportEncoded("mp3"),
-              recorder.exportEncoded("g711"),
-            ])
+          const [
+            pcmResult,
+            wavResult,
+            mp3Result,
+            g711Result,
+            opusOggResult,
+            opusWebmResult,
+            flacResult,
+          ] = await Promise.all([
+            recorder.exportEncoded("pcm"),
+            recorder.exportEncoded("wav"),
+            recorder.exportEncoded("mp3"),
+            recorder.exportEncoded("g711"),
+            recorder.exportEncoded("opus-ogg").catch(() => null),
+            recorder.exportEncoded("opus-webm").catch(() => null),
+            recorder.exportEncoded("flac").catch(() => null),
+          ])
           state.exportedBytes = pcmResult.data.byteLength
           state.lastExportResult = {
             pcm: pcmResult,
             wav: wavResult,
             mp3: mp3Result,
             g711: g711Result,
+            opusOgg: opusOggResult,
+            opusWebm: opusWebmResult,
+            flac: flacResult,
           }
           state.storageDiagnostics = await collectStorageDiagnostics(
             state.storageMode,
@@ -388,7 +414,7 @@ createApp({
               : null
           appendLog(
             "info",
-            `录音已停止，共接收 ${state.summary.frames} 帧，累计时长 ${state.summary.durationMs.toFixed(1)}ms，PCM ${pcmResult.data.byteLength} byte，WAV ${wavResult.arrayBuffer.byteLength} byte，MP3 ${mp3Result.data.byteLength} byte。`
+            `录音已停止，共接收 ${state.summary.frames} 帧，累计时长 ${state.summary.durationMs.toFixed(1)}ms，PCM ${pcmResult.data.byteLength} byte，WAV ${wavResult.arrayBuffer.byteLength} byte，MP3 ${mp3Result.data.byteLength} byte，Opus OGG ${opusOggResult.data.byteLength} byte，FLAC ${flacResult.data.byteLength} byte。`
           )
         },
         "",
@@ -455,6 +481,52 @@ createApp({
       )
     }
 
+    function downloadOpusOgg() {
+      const result = state.lastExportResult?.opusOgg
+      if (!result) return
+      const blob = new Blob([result.data.buffer], {
+        type: "audio/ogg; codecs=opus",
+      })
+      triggerDownload(
+        blob,
+        `recording_${result.sampleRate}hz_${result.channels}ch.opus`
+      )
+      appendLog(
+        "info",
+        `Opus OGG 已下载：${result.sampleRate}Hz ${result.channels}ch，${result.data.byteLength} byte。`
+      )
+    }
+
+    function downloadOpusWebm() {
+      const result = state.lastExportResult?.opusWebm
+      if (!result) return
+      const blob = new Blob([result.data.buffer], {
+        type: "audio/webm; codecs=opus",
+      })
+      triggerDownload(
+        blob,
+        `recording_${result.sampleRate}hz_${result.channels}ch.webm`
+      )
+      appendLog(
+        "info",
+        `Opus WebM 已下载：${result.sampleRate}Hz ${result.channels}ch，${result.data.byteLength} byte。`
+      )
+    }
+
+    function downloadFLAC() {
+      const result = state.lastExportResult?.flac
+      if (!result) return
+      const blob = new Blob([result.data.buffer], { type: "audio/flac" })
+      triggerDownload(
+        blob,
+        `recording_${result.sampleRate}hz_${result.channels}ch_${result.bitsPerSample}bit.flac`
+      )
+      appendLog(
+        "info",
+        `FLAC 已下载：${result.sampleRate}Hz ${result.channels}ch ${result.bitsPerSample}bit，${result.data.byteLength} byte。`
+      )
+    }
+
     function triggerDownload(blob, filename) {
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement("a")
@@ -505,6 +577,9 @@ createApp({
       closeRecorder,
       downloadG711,
       downloadMP3,
+      downloadOpusOgg,
+      downloadOpusWebm,
+      downloadFLAC,
       downloadPCM,
       downloadWAV,
       handleSourceModeChange,
@@ -593,6 +668,9 @@ function createPlaygroundRecorder(
       wavSnapshotEncoderDefinition,
       mp3SnapshotEncoderDefinition,
       g711SnapshotEncoderDefinition,
+      opusOggSnapshotEncoderDefinition,
+      opusWebmSnapshotEncoderDefinition,
+      flacSnapshotEncoderDefinition,
     ],
   })
 }

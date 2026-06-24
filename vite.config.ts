@@ -29,6 +29,12 @@ export default defineConfig({
         "codecs/g711/index": fileURLToPath(
           new URL("./src/codecs/g711/index.ts", import.meta.url)
         ),
+        "codecs/opus/index": fileURLToPath(
+          new URL("./src/codecs/opus/index.ts", import.meta.url)
+        ),
+        "codecs/flac/index": fileURLToPath(
+          new URL("./src/codecs/flac/index.ts", import.meta.url)
+        ),
       },
       formats: ["es"],
       fileName: (_format, entryName) => `${entryName}.js`,

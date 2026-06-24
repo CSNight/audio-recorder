@@ -15,6 +15,7 @@ export default defineConfig(
       "test-results",
       "**/vendor/**",
       "docs",
+      "src/codecs/**/*.mjs",
     ],
   },
   js.configs.recommended,

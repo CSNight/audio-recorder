@@ -291,35 +291,56 @@
               </p>
               <div
                 class="control-grid"
-                style="grid-template-columns: 1fr 1fr 1fr 1fr"
+                style="grid-template-columns: repeat(7, 1fr)"
               >
                 <button
                   :disabled="!state.lastExportResult"
                   data-testid="download-pcm-button"
                   @click="downloadPCM"
                 >
-                  ↓ 下载 PCM
+                  ↓ PCM
                 </button>
                 <button
                   :disabled="!state.lastExportResult"
                   data-testid="download-wav-button"
                   @click="downloadWAV"
                 >
-                  ↓ 下载 WAV
+                  ↓ WAV
                 </button>
                 <button
                   :disabled="!state.lastExportResult"
                   data-testid="download-mp3-button"
                   @click="downloadMP3"
                 >
-                  ↓ 下载 MP3
+                  ↓ MP3
                 </button>
                 <button
                   :disabled="!state.lastExportResult"
                   data-testid="download-g711-button"
                   @click="downloadG711"
                 >
-                  ↓ 下载 G.711
+                  ↓ G.711
+                </button>
+                <button
+                  :disabled="!state.lastExportResult"
+                  data-testid="download-opus-ogg-button"
+                  @click="downloadOpusOgg"
+                >
+                  ↓ Opus OGG
+                </button>
+                <button
+                  :disabled="!state.lastExportResult"
+                  data-testid="download-opus-webm-button"
+                  @click="downloadOpusWebm"
+                >
+                  ↓ Opus WebM
+                </button>
+                <button
+                  :disabled="!state.lastExportResult"
+                  data-testid="download-flac-button"
+                  @click="downloadFLAC"
+                >
+                  ↓ FLAC
                 </button>
               </div>
               <div
@@ -356,6 +377,24 @@
                   <p class="stat-label">G.711 大小</p>
                   <p class="stat-value" data-testid="export-g711-bytes">
                     {{ state.lastExportResult.g711.data.byteLength }} byte ({{ state.lastExportResult.g711.variant }})
+                  </p>
+                </article>
+                <article class="stat" v-if="state.lastExportResult.opusOgg">
+                  <p class="stat-label">Opus OGG 大小</p>
+                  <p class="stat-value" data-testid="export-opus-ogg-bytes">
+                    {{ state.lastExportResult.opusOgg.data.byteLength }} byte
+                  </p>
+                </article>
+                <article class="stat" v-if="state.lastExportResult.opusWebm">
+                  <p class="stat-label">Opus WebM 大小</p>
+                  <p class="stat-value" data-testid="export-opus-webm-bytes">
+                    {{ state.lastExportResult.opusWebm.data.byteLength }} byte
+                  </p>
+                </article>
+                <article class="stat" v-if="state.lastExportResult.flac">
+                  <p class="stat-label">FLAC 大小</p>
+                  <p class="stat-value" data-testid="export-flac-bytes">
+                    {{ state.lastExportResult.flac.data.byteLength }} byte
                   </p>
                 </article>
               </div>
