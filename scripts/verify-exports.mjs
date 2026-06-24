@@ -2,105 +2,47 @@ import { existsSync } from "node:fs"
 import { readFile } from "node:fs/promises"
 
 const packageJson = JSON.parse(await readFile("package.json", "utf8"))
-const required = [
-  "dist/index.js",
-  "dist/index.d.ts",
-  "dist/plugins/level-meter/index.js",
-  "dist/plugins/level-meter/index.d.ts",
-  "dist/storage/opfs/index.js",
-  "dist/storage/opfs/index.d.ts",
-  "dist/storage/indexeddb/index.js",
-  "dist/storage/indexeddb/index.d.ts",
-  "dist/plugins/streaming-export/index.js",
-  "dist/plugins/streaming-export/index.d.ts",
-  "dist/codecs/mp3/index.js",
-  "dist/codecs/mp3/index.d.ts",
-  "dist/codecs/base/index.js",
-  "dist/codecs/base/index.d.ts",
-]
-const rootExport = packageJson.exports?.["."]
-const levelMeterExport = packageJson.exports?.["./plugins/level-meter"]
-const opfsExport = packageJson.exports?.["./storage/opfs"]
-const indexedDbExport = packageJson.exports?.["./storage/indexeddb"]
-const streamingExportExport =
-  packageJson.exports?.["./plugins/streaming-export"]
-const mp3Export = packageJson.exports?.["./codecs/mp3"]
-const baseCodecExport = packageJson.exports?.["./codecs/base"]
+const packageExports = packageJson.exports
 
-if (
-  !rootExport ||
-  rootExport.import !== "./dist/index.js" ||
-  rootExport.types !== "./dist/index.d.ts"
-) {
-  console.error(
-    "The package.json root export must match dist/index.js and dist/index.d.ts."
-  )
+if (!packageExports || typeof packageExports !== "object") {
+  console.error("package.json must define an exports object.")
   process.exit(1)
 }
 
-if (
-  !levelMeterExport ||
-  levelMeterExport.import !== "./dist/plugins/level-meter/index.js" ||
-  levelMeterExport.types !== "./dist/plugins/level-meter/index.d.ts"
-) {
-  console.error(
-    "The package.json level-meter export must match dist/plugins/level-meter/index.js and dist/plugins/level-meter/index.d.ts."
-  )
-  process.exit(1)
+const failures = []
+const required = []
+
+for (const [subpath, exportEntry] of Object.entries(packageExports)) {
+  if (!exportEntry || typeof exportEntry !== "object") {
+    failures.push(`Export ${subpath} must define an object with import/types.`)
+    continue
+  }
+
+  if (typeof exportEntry.import !== "string" || !exportEntry.import.startsWith("./dist/")) {
+    failures.push(`Export ${subpath} must define an import path under ./dist/.`)
+    continue
+  }
+
+  if (typeof exportEntry.types !== "string" || !exportEntry.types.startsWith("./dist/")) {
+    failures.push(`Export ${subpath} must define a types path under ./dist/.`)
+    continue
+  }
+
+  if (!exportEntry.import.endsWith(".js")) {
+    failures.push(`Export ${subpath} import path must end with .js.`)
+    continue
+  }
+
+  if (!exportEntry.types.endsWith(".d.ts")) {
+    failures.push(`Export ${subpath} types path must end with .d.ts.`)
+    continue
+  }
+
+  required.push(exportEntry.import.slice(2), exportEntry.types.slice(2))
 }
 
-if (
-  !opfsExport ||
-  opfsExport.import !== "./dist/storage/opfs/index.js" ||
-  opfsExport.types !== "./dist/storage/opfs/index.d.ts"
-) {
-  console.error(
-    "The package.json OPFS export must match dist/storage/opfs/index.js and dist/storage/opfs/index.d.ts."
-  )
-  process.exit(1)
-}
-
-if (
-  !indexedDbExport ||
-  indexedDbExport.import !== "./dist/storage/indexeddb/index.js" ||
-  indexedDbExport.types !== "./dist/storage/indexeddb/index.d.ts"
-) {
-  console.error(
-    "The package.json IndexedDB export must match dist/storage/indexeddb/index.js and dist/storage/indexeddb/index.d.ts."
-  )
-  process.exit(1)
-}
-
-if (
-  !streamingExportExport ||
-  streamingExportExport.import !== "./dist/plugins/streaming-export/index.js" ||
-  streamingExportExport.types !== "./dist/plugins/streaming-export/index.d.ts"
-) {
-  console.error(
-    "The package.json streaming-export export must match dist/plugins/streaming-export/index.js and dist/plugins/streaming-export/index.d.ts."
-  )
-  process.exit(1)
-}
-
-if (
-  !mp3Export ||
-  mp3Export.import !== "./dist/codecs/mp3/index.js" ||
-  mp3Export.types !== "./dist/codecs/mp3/index.d.ts"
-) {
-  console.error(
-    "The package.json mp3 export must match dist/codecs/mp3/index.js and dist/codecs/mp3/index.d.ts."
-  )
-  process.exit(1)
-}
-
-if (
-  !baseCodecExport ||
-  baseCodecExport.import !== "./dist/codecs/base/index.js" ||
-  baseCodecExport.types !== "./dist/codecs/base/index.d.ts"
-) {
-  console.error(
-    "The package.json base codec export must match dist/codecs/base/index.js and dist/codecs/base/index.d.ts."
-  )
+if (failures.length > 0) {
+  console.error(failures.join("\n"))
   process.exit(1)
 }
 
