@@ -18,12 +18,18 @@ for (const [subpath, exportEntry] of Object.entries(packageExports)) {
     continue
   }
 
-  if (typeof exportEntry.import !== "string" || !exportEntry.import.startsWith("./dist/")) {
+  if (
+    typeof exportEntry.import !== "string" ||
+    !exportEntry.import.startsWith("./dist/")
+  ) {
     failures.push(`Export ${subpath} must define an import path under ./dist/.`)
     continue
   }
 
-  if (typeof exportEntry.types !== "string" || !exportEntry.types.startsWith("./dist/")) {
+  if (
+    typeof exportEntry.types !== "string" ||
+    !exportEntry.types.startsWith("./dist/")
+  ) {
     failures.push(`Export ${subpath} must define a types path under ./dist/.`)
     continue
   }
