@@ -15,15 +15,16 @@ import { createIndexedDbPersistencePlugin } from "/dist/storage/indexeddb/index.
 import { createOpfsPersistencePlugin } from "/dist/storage/opfs/index.js"
 import { createStreamingExportPlugin } from "/dist/plugins/streaming-export/index.js"
 import {
-  pcmSnapshotEncoderDefinition,
-  wavSnapshotEncoderDefinition,
   pcmChunkedEncoderDefinition,
+  pcmSnapshotEncoderDefinition,
   wavChunkedEncoderDefinition,
+  wavSnapshotEncoderDefinition,
 } from "/dist/codecs/base/index.js"
 import {
   mp3ChunkedEncoderDefinition,
   mp3SnapshotEncoderDefinition,
 } from "/dist/codecs/mp3/index.js"
+import { g711SnapshotEncoderDefinition } from "/dist/codecs/g711/index.js"
 
 const PLAYGROUND_SOURCE_MODE = {
   microphone: RecorderInputSource.Microphone,
@@ -226,8 +227,6 @@ createApp({
           allowMainThreadFallback: true,
         })
       )
-      // 注册 MP3 快照编码器（可选编解码器，不在默认注册表中，需显式注册）
-      recorder.registerEncoder(mp3SnapshotEncoderDefinition)
       recorderDisposers = bindRecorderEvents(recorder, state, appendLog)
     }
 
@@ -365,16 +364,19 @@ createApp({
       await runLoggedAction(
         async () => {
           state.summary = await recorder.stop()
-          const [pcmResult, wavResult, mp3Result] = await Promise.all([
-            recorder.exportEncoded("pcm"),
-            recorder.exportEncoded("wav"),
-            recorder.exportEncoded("mp3"),
-          ])
+          const [pcmResult, wavResult, mp3Result, g711Result] =
+            await Promise.all([
+              recorder.exportEncoded("pcm"),
+              recorder.exportEncoded("wav"),
+              recorder.exportEncoded("mp3"),
+              recorder.exportEncoded("g711"),
+            ])
           state.exportedBytes = pcmResult.data.byteLength
           state.lastExportResult = {
             pcm: pcmResult,
             wav: wavResult,
             mp3: mp3Result,
+            g711: g711Result,
           }
           state.storageDiagnostics = await collectStorageDiagnostics(
             state.storageMode,
@@ -439,6 +441,20 @@ createApp({
       )
     }
 
+    function downloadG711() {
+      const result = state.lastExportResult?.g711
+      if (!result) return
+      const blob = new Blob([result.data.buffer], { type: "audio/basic" })
+      triggerDownload(
+        blob,
+        `recording_${result.sampleRate}hz_${result.variant}.g711`
+      )
+      appendLog(
+        "info",
+        `G.711 文件已下载：${result.sampleRate}Hz ${result.variant}，${result.data.byteLength} byte。`
+      )
+    }
+
     function triggerDownload(blob, filename) {
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement("a")
@@ -487,6 +503,7 @@ createApp({
       canResume,
       canStop,
       closeRecorder,
+      downloadG711,
       downloadMP3,
       downloadPCM,
       downloadWAV,
@@ -571,7 +588,12 @@ function createPlaygroundRecorder(
       memoryThresholdBytes,
       persistencePluginFactory
     ),
-    encoders: [pcmSnapshotEncoderDefinition, wavSnapshotEncoderDefinition],
+    encoders: [
+      pcmSnapshotEncoderDefinition,
+      wavSnapshotEncoderDefinition,
+      mp3SnapshotEncoderDefinition,
+      g711SnapshotEncoderDefinition,
+    ],
   })
 }
 

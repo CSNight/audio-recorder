@@ -291,7 +291,7 @@
               </p>
               <div
                 class="control-grid"
-                style="grid-template-columns: 1fr 1fr 1fr"
+                style="grid-template-columns: 1fr 1fr 1fr 1fr"
               >
                 <button
                   :disabled="!state.lastExportResult"
@@ -313,6 +313,13 @@
                   @click="downloadMP3"
                 >
                   ↓ 下载 MP3
+                </button>
+                <button
+                  :disabled="!state.lastExportResult"
+                  data-testid="download-g711-button"
+                  @click="downloadG711"
+                >
+                  ↓ 下载 G.711
                 </button>
               </div>
               <div
@@ -343,6 +350,12 @@
                   <p class="stat-value" data-testid="export-channels-bitrate">
                     {{ state.lastExportResult.wav.channels }}ch / {{
                     state.lastExportResult.wav.bitRate }}bit
+                  </p>
+                </article>
+                <article class="stat">
+                  <p class="stat-label">G.711 大小</p>
+                  <p class="stat-value" data-testid="export-g711-bytes">
+                    {{ state.lastExportResult.g711.data.byteLength }} byte ({{ state.lastExportResult.g711.variant }})
                   </p>
                 </article>
               </div>
