@@ -26,10 +26,10 @@ import {
 } from "/dist/codecs/mp3/index.js"
 import { g711SnapshotEncoderDefinition } from "/dist/codecs/g711/index.js"
 import {
-  opusOggChunkedEncoderDefinition,
-  opusWebmChunkedEncoderDefinition,
-  opusOggSnapshotEncoderDefinition,
-  opusWebmSnapshotEncoderDefinition,
+  oggChunkedEncoderDefinition,
+  webmChunkedEncoderDefinition,
+  oggSnapshotEncoderDefinition,
+  webmSnapshotEncoderDefinition,
 } from "/dist/codecs/opus/index.js"
 import {
   flacChunkedEncoderDefinition,
@@ -227,13 +227,13 @@ createApp({
       await recorder.use(createLevelMeterPlugin())
       await recorder.use(
         createStreamingExportPlugin({
-          format: "wav",
+          format: "flac",
           encoders: [
             mp3ChunkedEncoderDefinition,
             pcmChunkedEncoderDefinition,
             wavChunkedEncoderDefinition,
-            opusOggChunkedEncoderDefinition,
-            opusWebmChunkedEncoderDefinition,
+            oggChunkedEncoderDefinition,
+            webmChunkedEncoderDefinition,
             flacChunkedEncoderDefinition,
           ],
           encoderOptions: { bitRate: 32 },
@@ -390,9 +390,9 @@ createApp({
             recorder.exportEncoded("wav"),
             recorder.exportEncoded("mp3"),
             recorder.exportEncoded("g711"),
-            recorder.exportEncoded("opus-ogg").catch(() => null),
-            recorder.exportEncoded("opus-webm").catch(() => null),
-            recorder.exportEncoded("flac").catch(() => null),
+            recorder.exportEncoded("ogg"),
+            recorder.exportEncoded("webm"),
+            recorder.exportEncoded("flac"),
           ])
           state.exportedBytes = pcmResult.data.byteLength
           state.lastExportResult = {
@@ -668,8 +668,8 @@ function createPlaygroundRecorder(
       wavSnapshotEncoderDefinition,
       mp3SnapshotEncoderDefinition,
       g711SnapshotEncoderDefinition,
-      opusOggSnapshotEncoderDefinition,
-      opusWebmSnapshotEncoderDefinition,
+      oggSnapshotEncoderDefinition,
+      webmSnapshotEncoderDefinition,
       flacSnapshotEncoderDefinition,
     ],
   })

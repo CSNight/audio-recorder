@@ -2,8 +2,8 @@
  * Opus 流式（chunked）编码器实现
  *
  * 支持两种容器格式：
- * - "opus-ogg": Opus in OGG container (RFC 7845)
- * - "opus-webm": Opus in WebM container
+ * - "ogg": Opus in OGG container (RFC 7845)
+ * - "webm": Opus in WebM container
  *
  * 仅会被两类执行环境加载：
  * 1. Opus 专属 Worker blob 内部（opus-worker.ts 中 import）
@@ -364,16 +364,16 @@ function createOpusWebmChunkedEncoder(
   }
 }
 
-export const opusOggChunkedEncoderDefinition: ChunkedEncoderDefinition<OpusChunkedEncoderOptions> =
+export const oggChunkedEncoderDefinition: ChunkedEncoderDefinition<OpusChunkedEncoderOptions> =
   {
-    format: "opus-ogg",
+    format: "ogg",
     preload: preloadOpusModule,
     create: createOpusOggChunkedEncoder,
   }
 
-export const opusWebmChunkedEncoderDefinition: ChunkedEncoderDefinition<OpusChunkedEncoderOptions> =
+export const webmChunkedEncoderDefinition: ChunkedEncoderDefinition<OpusChunkedEncoderOptions> =
   {
-    format: "opus-webm",
+    format: "webm",
     preload: preloadOpusModule,
     create: createOpusWebmChunkedEncoder,
   }

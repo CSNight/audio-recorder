@@ -239,23 +239,23 @@ export function exportOpusSnapshot(
   }
 }
 
-export const opusOggSnapshotEncoderDefinition: SnapshotEncoderDefinition<
-  "opus-ogg",
+export const oggSnapshotEncoderDefinition: SnapshotEncoderDefinition<
+  "ogg",
   OpusExportOptions,
   OpusExportResult
 > = {
-  type: "opus-ogg",
+  type: "ogg",
   preload: preloadOpusModule,
   export: (snapshot, options) =>
     exportOpusSnapshot(snapshot, { ...options, container: "ogg" }),
 }
 
-export const opusWebmSnapshotEncoderDefinition: SnapshotEncoderDefinition<
-  "opus-webm",
+export const webmSnapshotEncoderDefinition: SnapshotEncoderDefinition<
+  "webm",
   OpusExportOptions,
   OpusExportResult
 > = {
-  type: "opus-webm",
+  type: "webm",
   preload: preloadOpusModule,
   export: (snapshot, options) =>
     exportOpusSnapshot(snapshot, { ...options, container: "webm" }),
