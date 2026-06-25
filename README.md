@@ -139,6 +139,62 @@ vendor/               上游 Recorder 参考实现
 - 单元测试覆盖控制器、输入后端选择、PCM/WAV 编码、chunked encoder bridge、插件总线、持久化插件等核心模块
 - Playwright 功能测试覆盖 external stream 生命周期、IndexedDB/OPFS 持久化路径和 playground 对 `dist` 产物的真实消费
 
+## 浏览器兼容性
+
+以下数据基于 `src/` 实际代码中使用的 Web API 逐一评估，构建产物以 ES2022 为输出目标（`vite.config.ts: target: "es2022"`）。
+
+### 输入策略
+
+代码在 `media-recorder-backend.ts` 中通过 `MediaRecorder.isTypeSupported("audio/webm; codecs=pcm")` 做严格检测，只有支持 PCM 裸音频录入的浏览器才会走 media-recorder 路径；其他浏览器自动降级。
+
+| 输入策略 | 最低 Chrome | 最低 Firefox | 最低 Safari | 代码依据 |
+|---|---|---|---|---|
+| `media-recorder`（默认首选） | **105** | ❌ 不支持 | ❌ 不支持 | `MediaRecorder` + `isTypeSupported("audio/webm; codecs=pcm")`，该 MIME 为 Chromium 专属，Firefox/Safari 不支持 |
+| `audio-worklet` | **66** | **76** | **14.1** | `AudioWorkletNode` + `audioWorklet.addModule()` |
+| `script-processor`（兜底） | **35** | **25** | **6** | `createScriptProcessor()`（已弃用，仅作降级兜底） |
+| `auto` 自动降级 | **66** ¹ | **76** | **14.1** | Firefox/Safari 跳过 media-recorder，直接走 audio-worklet |
+
+¹ Chrome 66–104 无 `audio/webm; codecs=pcm` 支持，自动降级为 audio-worklet，不影响可用性。
+
+### 持久化存储
+
+| 存储插件 | 最低 Chrome | 最低 Firefox | 最低 Safari | 代码依据 |
+|---|---|---|---|---|
+| `storage/indexeddb` | **24** | **16** | **8** | 标准 `indexedDB` API |
+| `storage/opfs` | **102** | **111** | **15.2** | `navigator.storage.getDirectory()` + `createWritable()`（async OPFS） |
+
+### 编码器
+
+编码器本身无录音 API 依赖，可独立于录音策略使用。
+
+| 编码器 | 入口 | 最低 Chrome | 最低 Firefox | 最低 Safari | 代码依据 |
+|---|---|---|---|---|---|
+| PCM（原始） | `codecs/base` | **57** | **52** | **11** | 仅 `Float32Array` / `Int16Array`，ES2022 类型化数组 |
+| WAV | `codecs/base` | **57** | **52** | **11** | 同上，无额外 Web API |
+| G.711（μ-law / a-law） | `codecs/g711` | **57** | **52** | **11** | 纯算术运算，无额外 Web API |
+| MP3（lamejs） | `codecs/mp3` | **57** | **52** | **11** | 纯 JS 实现，无 WASM，无额外 Web API |
+| FLAC（libflac WASM） | `codecs/flac` | **57** | **52** | **11** | `WebAssembly.instantiate()`（Emscripten 胶水层）；已移除 `Symbol.dispose` |
+| Opus（libopus WASM） | `codecs/opus` | **57** | **52** | **11** | `WebAssembly.instantiate()`（同上）；Opus 编码器使用 `BigInt`（ES2020，Chrome 67+，以 WASM 57 为瓶颈） |
+
+> FLAC / Opus 瓶颈为 `WebAssembly.instantiate`（Chrome 57 / Firefox 52 / Safari 11），不受主库录音路径版本约束，可单独在更低版本中使用。
+
+### 插件
+
+| 插件 | 入口 | 最低 Chrome | 最低 Firefox | 最低 Safari | 代码依据 |
+|---|---|---|---|---|---|
+| `level-meter` | `plugins/level-meter` | **66** | **76** | **14.1** | 依赖录音帧事件，以 audio-worklet 为基准 |
+| `streaming-export` | `plugins/streaming-export` | **66** | **76** | **14.1** | 依赖 `Worker` + `MessageChannel`（ES2022 环境内已有） |
+
+### 综合最低版本汇总
+
+| 使用场景 | 最低 Chrome | 最低 Firefox | 最低 Safari |
+|---|---|---|---|
+| 核心录音（auto 策略） + 编码器 | **66** | **76** | **14.1** |
+| 核心录音（auto 策略） + 编码器 + IndexedDB 持久化 | **66** | **76** | **14.1** |
+| 核心录音（auto 策略） + 编码器 + OPFS 持久化 | **102** | **111** | **15.2** |
+| 强制使用 `media-recorder` 策略（最高质量采集） | **105** | ❌ | ❌ |
+| 仅使用编码器（不录音） | **57** | **52** | **11** |
+
 ## 当前边界
 
 - 根入口不会自动注册任何编码器；调用 `exportEncoded()` 前需要显式传入或注册对应 `SnapshotEncoderDefinition`
