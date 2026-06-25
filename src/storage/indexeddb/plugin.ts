@@ -66,7 +66,7 @@ async function resolveNextChunkIndex(
   sessionId: string
 ): Promise<number> {
   const keys = await getSessionKeys(database, sessionId)
-  const lastKey = keys.at(-1)
+  const lastKey = keys[keys.length - 1]
   if (!lastKey) {
     return 0
   }

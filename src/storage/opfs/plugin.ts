@@ -91,7 +91,7 @@ async function resolveNextChunkIndex(
   sessionDirectory: FileSystemDirectoryHandle
 ): Promise<number> {
   const chunkNames = await listChunkFilenames(sessionDirectory)
-  const lastChunkName = chunkNames.at(-1)
+  const lastChunkName = chunkNames[chunkNames.length - 1]
   if (!lastChunkName) {
     return 0
   }

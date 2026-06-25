@@ -244,8 +244,5 @@ export async function createFlacEncoder(
       freed = true
     },
 
-    [Symbol.dispose]() {
-      ;(this as FlacEncoderHandle).free()
-    },
   }
 }

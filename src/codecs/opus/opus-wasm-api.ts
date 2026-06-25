@@ -291,10 +291,6 @@ export async function createOpusEncoder(
 
       freed = true
     },
-
-    [Symbol.dispose]() {
-      ;(this as OpusEncoderHandle).free()
-    },
   }
 }
 
@@ -439,8 +435,5 @@ export async function createOpusDecoder(
       freed = true
     },
 
-    [Symbol.dispose]() {
-      ;(this as OpusDecoderHandle).free()
-    },
   }
 }

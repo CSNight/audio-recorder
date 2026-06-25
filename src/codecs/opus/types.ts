@@ -93,12 +93,6 @@ export interface OpusEncoderHandle {
    * Free encoder resources
    */
   free(): void
-
-  /**
-   * Symbol.dispose support for 'using' statement (ES2023+)
-   */
-
-  [Symbol.dispose](): void
 }
 
 /**
@@ -132,12 +126,6 @@ export interface OpusDecoderHandle {
    * Free decoder resources
    */
   free(): void
-
-  /**
-   * Symbol.dispose support for 'using' statement (ES2023+)
-   */
-
-  [Symbol.dispose](): void
 }
 
 /**

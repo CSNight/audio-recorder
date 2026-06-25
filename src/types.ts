@@ -204,7 +204,7 @@ export interface SnapshotEncoderDefinition<
   export(
     snapshot: PcmBufferSnapshot,
     options?: TOptions
-  ): TResult | Promise<TResult>
+  ): Promise<TResult>
 }
 
 /**

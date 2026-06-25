@@ -57,10 +57,6 @@ export interface FlacEncoderHandle {
    */
   free(): void
 
-  /**
-   * Symbol.dispose support for 'using' statement (ES2023+)
-   */
-  [Symbol.dispose](): void
 }
 
 /**
