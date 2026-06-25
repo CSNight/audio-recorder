@@ -587,7 +587,9 @@ describe("RecorderController", () => {
       type: "mock-text",
       export: (snapshot, options?: { prefix?: string }) => {
         const samples = Array.from(snapshot.planar[0] ?? [])
-        return Promise.resolve(`${options?.prefix ?? "samples"}:${samples.join(",")}`)
+        return Promise.resolve(
+          `${options?.prefix ?? "samples"}:${samples.join(",")}`
+        )
       },
     })
 

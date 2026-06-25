@@ -170,9 +170,7 @@ export class ChunkedEncoderBridge {
         this.encoder!.feedFrame(channels, sampleRate, planar)
       )
     } catch (err) {
-      return Promise.reject(
-        err instanceof Error ? err : new Error(String(err))
-      )
+      return Promise.reject(err instanceof Error ? err : new Error(String(err)))
     }
   }
 
@@ -195,9 +193,7 @@ export class ChunkedEncoderBridge {
     try {
       return Promise.resolve(this.encoder!.flush())
     } catch (err) {
-      return Promise.reject(
-        err instanceof Error ? err : new Error(String(err))
-      )
+      return Promise.reject(err instanceof Error ? err : new Error(String(err)))
     }
   }
 

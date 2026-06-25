@@ -63,7 +63,7 @@ async function getModule(): Promise<LibFlacModule> {
  * 这是模块中唯一需要 await 的入口。
  */
 export async function preloadFlacModule(): Promise<void> {
-  if (moduleCache) return   // 已加载完成，直接返回，无需等待任何 Promise
+  if (moduleCache) return // 已加载完成，直接返回，无需等待任何 Promise
   await getModule()
 }
 
