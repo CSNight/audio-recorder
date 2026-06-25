@@ -56,7 +56,6 @@ export interface FlacEncoderHandle {
    * Free encoder resources
    */
   free(): void
-
 }
 
 /**

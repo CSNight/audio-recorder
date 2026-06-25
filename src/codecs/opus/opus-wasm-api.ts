@@ -434,6 +434,5 @@ export async function createOpusDecoder(
 
       freed = true
     },
-
   }
 }

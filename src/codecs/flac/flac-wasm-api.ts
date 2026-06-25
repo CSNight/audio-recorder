@@ -243,6 +243,5 @@ export async function createFlacEncoder(
       module._FLAC__stream_encoder_delete(encoderPtr)
       freed = true
     },
-
   }
 }
