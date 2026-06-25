@@ -7,11 +7,13 @@
  *
  * 消息协议：
  *   { type: "init",      format: string,    options?: unknown }
+ *   { type: "reset",     options?: unknown }
  *   { type: "feedFrame", planar: Int16Array[], channels: number, sampleRate: number, seqId: number }
  *   { type: "flush",     seqId: number }
  *   { type: "dispose" }
  *
  * 响应协议：
+ *   { type: "ready" }
  *   { type: "result",    result: Uint8Array | null, seqId: number }
  *   { type: "error",     message: string,            seqId: number }
  */
@@ -22,6 +24,7 @@ import type {
 
 type WorkerIncomingMessage =
   | { type: "init"; format: string; options?: unknown }
+  | { type: "reset"; options?: unknown }
   | {
       type: "feedFrame"
       planar: Int16Array[]
@@ -33,6 +36,7 @@ type WorkerIncomingMessage =
   | { type: "dispose" }
 
 type WorkerOutgoingMessage =
+  | { type: "ready" }
   | { type: "result"; result: Uint8Array | null; seqId: number }
   | { type: "error"; message: string; seqId: number }
 
@@ -54,15 +58,37 @@ function postMsg(msg: WorkerOutgoingMessage, transfer?: Transferable[]) {
 export function createWorkerMessageHandler(
   resolveDefinition: (format: string) => ChunkedEncoderDefinition
 ): (event: MessageEvent<WorkerIncomingMessage>) => void {
+  let definition: ChunkedEncoderDefinition | null = null
   let encoder: ChunkedEncoder | null = null
 
-  return (event: MessageEvent<WorkerIncomingMessage>) => {
+  return async (event: MessageEvent<WorkerIncomingMessage>) => {
     const msg = event.data
 
     if (msg.type === "init") {
       try {
-        const definition = resolveDefinition(msg.format)
+        definition = resolveDefinition(msg.format)
+        // Worker 顶层已触发 preload，此处是安全保障（幂等，几乎零开销）
+        await definition.preload?.()
         encoder = definition.create(msg.options)
+        postMsg({ type: "ready" })
+      } catch (err) {
+        postMsg({
+          type: "error",
+          message: err instanceof Error ? err.message : String(err),
+          seqId: -1,
+        })
+      }
+      return
+    }
+
+    if (msg.type === "reset") {
+      // 释放当前 encoder（仅释放 WASM 堆内存，不影响模块本身）
+      encoder?.dispose()
+      encoder = null
+      try {
+        // WASM 模块已在内存（init 阶段已 await preload），同步创建，几乎零延迟
+        encoder = definition!.create(msg.options)
+        postMsg({ type: "ready" })
       } catch (err) {
         postMsg({
           type: "error",

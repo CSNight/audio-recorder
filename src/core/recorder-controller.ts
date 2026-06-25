@@ -157,13 +157,14 @@ export class RecorderController {
   ): Promise<TResult>
 
   exportEncoded(type: string, options?: unknown): Promise<unknown> {
-    return this.requirePcmSnapshot().then((snapshot) => {
+    return this.requirePcmSnapshot().then(async (snapshot) => {
       const encoder = this.encoders.get(type)
       if (!encoder) {
         throw new Error(
           `Recorder encoder "${type}" is not registered. Pass it via createRecorder({ encoders: [...] }) or recorder.registerEncoder(...).`
         )
       }
+      await encoder.preload?.()
       return encoder.export(snapshot, options)
     })
   }

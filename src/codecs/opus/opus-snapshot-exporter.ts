@@ -13,7 +13,7 @@
 
 import type { PcmBufferSnapshot } from "@/buffer/types"
 import type { SnapshotEncoderDefinition } from "@/types"
-import { createOpusEncoder } from "./opus-wasm-api"
+import { createOpusEncoder, preloadOpusModule } from "./opus-wasm-api"
 import { OggMuxer } from "./muxers/ogg"
 import { WebmMuxer } from "./muxers/webm"
 import type {
@@ -41,10 +41,10 @@ function interleave(planar: Int16Array[], channels: number): Int16Array {
 /**
  * 导出为 OGG 容器格式
  */
-async function exportOpusOgg(
+function exportOpusOgg(
   snapshot: PcmBufferSnapshot,
   options: OpusExportOptions = {}
-): Promise<OpusExportResult> {
+): OpusExportResult {
   const { sampleRate, channels, planar } = snapshot
 
   // 创建 Opus 编码器
@@ -60,7 +60,7 @@ async function exportOpusOgg(
     packetLossPercent: options.packetLossPercent ?? 0,
   }
 
-  const encoder = await createOpusEncoder(encoderOptions)
+  const encoder = createOpusEncoder(encoderOptions)
   const frameSize = encoder.frameSize
 
   // OPUS_GET_LOOKAHEAD returns samples at the encoder's input sample rate.
@@ -136,10 +136,10 @@ async function exportOpusOgg(
 /**
  * 导出为 WebM 容器格式
  */
-async function exportOpusWebm(
+function exportOpusWebm(
   snapshot: PcmBufferSnapshot,
   options: OpusExportOptions = {}
-): Promise<OpusExportResult> {
+): OpusExportResult {
   const { sampleRate, channels, planar } = snapshot
 
   // 创建 Opus 编码器
@@ -155,7 +155,7 @@ async function exportOpusWebm(
     packetLossPercent: options.packetLossPercent ?? 0,
   }
 
-  const encoder = await createOpusEncoder(encoderOptions)
+  const encoder = createOpusEncoder(encoderOptions)
   const frameSize = encoder.frameSize
   const frameDurationMs = (frameSize / sampleRate) * 1000
 
@@ -226,10 +226,10 @@ async function exportOpusWebm(
 /**
  * 导出 Opus 快照（根据 container 选项选择格式）
  */
-export async function exportOpusSnapshot(
+export function exportOpusSnapshot(
   snapshot: PcmBufferSnapshot,
   options: OpusExportOptions = {}
-): Promise<OpusExportResult> {
+): OpusExportResult {
   const container = options.container ?? "ogg"
 
   if (container === "webm") {
@@ -245,8 +245,9 @@ export const opusOggSnapshotEncoderDefinition: SnapshotEncoderDefinition<
   OpusExportResult
 > = {
   type: "opus-ogg",
-  export: async (snapshot, options) =>
-    await exportOpusSnapshot(snapshot, { ...options, container: "ogg" }),
+  preload: preloadOpusModule,
+  export: (snapshot, options) =>
+    exportOpusSnapshot(snapshot, { ...options, container: "ogg" }),
 }
 
 export const opusWebmSnapshotEncoderDefinition: SnapshotEncoderDefinition<
@@ -255,6 +256,7 @@ export const opusWebmSnapshotEncoderDefinition: SnapshotEncoderDefinition<
   OpusExportResult
 > = {
   type: "opus-webm",
-  export: async (snapshot, options) =>
-    await exportOpusSnapshot(snapshot, { ...options, container: "webm" }),
+  preload: preloadOpusModule,
+  export: (snapshot, options) =>
+    exportOpusSnapshot(snapshot, { ...options, container: "webm" }),
 }

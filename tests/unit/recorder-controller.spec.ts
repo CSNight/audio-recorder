@@ -587,7 +587,7 @@ describe("RecorderController", () => {
       type: "mock-text",
       export: (snapshot, options?: { prefix?: string }) => {
         const samples = Array.from(snapshot.planar[0] ?? [])
-        return `${options?.prefix ?? "samples"}:${samples.join(",")}`
+        return Promise.resolve(`${options?.prefix ?? "samples"}:${samples.join(",")}`)
       },
     })
 
@@ -616,7 +616,7 @@ describe("RecorderController", () => {
     expect(() =>
       recorder.registerEncoder({
         type: "mock",
-        export: () => "ok",
+        export: () => Promise.resolve("ok"),
       })
     ).toThrow('Recorder state "destroyed" does not allow this operation.')
   })

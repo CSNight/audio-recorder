@@ -34,6 +34,7 @@ const OPUS_AUTO = -1000
 const OPUS_BITRATE_MAX = -1
 
 let modulePromise: Promise<LibopusModule> | undefined
+let moduleCache: LibopusModule | undefined
 
 /**
  * Get or create the WASM module singleton
@@ -43,9 +44,22 @@ async function getModule(): Promise<LibopusModule> {
     // Dynamic import of the WASM module
     // @ts-expect-error WASM module type
     const createLibopusModule = (await import("./libopus.wasm.mjs")).default
-    modulePromise = createLibopusModule()
+    modulePromise = createLibopusModule().then((m: LibopusModule) => {
+      moduleCache = m
+      return m
+    })
   }
   return modulePromise
+}
+
+/**
+ * 预加载 Opus WASM 模块（幂等）。
+ * 在 plugin.setup() 中、或 SnapshotEncoderDefinition.preload 中调用。
+ * 这是模块中唯一需要 await 的入口。
+ */
+export async function preloadOpusModule(): Promise<void> {
+  if (moduleCache) return
+  await getModule()
 }
 
 /**
@@ -99,10 +113,15 @@ function mapBitrate(bitrate: number | "auto" | "max"): number {
 /**
  * Create Opus encoder
  */
-export async function createOpusEncoder(
+export function createOpusEncoder(
   options: OpusEncoderOptions
-): Promise<OpusEncoderHandle> {
-  const module = await getModule()
+): OpusEncoderHandle {
+  if (!moduleCache) {
+    throw new Error(
+      "Opus WASM module is not loaded. Call preloadOpusModule() and await it before calling createOpusEncoder()."
+    )
+  }
+  const module = moduleCache
 
   const sampleRate = options.sampleRate
   const channels = options.channels

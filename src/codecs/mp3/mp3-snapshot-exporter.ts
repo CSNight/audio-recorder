@@ -88,5 +88,5 @@ export const mp3SnapshotEncoderDefinition: SnapshotEncoderDefinition<
   Mp3ExportResult
 > = {
   type: "mp3",
-  export: async (snapshot, options) => exportMp3Snapshot(snapshot, options),
+  export: (snapshot, options) => exportMp3Snapshot(snapshot, options),
 }

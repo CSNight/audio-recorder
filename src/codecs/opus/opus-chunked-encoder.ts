@@ -14,7 +14,7 @@ import type {
   ChunkedEncoder,
   ChunkedEncoderDefinition,
 } from "@/plugins/streaming-export/types"
-import { createOpusEncoder } from "./opus-wasm-api"
+import { createOpusEncoder, preloadOpusModule } from "./opus-wasm-api"
 import type { OpusEncoderHandle, OpusEncoderOptions } from "./types"
 import { OggMuxer } from "./muxers/ogg"
 import { WebmMuxer } from "./muxers/webm"
@@ -33,61 +33,46 @@ export interface OpusChunkedEncoderOptions extends Partial<OpusEncoderOptions> {
  * 2. 调用 Opus 编码器编码为裸 Opus 帧
  * 3. 通过 OGG muxer 封装为 OGG page
  * 4. 返回 page 字节流
+ *
+ * 前提：调用方须在 create() 之前完成 preload()，确保 WASM 已就绪。
  */
 function createOpusOggChunkedEncoder(
   options?: OpusChunkedEncoderOptions
 ): ChunkedEncoder {
-  let encoder: OpusEncoderHandle | null = null
-  let muxer: OggMuxer | null = null
-  let initialized = false
+  // 同步创建编码器（WASM 必须已通过 preload() 加载完毕）
+  const encoderOptions: OpusEncoderOptions = {
+    sampleRate: (options?.sampleRate ?? 48000) as any,
+    channels: options?.channels ?? 1,
+    bitrate: options?.bitrate ?? 128000,
+    application: options?.application ?? "audio",
+    complexity: options?.complexity ?? 10,
+    vbr: options?.vbr ?? true,
+    fec: options?.fec ?? false,
+    dtx: options?.dtx ?? false,
+    packetLossPercent: options?.packetLossPercent ?? 0,
+  }
+
+  // createOpusEncoder is now sync (throws if WASM not preloaded)
+  const encoder: OpusEncoderHandle = createOpusEncoder(encoderOptions)
+  const frameSize = encoder.frameSize
+
+  // OPUS_GET_LOOKAHEAD is at input sample rate; scale to 48 kHz for pre_skip
+  // (RFC 7845 §2.1.2). Formula from opusenc: ceil(lookahead * 48000 / rate)
+  const sampleRate = encoderOptions.sampleRate as number
+  const preSkip = Math.ceil((encoder.getLookahead() * 48000) / sampleRate)
+  const muxer = new OggMuxer({
+    sampleRate,
+    channels: encoderOptions.channels,
+    preSkip,
+  })
+
+  // Granule position starts at pre-skip (RFC 7845 §4)
+  let granulePosition = BigInt(preSkip)
   let headersSent = false
 
   // PCM 累积缓冲区
   let pcmBuffer: Int16Array[] = []
   let pcmBufferSamples = 0
-
-  // 编码状态
-  // Granule position starts at pre-skip (RFC 7845 §4)
-  let granulePosition = 0n
-  let preSkip = 312
-  let frameSize = 0
-
-  async function ensureInitialized(
-    channels: number,
-    sampleRate: number
-  ): Promise<void> {
-    if (initialized) return
-
-    // 创建 Opus 编码器
-    const encoderOptions: OpusEncoderOptions = {
-      sampleRate: sampleRate as any,
-      channels,
-      bitrate: options?.bitrate ?? 128000,
-      application: options?.application ?? "audio",
-      complexity: options?.complexity ?? 10,
-      vbr: options?.vbr ?? true,
-      fec: options?.fec ?? false,
-      dtx: options?.dtx ?? false,
-      packetLossPercent: options?.packetLossPercent ?? 0,
-    }
-
-    encoder = await createOpusEncoder(encoderOptions)
-    frameSize = encoder.frameSize
-
-    // OPUS_GET_LOOKAHEAD is at input sample rate; scale to 48 kHz for pre_skip
-    // (RFC 7845 §2.1.2). Formula from opusenc: ceil(lookahead * 48000 / rate)
-    preSkip = Math.ceil((encoder.getLookahead() * 48000) / sampleRate)
-    muxer = new OggMuxer({
-      sampleRate,
-      channels,
-      preSkip,
-    })
-
-    // Granule position starts at pre-skip (first decoded sample is at position pre-skip)
-    granulePosition = BigInt(preSkip)
-
-    initialized = true
-  }
 
   function interleave(planar: Int16Array[], channels: number): Int16Array {
     const frameLength = planar[0]?.length ?? 0
@@ -106,30 +91,6 @@ function createOpusOggChunkedEncoder(
     feedFrame(channels, sampleRate, planar) {
       const frameLength = planar[0]?.length ?? 0
       if (frameLength === 0) return null
-
-      // 异步初始化（第一帧）
-      if (!initialized) {
-        ensureInitialized(channels, sampleRate).catch((err) => {
-          console.error("Failed to initialize Opus encoder:", err)
-        })
-        // 按 channel 累积，避免多帧到达时数据错位
-        for (let ch = 0; ch < channels; ch++) {
-          const incoming = planar[ch]!
-          if (!pcmBuffer[ch]) {
-            pcmBuffer[ch] = incoming.slice()
-          } else {
-            const existing = pcmBuffer[ch]!
-            const merged = new Int16Array(existing.length + incoming.length)
-            merged.set(existing)
-            merged.set(incoming, existing.length)
-            pcmBuffer[ch] = merged
-          }
-        }
-        pcmBufferSamples += frameLength
-        return null
-      }
-
-      if (!encoder || !muxer) return null
 
       // 发送 OGG headers（仅一次）
       let output: Uint8Array | null = null
@@ -193,7 +154,7 @@ function createOpusOggChunkedEncoder(
     },
 
     flush() {
-      if (!encoder || !muxer || !headersSent) return null
+      if (!headersSent) return null
 
       const chunks: Uint8Array[] = []
 
@@ -238,14 +199,9 @@ function createOpusOggChunkedEncoder(
     },
 
     dispose() {
-      if (encoder) {
-        encoder.free()
-        encoder = null
-      }
-      muxer = null
+      encoder.free()
       pcmBuffer = []
       pcmBufferSamples = 0
-      initialized = false
       headersSent = false
     },
   }
@@ -253,52 +209,40 @@ function createOpusOggChunkedEncoder(
 
 /**
  * Opus ChunkedEncoder（WebM 容器）
+ *
+ * 前提：调用方须在 create() 之前完成 preload()，确保 WASM 已就绪。
  */
 function createOpusWebmChunkedEncoder(
   options?: OpusChunkedEncoderOptions
 ): ChunkedEncoder {
-  let encoder: OpusEncoderHandle | null = null
-  let muxer: WebmMuxer | null = null
-  let initialized = false
-  let headersSent = false
+  const encoderOptions: OpusEncoderOptions = {
+    sampleRate: (options?.sampleRate ?? 48000) as any,
+    channels: options?.channels ?? 1,
+    bitrate: options?.bitrate ?? 128000,
+    application: options?.application ?? "audio",
+    complexity: options?.complexity ?? 10,
+    vbr: options?.vbr ?? true,
+    fec: options?.fec ?? false,
+    dtx: options?.dtx ?? false,
+    packetLossPercent: options?.packetLossPercent ?? 0,
+  }
 
+  // createOpusEncoder is now sync (throws if WASM not preloaded)
+  const encoder: OpusEncoderHandle = createOpusEncoder(encoderOptions)
+  const frameSize = encoder.frameSize
+  const sampleRate = encoderOptions.sampleRate as number
+  const frameDurationMs = (frameSize / sampleRate) * 1000
+
+  const muxer = new WebmMuxer({
+    sampleRate,
+    channels: encoderOptions.channels,
+    frameDurationMs,
+  })
+
+  let headersSent = false
   let pcmBuffer: Int16Array[] = []
   let pcmBufferSamples = 0
-
   let currentTimestampMs = 0
-  let frameSize = 0
-  let frameDurationMs = 0
-
-  async function ensureInitialized(
-    channels: number,
-    sampleRate: number
-  ): Promise<void> {
-    if (initialized) return
-
-    const encoderOptions: OpusEncoderOptions = {
-      sampleRate: sampleRate as any,
-      channels,
-      bitrate: options?.bitrate ?? 128000,
-      application: options?.application ?? "audio",
-      complexity: options?.complexity ?? 10,
-      vbr: options?.vbr ?? true,
-      fec: options?.fec ?? false,
-      dtx: options?.dtx ?? false,
-      packetLossPercent: options?.packetLossPercent ?? 0,
-    }
-
-    encoder = await createOpusEncoder(encoderOptions)
-    frameSize = encoder.frameSize
-    frameDurationMs = (frameSize / sampleRate) * 1000
-
-    muxer = new WebmMuxer({
-      sampleRate,
-      channels,
-      frameDurationMs,
-    })
-
-    initialized = true
-  }
 
   function interleave(planar: Int16Array[], channels: number): Int16Array {
     const frameLength = planar[0]?.length ?? 0
@@ -314,20 +258,9 @@ function createOpusWebmChunkedEncoder(
   }
 
   return {
-    feedFrame(channels, sampleRate, planar) {
+    feedFrame(channels, _sampleRate, planar) {
       const frameLength = planar[0]?.length ?? 0
       if (frameLength === 0) return null
-
-      if (!initialized) {
-        ensureInitialized(channels, sampleRate).catch((err) => {
-          console.error("Failed to initialize Opus encoder:", err)
-        })
-        pcmBuffer.push(...planar.map((ch) => ch.slice()))
-        pcmBufferSamples += frameLength
-        return null
-      }
-
-      if (!encoder || !muxer) return null
 
       let output: Uint8Array | null = null
       if (!headersSent) {
@@ -382,7 +315,7 @@ function createOpusWebmChunkedEncoder(
     },
 
     flush() {
-      if (!encoder || !muxer || !headersSent) return null
+      if (!headersSent) return null
 
       const chunks: Uint8Array[] = []
 
@@ -423,14 +356,9 @@ function createOpusWebmChunkedEncoder(
     },
 
     dispose() {
-      if (encoder) {
-        encoder.free()
-        encoder = null
-      }
-      muxer = null
+      encoder.free()
       pcmBuffer = []
       pcmBufferSamples = 0
-      initialized = false
       headersSent = false
     },
   }
@@ -439,11 +367,13 @@ function createOpusWebmChunkedEncoder(
 export const opusOggChunkedEncoderDefinition: ChunkedEncoderDefinition<OpusChunkedEncoderOptions> =
   {
     format: "opus-ogg",
+    preload: preloadOpusModule,
     create: createOpusOggChunkedEncoder,
   }
 
 export const opusWebmChunkedEncoderDefinition: ChunkedEncoderDefinition<OpusChunkedEncoderOptions> =
   {
     format: "opus-webm",
+    preload: preloadOpusModule,
     create: createOpusWebmChunkedEncoder,
   }

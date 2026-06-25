@@ -56,39 +56,42 @@ export function createStreamingExportPlugin(
   return {
     name: `streaming-export:${format}`,
 
-    setup(context) {
+    async setup(context) {
       context.eventBus.register("plugin:encoded-chunk")
       emitChunk = (payload) => {
         context.eventBus.emit("plugin:encoded-chunk", payload)
       }
+
+      // 预热 WASM 模块（若 definition 支持），await 确保 create() 调用时模块已就绪
+      await definition.preload?.()
+
+      // setup 时创建 Bridge（含 Worker），常驻于整个插件生命周期
+      bridge = new ChunkedEncoderBridge({
+        format,
+        definition,
+        encoderOptions,
+        allowMainThreadFallback,
+      })
     },
 
     onStart() {
-      bridge?.dispose()
-      bridge = new ChunkedEncoderBridge({
-        format,
-        encoderOptions,
-        definition,
-        allowMainThreadFallback,
-      })
+      // 不再 new ChunkedEncoderBridge，改为 reset 已有 Bridge
+      bridge!.reset(encoderOptions)
       sequenceIndex = 0
       currentSessionId++
       isActive = true
     },
 
     onFrame(frame) {
-      if (!isActive || bridge === undefined) {
-        return
-      }
+      if (!isActive || !bridge) return
 
       const capturedSeq = sequenceIndex++
       const capturedSessionId = currentSessionId
 
       // fire-and-forget：编码在 Worker / 主线程完成后回调 emit
-      bridge
-        ?.feedFrame(frame.channels, frame.sampleRate, frame.planar)
-        ?.then((chunk) => {
-          // 若 session 已切换（stop 后又 start），丢弃过期 chunk
+      void bridge
+        .feedFrame(frame.channels, frame.sampleRate, frame.planar)
+        .then((chunk) => {
           if (
             chunk !== null &&
             emitChunk &&
@@ -103,7 +106,7 @@ export function createStreamingExportPlugin(
             })
           }
         })
-        ?.catch(() => {
+        .catch(() => {
           // Worker 错误已在 bridge 内部通过 onerror 处理；bridge disposed 时也会 reject，此处静默
         })
     },
@@ -118,16 +121,13 @@ export function createStreamingExportPlugin(
 
     onStop() {
       isActive = false
-      if (bridge === null) {
-        return
-      }
 
       const capturedSeq = sequenceIndex++
       const capturedSessionId = currentSessionId
 
-      bridge
+      void bridge
         ?.flush()
-        ?.then((finalChunk) => {
+        .then((finalChunk) => {
           if (
             finalChunk !== null &&
             emitChunk &&
@@ -142,7 +142,7 @@ export function createStreamingExportPlugin(
             })
           }
         })
-        ?.catch(() => {
+        .catch(() => {
           // 静默：bridge disposed 或 Worker 错误，isFinal chunk 丢失
         })
     },

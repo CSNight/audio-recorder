@@ -8,5 +8,5 @@ export const pcmSnapshotEncoderDefinition: SnapshotEncoderDefinition<
   PcmExportResult
 > = {
   type: "pcm",
-  export: async (snapshot, options) => exportPcmSnapshot(snapshot, options),
+  export: (snapshot, options) => exportPcmSnapshot(snapshot, options),
 }

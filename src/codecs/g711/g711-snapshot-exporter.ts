@@ -44,5 +44,5 @@ export const g711SnapshotEncoderDefinition: SnapshotEncoderDefinition<
   G711ExportResult
 > = {
   type: "g711",
-  export: async (snapshot, options) => exportG711Snapshot(snapshot, options),
+  export: (snapshot, options) => exportG711Snapshot(snapshot, options),
 }

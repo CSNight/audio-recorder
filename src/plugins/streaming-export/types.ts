@@ -43,7 +43,19 @@ export interface ChunkedEncoderDefinition<TOptions = unknown> {
    */
   workerFactory?: () => Worker
 
-  /** 创建 ChunkedEncoder 实例，可接收格式相关选项（bitrate、framesPerChunk 等） */
+  /**
+   * 【可选】预加载编码器所需资源（如 WASM 模块）。
+   * 幂等，可多次调用，内部由单例 Promise 保证只加载一次。
+   * 无 WASM 依赖的编码器（PCM/WAV/MP3/G711）无需实现此方法。
+   *
+   * 在 plugin.setup() 中调用，保证 create() 调用时模块已就绪。
+   */
+  preload?(): Promise<void>
+
+  /**
+   * 同步创建 ChunkedEncoder 实例，可接收格式相关选项（bitrate、framesPerChunk 等）。
+   * 对于有 WASM 依赖的编码器，调用前必须已执行 preload()。
+   */
   create(options?: TOptions): ChunkedEncoder
 }
 

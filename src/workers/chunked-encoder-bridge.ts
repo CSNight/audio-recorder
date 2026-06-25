@@ -29,6 +29,7 @@ export interface ChunkedEncoderBridgeOptions {
 }
 
 type WorkerOutgoingMessage =
+  | { type: "ready" }
   | { type: "result"; result: Uint8Array | null; seqId: number }
   | { type: "error"; message: string; seqId: number }
 
@@ -40,6 +41,9 @@ export class ChunkedEncoderBridge {
   private encoder: ChunkedEncoder | null = null
   private disposed = false
 
+  // 保存 definition，供 reset() 主线程模式调用 definition.create()
+  private readonly definition: ChunkedEncoderDefinition
+
   // Worker 模式下挂起的 Promise 回调，按 seqId 查找
   private readonly pending = new Map<
     number,
@@ -47,37 +51,19 @@ export class ChunkedEncoderBridge {
   >()
   private nextSeqId = 0
 
+  // Worker 就绪信号；init/reset 完成前 feedFrame/flush 自动等待
+  private readyPromise: Promise<void> = Promise.resolve()
+  private resolveReady: (() => void) | null = null
+
   constructor(opts: ChunkedEncoderBridgeOptions) {
+    this.definition = opts.definition
     const allowFallback = opts.allowMainThreadFallback ?? true
 
     if (typeof Worker !== "undefined" && opts.definition.workerFactory) {
       try {
         this.worker = opts.definition.workerFactory()
-
-        this.worker.onmessage = (
-          event: MessageEvent<WorkerOutgoingMessage>
-        ) => {
-          const msg = event.data
-          const entry = this.pending.get(msg.seqId)
-          if (entry === undefined) {
-            return
-          }
-          this.pending.delete(msg.seqId)
-
-          if (msg.type === "result") {
-            entry.resolve(msg.result)
-          } else {
-            entry.reject(new Error(msg.message))
-          }
-        }
-
-        this.worker.onerror = (event) => {
-          const err = new Error(event.message ?? "Worker error")
-          for (const entry of this.pending.values()) {
-            entry.reject(err)
-          }
-          this.pending.clear()
-        }
+        this.setupWorkerHandlers()
+        this.createReadyPromise()
 
         // 初始化 Worker 侧的 encoder
         this.worker.postMessage({
@@ -98,11 +84,60 @@ export class ChunkedEncoderBridge {
           `ChunkedEncoderBridge: Worker is not available and allowMainThreadFallback is false.`
         )
       }
+      // 主线程模式：definition.create() 此时可同步调用（preload 已在 setup 中完成）
       this.encoder = opts.definition.create(opts.encoderOptions)
     }
   }
 
-  feedFrame(
+  /** 每次录音开始前调用，重置 encoder 状态 */
+  reset(encoderOptions?: unknown): void {
+    if (this.worker !== null) {
+      this.createReadyPromise()
+      this.worker.postMessage({ type: "reset", options: encoderOptions })
+    } else if (this.encoder !== null) {
+      this.encoder.dispose()
+      this.encoder = this.definition.create(encoderOptions)
+    }
+  }
+
+  private createReadyPromise(): void {
+    this.readyPromise = new Promise<void>((resolve) => {
+      this.resolveReady = resolve
+    })
+  }
+
+  private setupWorkerHandlers(): void {
+    this.worker!.onmessage = (event: MessageEvent<WorkerOutgoingMessage>) => {
+      const msg = event.data
+
+      if (msg.type === "ready") {
+        this.resolveReady?.()
+        return
+      }
+
+      const entry = this.pending.get(msg.seqId)
+      if (entry === undefined) {
+        return
+      }
+      this.pending.delete(msg.seqId)
+
+      if (msg.type === "result") {
+        entry.resolve(msg.result)
+      } else {
+        entry.reject(new Error(msg.message))
+      }
+    }
+
+    this.worker!.onerror = (event) => {
+      const err = new Error(event.message ?? "Worker error")
+      for (const entry of this.pending.values()) {
+        entry.reject(err)
+      }
+      this.pending.clear()
+    }
+  }
+
+  async feedFrame(
     channels: number,
     sampleRate: number,
     planar: Int16Array[]
@@ -113,54 +148,57 @@ export class ChunkedEncoderBridge {
       )
     }
 
-    // 主线程同步模式
-    if (this.encoder !== null) {
-      try {
-        return Promise.resolve(
-          this.encoder.feedFrame(channels, sampleRate, planar)
-        )
-      } catch (err) {
-        return Promise.reject(
-          err instanceof Error ? err : new Error(String(err))
-        )
-      }
+    if (this.worker !== null) {
+      // 先等 ready（init 或 reset 完成），正常路径下已 resolve，await 几乎零开销
+      await this.readyPromise
+      const seqId = this.nextSeqId++
+      return new Promise<Uint8Array | null>((resolve, reject) => {
+        this.pending.set(seqId, { resolve, reject })
+        this.worker!.postMessage({
+          type: "feedFrame",
+          planar,
+          channels,
+          sampleRate,
+          seqId,
+        })
+      })
     }
 
-    const seqId = this.nextSeqId++
-    return new Promise<Uint8Array | null>((resolve, reject) => {
-      this.pending.set(seqId, { resolve, reject })
-      this.worker!.postMessage({
-        type: "feedFrame",
-        planar,
-        channels,
-        sampleRate,
-        seqId,
-      })
-    })
+    // 主线程同步模式
+    try {
+      return Promise.resolve(
+        this.encoder!.feedFrame(channels, sampleRate, planar)
+      )
+    } catch (err) {
+      return Promise.reject(
+        err instanceof Error ? err : new Error(String(err))
+      )
+    }
   }
 
-  flush(): Promise<Uint8Array | null> {
+  async flush(): Promise<Uint8Array | null> {
     if (this.disposed) {
       return Promise.reject(
         new Error("ChunkedEncoderBridge has been disposed.")
       )
     }
 
-    if (this.encoder !== null) {
-      try {
-        return Promise.resolve(this.encoder.flush())
-      } catch (err) {
-        return Promise.reject(
-          err instanceof Error ? err : new Error(String(err))
-        )
-      }
+    if (this.worker !== null) {
+      await this.readyPromise
+      const seqId = this.nextSeqId++
+      return new Promise<Uint8Array | null>((resolve, reject) => {
+        this.pending.set(seqId, { resolve, reject })
+        this.worker!.postMessage({ type: "flush", seqId })
+      })
     }
 
-    const seqId = this.nextSeqId++
-    return new Promise<Uint8Array | null>((resolve, reject) => {
-      this.pending.set(seqId, { resolve, reject })
-      this.worker!.postMessage({ type: "flush", seqId })
-    })
+    try {
+      return Promise.resolve(this.encoder!.flush())
+    } catch (err) {
+      return Promise.reject(
+        err instanceof Error ? err : new Error(String(err))
+      )
+    }
   }
 
   dispose(): void {

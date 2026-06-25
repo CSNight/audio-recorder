@@ -201,7 +201,17 @@ export interface SnapshotEncoderDefinition<
   TResult = unknown,
 > {
   type: TType
-  export(snapshot: PcmBufferSnapshot, options?: TOptions): Promise<TResult>
+  /**
+   * 【可选】预加载编码器所需资源（如 WASM 模块）。
+   * 幂等，可多次调用，内部由单例 Promise 保证只加载一次。
+   * exportEncoded() 在调用 export() 之前会显式 await 此方法。
+   */
+  preload?(): Promise<void>
+  /**
+   * 同步执行（所有当前实现均为纯同步计算，无需 Promise 包裹）。
+   * 若编码器需要异步资源，应通过 preload() 提前完成，export() 本身保持同步。
+   */
+  export(snapshot: PcmBufferSnapshot, options?: TOptions): TResult
 }
 
 /**

@@ -39,6 +39,7 @@ const FLAC__STREAM_ENCODER_INIT_STATUS_INVALID_METADATA = 12
 const FLAC__STREAM_ENCODER_INIT_STATUS_ALREADY_INITIALIZED = 13
 
 let modulePromise: Promise<LibFlacModule> | undefined
+let moduleCache: LibFlacModule | undefined
 
 /**
  * Get or create the WASM module singleton
@@ -48,9 +49,22 @@ async function getModule(): Promise<LibFlacModule> {
     // Dynamic import of the WASM module
     // @ts-expect-error - WASM module type
     const createLibFlacModule = (await import("./libflac.wasm.mjs")).default
-    modulePromise = createLibFlacModule()
+    modulePromise = createLibFlacModule().then((m: LibFlacModule) => {
+      moduleCache = m
+      return m
+    })
   }
   return modulePromise
+}
+
+/**
+ * 预加载 FLAC WASM 模块（幂等）。
+ * 在 plugin.setup() 中、或 SnapshotEncoderDefinition.preload 中调用。
+ * 这是模块中唯一需要 await 的入口。
+ */
+export async function preloadFlacModule(): Promise<void> {
+  if (moduleCache) return   // 已加载完成，直接返回，无需等待任何 Promise
+  await getModule()
 }
 
 /**
@@ -104,12 +118,17 @@ function getInitStatusMessage(status: number): string {
 }
 
 /**
- * Create FLAC encoder
+ * Create FLAC encoder (synchronous — caller must have awaited preloadFlacModule() first)
  */
-export async function createFlacEncoder(
+export function createFlacEncoder(
   options: FlacEncoderOptions
-): Promise<FlacEncoderHandle> {
-  const module = await getModule()
+): FlacEncoderHandle {
+  if (!moduleCache) {
+    throw new Error(
+      "FLAC WASM module is not loaded. Call preloadFlacModule() and await it before creating an encoder."
+    )
+  }
+  const module = moduleCache
 
   const sampleRate = options.sampleRate
   const channels = options.channels

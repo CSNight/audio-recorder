@@ -9,7 +9,7 @@
 
 import type { PcmBufferSnapshot } from "@/buffer/types"
 import type { SnapshotEncoderDefinition } from "@/types"
-import { createFlacEncoder } from "./flac-wasm-api"
+import { createFlacEncoder, preloadFlacModule } from "./flac-wasm-api"
 import type {
   FlacEncoderOptions,
   FlacExportOptions,
@@ -35,10 +35,10 @@ function interleave(planar: Int16Array[], channels: number): Int16Array {
 /**
  * 导出 FLAC 快照
  */
-export async function exportFlacSnapshot(
+export function exportFlacSnapshot(
   snapshot: PcmBufferSnapshot,
   options: FlacExportOptions = {}
-): Promise<FlacExportResult> {
+): FlacExportResult {
   const { sampleRate, channels, planar } = snapshot
 
   // 创建 FLAC 编码器
@@ -50,7 +50,7 @@ export async function exportFlacSnapshot(
     totalSamplesEstimate: planar[0]?.length ?? 0,
   }
 
-  const encoder = await createFlacEncoder(encoderOptions)
+  const encoder = createFlacEncoder(encoderOptions)
 
   const chunks: Uint8Array[] = []
 
@@ -106,6 +106,6 @@ export const flacSnapshotEncoderDefinition: SnapshotEncoderDefinition<
   FlacExportResult
 > = {
   type: "flac",
-  export: async (snapshot, options) =>
-    await exportFlacSnapshot(snapshot, options),
+  preload: preloadFlacModule,
+  export: (snapshot, options) => exportFlacSnapshot(snapshot, options),
 }

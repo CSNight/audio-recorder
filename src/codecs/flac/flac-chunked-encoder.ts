@@ -10,7 +10,7 @@ import type {
   ChunkedEncoder,
   ChunkedEncoderDefinition,
 } from "@/plugins/streaming-export/types"
-import { createFlacEncoder } from "./flac-wasm-api"
+import { createFlacEncoder, preloadFlacModule } from "./flac-wasm-api"
 import type { FlacEncoderHandle, FlacEncoderOptions } from "./types"
 
 /** FLAC ChunkedEncoder 选项 */
@@ -31,37 +31,30 @@ export interface FlacChunkedEncoderOptions extends Partial<FlacEncoderOptions> {
  * 4. 返回 FLAC 帧字节流
  *
  * 注意：FLAC 没有固定帧大小要求，可以灵活编码任意长度
+ * 前提：调用 create() 前必须已调用 preloadFlacModule()（由 plugin.setup() 或 exportEncoded() 保证）
  */
 function createFlacChunkedEncoder(
-  options?: FlacChunkedEncoderOptions
+  options?: FlacChunkedEncoderOptions,
+  channels?: number,
+  sampleRate?: number
 ): ChunkedEncoder {
-  let encoder: FlacEncoderHandle | null = null
-  let initialized = false
-
-  async function ensureInitialized(
-    channels: number,
-    sampleRate: number
-  ): Promise<void> {
-    if (initialized) return
-
-    const encoderOptions: FlacEncoderOptions = {
-      sampleRate,
-      channels,
-      bitsPerSample: options?.bitsPerSample ?? 16,
-      compressionLevel: options?.compressionLevel ?? 5,
-    }
-
-    encoder = await createFlacEncoder(encoderOptions)
-    initialized = true
+  // create() 时 WASM 必须已加载（由 preload 保证）
+  const encoderOptions: FlacEncoderOptions = {
+    sampleRate: sampleRate ?? 48000,
+    channels: channels ?? 1,
+    bitsPerSample: options?.bitsPerSample ?? 16,
+    compressionLevel: options?.compressionLevel ?? 5,
   }
 
-  function interleave(planar: Int16Array[], channels: number): Int16Array {
+  const encoder: FlacEncoderHandle = createFlacEncoder(encoderOptions)
+
+  function interleave(planar: Int16Array[], ch: number): Int16Array {
     const frameLength = planar[0]?.length ?? 0
-    const interleaved = new Int16Array(frameLength * channels)
+    const interleaved = new Int16Array(frameLength * ch)
 
     for (let i = 0; i < frameLength; i++) {
-      for (let ch = 0; ch < channels; ch++) {
-        interleaved[i * channels + ch] = planar[ch]?.[i] ?? 0
+      for (let c = 0; c < ch; c++) {
+        interleaved[i * ch + c] = planar[c]?.[i] ?? 0
       }
     }
 
@@ -69,22 +62,12 @@ function createFlacChunkedEncoder(
   }
 
   return {
-    feedFrame(channels, sampleRate, planar) {
+    feedFrame(_channels, _sampleRate, planar) {
       const frameLength = planar[0]?.length ?? 0
       if (frameLength === 0) return null
 
-      // 异步初始化（第一帧）
-      if (!initialized) {
-        ensureInitialized(channels, sampleRate).catch((err) => {
-          console.error("Failed to initialize FLAC encoder:", err)
-        })
-        return null
-      }
-
-      if (!encoder) return null
-
       // 交织 PCM 数据
-      const interleaved = interleave(planar, channels)
+      const interleaved = interleave(planar, _channels)
 
       // 编码
       const flacBytes = encoder.encode(interleaved, frameLength)
@@ -93,19 +76,13 @@ function createFlacChunkedEncoder(
     },
 
     flush() {
-      if (!encoder) return null
-
       // Flush 会返回包含更新后的 STREAMINFO 的最终数据
       const flacBytes = encoder.flush()
       return flacBytes.length > 0 ? flacBytes : null
     },
 
     dispose() {
-      if (encoder) {
-        encoder.free()
-        encoder = null
-      }
-      initialized = false
+      encoder.free()
     },
   }
 }
@@ -113,5 +90,6 @@ function createFlacChunkedEncoder(
 export const flacChunkedEncoderDefinition: ChunkedEncoderDefinition<FlacChunkedEncoderOptions> =
   {
     format: "flac",
+    preload: preloadFlacModule,
     create: createFlacChunkedEncoder,
   }

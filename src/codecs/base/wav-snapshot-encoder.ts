@@ -8,5 +8,5 @@ export const wavSnapshotEncoderDefinition: SnapshotEncoderDefinition<
   WavExportResult
 > = {
   type: "wav",
-  export: async (snapshot, options) => exportWavSnapshot(snapshot, options),
+  export: (snapshot, options) => exportWavSnapshot(snapshot, options),
 }
