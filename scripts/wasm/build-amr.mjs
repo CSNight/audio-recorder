@@ -16,6 +16,7 @@ import {
   emconfigure,
   emmake,
   getBuildJobs,
+  getWasmSimdFlags,
   verifyExistingFileSha1,
 } from "./common.mjs"
 
@@ -82,10 +83,12 @@ async function exists(path) {
   }
 }
 
+const SIMD_FLAGS = getWasmSimdFlags(true)
+
 const COMPILE_ENV = {
   ...process.env,
-  CFLAGS: "-DNDEBUG -O3 -flto -msimd128",
-  CXXFLAGS: "-DNDEBUG -O3 -flto -msimd128",
+  CFLAGS: ["-DNDEBUG", "-O3", "-flto", ...SIMD_FLAGS].join(" "),
+  CXXFLAGS: ["-DNDEBUG", "-O3", "-flto", ...SIMD_FLAGS].join(" "),
   LDFLAGS: "-O3 -flto",
 }
 
@@ -163,7 +166,7 @@ async function buildAmrNb() {
     [
       "-O3",
       "-flto",
-      "-msimd128",
+      ...SIMD_FLAGS,
       "-I",
       join(OPENCORE_SOURCE_DIR, "amrnb"),
       "-I",
@@ -230,7 +233,7 @@ async function buildAmrWb() {
     [
       "-O3",
       "-flto",
-      "-msimd128",
+      ...SIMD_FLAGS,
       "-I",
       VO_SOURCE_DIR,
       WB_WRAPPER_C,

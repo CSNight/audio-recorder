@@ -201,3 +201,59 @@ vendor/               上游 Recorder 参考实现
 - MP3 作为可选子路径存在，避免把 `lamejs` 依赖注入主包
 - `script-processor` 仅作为兼容性兜底，不建议作为默认录音方案
 - Phase 5、Phase 6 中规划的更多编解码器和插件扩展目前尚未开发
+
+## 编码性能基准
+
+基准命令：
+
+- 全量当前实现：`npm run benchmark:codecs -- --codec=all --simd=current --rounds=5 --warmup=1 --audio-ms=15000 --json-file=.cache/benchmark-results-current.json`
+- WASM SIMD 对比：`npm run benchmark:codecs -- --codec=flac,opus,aac,amr --simd=both --rounds=5 --warmup=1 --audio-ms=15000 --json-file=.cache/benchmark-results-simd.json`
+
+测试环境与参数：
+
+- Node.js `v25.9.0`
+- 单声道输入
+- 目标音频长度 `15 s`
+- 每项 `5` 轮正式测试，`1` 轮预热
+- `streaming` 场景统一按 `20 ms` PCM 帧喂入 `ChunkedEncoderDefinition`
+
+说明：
+
+- 所有编码器都同时覆盖两种场景：
+  - `snapshot`：直接对完整 `15 s` PCM 快照调用 `SnapshotEncoderDefinition.export()`
+  - `streaming`：把同样长度的 PCM 切成 `20 ms` 帧，逐帧喂给 `ChunkedEncoderDefinition.feedFrame()`，最后调用 `flush()`
+- `opus` 拆成两类容器分别测试：`ogg` 和 `webm`
+- `amr` 拆成两类带宽分别测试：`nb` 和 `wb`
+- `pcm`、`wav`、`mp3` 不依赖 WASM SIMD；`flac`、`opus`、`aac`、`amr` 支持 `SIMD 关闭 / 开启` 对比
+
+输入素材：
+
+| 素材 | 描述 |
+| --- | --- |
+| `tone` | 单频 `997 Hz` 正弦波，幅度约为满幅值的 `70%` |
+| `chirp` | 从低频扫到高频的线性扫频信号，并叠加缓慢包络变化 |
+| `noise` | 固定种子的确定性带限噪声，并叠加幅度包络 |
+
+各编码器测试条件：
+
+| 编码器 | 变体 | 采样率 | 声道 | snapshot / streaming 共用编码参数 |
+| --- | ---: | ---: | --- | --- |
+| `pcm` | `default` | `48000 Hz` | `1` | `snapshot: bitRate: 16`，`streaming: bitsPerSample: 16` |
+| `wav` | `default` | `48000 Hz` | `1` | `snapshot: bitRate: 16`，`streaming: bitsPerSample: 16, framesPerChunk: 100` |
+| `mp3` | `default` | `48000 Hz` | `1` | `bitrateKbps: 128` |
+| `flac` | `default` | `48000 Hz` | `1` | `bitsPerSample: 16`，`compressionLevel: 5` |
+| `opus` | `ogg` | `48000 Hz` | `1` | `bitrate: 128000`，`application: audio`，`complexity: 10`，`vbr: true` |
+| `opus` | `webm` | `48000 Hz` | `1` | `bitrate: 128000`，`application: audio`，`complexity: 10`，`vbr: true` |
+| `aac` | `default` | `48000 Hz` | `1` | `bitrate: 128000` |
+| `amr` | `nb` | `8000 Hz` | `1` | `bandMode: nb` |
+| `amr` | `wb` | `16000 Hz` | `1` | `bandMode: wb` |
+
+结果组织方式：
+
+- `scripts/benchmark-codecs-runner.mjs` 会为每个 `编码器 / 变体 / 场景 / 素材` 生成一条独立结果。
+- 结果项命名格式为：`codec[-variant]/scenario/material`
+  - 例如：`opus-ogg/streaming/chirp`
+  - 例如：`flac/snapshot/noise`
+- SIMD 对比时，`off` 和 `on` 会针对同一组 `name` 做一一比较。
+
+旧版只基于单一纯音、且混合了 snapshot 与流式路径的结果表已经移除；需要重新跑新的矩阵结果时，请以上述命令生成新的 JSON 再做汇总。

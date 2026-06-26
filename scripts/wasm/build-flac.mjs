@@ -10,6 +10,8 @@ import {
   emmake,
   emcc,
   getBuildJobs,
+  getWasmSimdFlags,
+  verifyExistingFileSha256,
 } from "./common.mjs"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -61,10 +63,12 @@ async function exists(path) {
   }
 }
 
+const SIMD_FLAGS = getWasmSimdFlags(true)
+
 const COMPILE_ENV = {
   ...process.env,
-  CFLAGS: "-DNDEBUG -O3 -flto -msimd128",
-  CXXFLAGS: "-DNDEBUG -O3 -flto -msimd128",
+  CFLAGS: ["-DNDEBUG", "-O3", "-flto", ...SIMD_FLAGS].join(" "),
+  CXXFLAGS: ["-DNDEBUG", "-O3", "-flto", ...SIMD_FLAGS].join(" "),
   LDFLAGS: "-O3 -flto",
 }
 
@@ -78,7 +82,12 @@ export async function buildFlac() {
   // Download and extract source if not present
   if (!(await exists(join(SOURCE_DIR, "configure")))) {
     const tarballPath = join(CACHE_DIR, FLAC_TARBALL)
-    await downloadAndVerify(FLAC_URL, tarballPath, FLAC_SHA256)
+    if (!(await exists(tarballPath))) {
+      await downloadAndVerify(FLAC_URL, tarballPath, FLAC_SHA256)
+    } else {
+      console.log(`Source tarball exists, skipping download: ${tarballPath}`)
+      await verifyExistingFileSha256(tarballPath, FLAC_SHA256)
+    }
 
     console.log("Extracting tarball...")
     await import("child_process").then(({ execSync }) => {
@@ -121,7 +130,7 @@ export async function buildFlac() {
     [
       "-O3",
       "-flto",
-      "-msimd128",
+      ...SIMD_FLAGS,
       "-I",
       join(SOURCE_DIR, "include"),
       "-I",

@@ -160,13 +160,19 @@ async function runDockerBuild() {
   await ensureHostDirs()
   await ensureDockerImage()
   const containerName = createContainerName()
+  const dockerCreateArgs = ["create", "--name", containerName]
+
+  if (process.env.AUDIO_RECORDER_WASM_SIMD !== undefined) {
+    dockerCreateArgs.push(
+      "-e",
+      `AUDIO_RECORDER_WASM_SIMD=${process.env.AUDIO_RECORDER_WASM_SIMD}`
+    )
+  }
+
+  dockerCreateArgs.push(imageName, `--codec=${codecArg}`)
 
   try {
-    await runAndCapture(
-      "docker",
-      ["create", "--name", containerName, imageName, `--codec=${codecArg}`],
-      { cwd: projectRoot }
-    )
+    await runAndCapture("docker", dockerCreateArgs, { cwd: projectRoot })
     await run("docker", ["start", "-a", containerName], { cwd: projectRoot })
     await copyArtifactsFromContainer(containerName)
   } finally {

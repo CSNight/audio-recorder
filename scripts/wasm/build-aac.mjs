@@ -13,6 +13,7 @@ import {
   emmake,
   emcc,
   getBuildJobs,
+  getWasmSimdFlags,
 } from "./common.mjs"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -30,6 +31,8 @@ const BUILD_DIR = join(CACHE_DIR, `ffmpeg-${FFMPEG_VERSION}-build-aac`)
 const WRAPPER_C = join(projectRoot, "scripts/native/aac_wasm_wrapper.c")
 const OUTPUT_PATH = join(projectRoot, "src/codecs/aac/libaac.wasm.mjs")
 
+const SIMD_FLAGS = getWasmSimdFlags(true)
+
 const COMPILE_ENV = {
   ...process.env,
   CC: "emcc",
@@ -37,9 +40,9 @@ const COMPILE_ENV = {
   AR: "emar",
   RANLIB: "emranlib",
   NM: "emnm",
-  CFLAGS: "-DNDEBUG -O3 -flto -msimd128",
-  CXXFLAGS: "-DNDEBUG -O3 -flto -msimd128",
-  LDFLAGS: "-O3 -flto -msimd128",
+  CFLAGS: ["-DNDEBUG", "-O3", "-flto", ...SIMD_FLAGS].join(" "),
+  CXXFLAGS: ["-DNDEBUG", "-O3", "-flto", ...SIMD_FLAGS].join(" "),
+  LDFLAGS: ["-O3", "-flto", ...SIMD_FLAGS].join(" "),
 }
 
 const EXPORTED_FUNCTIONS = [
@@ -105,6 +108,8 @@ export async function buildAac() {
   await mkdir(BUILD_DIR, { recursive: true })
 
   console.log("Configuring FFmpeg AAC...")
+  const extraCflags = ["-DNDEBUG", "-O3", "-flto", ...SIMD_FLAGS].join(" ")
+  const extraLdflags = ["-O3", "-flto", ...SIMD_FLAGS].join(" ")
   await emconfigure(
     [
       join(SOURCE_DIR, "configure"),
@@ -136,8 +141,8 @@ export async function buildAac() {
       "--ar=emar",
       "--nm=emnm",
       "--ranlib=emranlib",
-      "--extra-cflags=-DNDEBUG -O3 -flto -msimd128",
-      "--extra-ldflags=-O3 -flto -msimd128",
+      `--extra-cflags=${extraCflags}`,
+      `--extra-ldflags=${extraLdflags}`,
     ],
     { cwd: BUILD_DIR, env: COMPILE_ENV }
   )
@@ -154,7 +159,7 @@ export async function buildAac() {
     [
       "-O3",
       "-flto",
-      "-msimd128",
+      ...SIMD_FLAGS,
       "-I",
       SOURCE_DIR,
       "-I",

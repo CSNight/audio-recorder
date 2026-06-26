@@ -151,3 +151,28 @@ export function getBuildJobs(envVar = "BUILD_JOBS") {
   const jobs = process.env[envVar] || "4"
   return parseInt(jobs, 10)
 }
+
+export function resolveWasmSimdEnabled(defaultValue) {
+  const rawValue = process.env.AUDIO_RECORDER_WASM_SIMD
+  if (rawValue === undefined) {
+    return defaultValue
+  }
+
+  const normalized = rawValue.trim().toLowerCase()
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true
+  }
+
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false
+  }
+
+  throw new Error(
+    `Invalid AUDIO_RECORDER_WASM_SIMD value: ${rawValue}. ` +
+      `Expected one of 1/0/true/false/on/off.`
+  )
+}
+
+export function getWasmSimdFlags(defaultValue) {
+  return resolveWasmSimdEnabled(defaultValue) ? ["-msimd128"] : []
+}
