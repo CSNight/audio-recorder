@@ -162,9 +162,7 @@ function printSummary(resultsByMode) {
         parts.push(`frames=${entry.inputFrameCount}`)
       }
 
-      console.log(
-        parts.join("  ")
-      )
+      console.log(parts.join("  "))
     }
   }
 

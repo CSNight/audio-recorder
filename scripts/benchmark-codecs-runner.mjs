@@ -93,9 +93,7 @@ function createMaterialSnapshot(sampleRate, durationMs, material) {
         0.35 +
         0.35 * Math.sin(2 * Math.PI * 1.3 * timeSeconds) ** 2 +
         0.15 * Math.sin(2 * Math.PI * 0.37 * timeSeconds + 0.4) ** 2
-      channel[index] = Math.round(
-        clampUnit(Math.sin(phase) * envelope) * 32767
-      )
+      channel[index] = Math.round(clampUnit(Math.sin(phase) * envelope) * 32767)
     }
   } else if (material === "noise") {
     const random = createNoiseGenerator(0x9e3779b9 ^ sampleRate)
@@ -109,7 +107,7 @@ function createMaterialSnapshot(sampleRate, durationMs, material) {
       const envelope =
         0.22 +
         0.48 * Math.sin(2 * Math.PI * 1.9 * timeSeconds) ** 2 +
-        0.20 * Math.sin(2 * Math.PI * 3.7 * timeSeconds + 0.6) ** 2
+        0.2 * Math.sin(2 * Math.PI * 3.7 * timeSeconds + 0.6) ** 2
       const mixed = clampUnit((low * 0.65 + band * 0.35) * envelope)
       channel[index] = Math.round(mixed * 32767)
     }
@@ -641,6 +639,8 @@ async function run() {
 }
 
 run().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.stack : String(error)}\n`)
+  process.stderr.write(
+    `${error instanceof Error ? error.stack : String(error)}\n`
+  )
   process.exit(1)
 })
