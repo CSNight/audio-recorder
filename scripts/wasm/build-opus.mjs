@@ -67,6 +67,13 @@ async function exists(path) {
   }
 }
 
+const COMPILE_ENV = {
+  ...process.env,
+  CFLAGS: "-DNDEBUG -O3 -flto -msimd128",
+  CXXFLAGS: "-DNDEBUG -O3 -flto -msimd128",
+  LDFLAGS: "-O3 -flto",
+}
+
 export async function buildOpus() {
   console.log(`Building libopus ${OPUS_VERSION} WASM module...`)
 
@@ -104,7 +111,7 @@ export async function buildOpus() {
       "--enable-static",
       "--host=wasm32-unknown-emscripten",
     ],
-    { cwd: BUILD_DIR }
+    { cwd: BUILD_DIR, env: COMPILE_ENV }
   )
 
   // Build libopus
@@ -118,6 +125,7 @@ export async function buildOpus() {
     [
       "-O3",
       "-flto",
+      "-msimd128",
       "-I",
       join(BUILD_DIR, "include"),
       "-I",
@@ -126,6 +134,12 @@ export async function buildOpus() {
       join(BUILD_DIR, ".libs/libopus.a"),
       "-o",
       OUTPUT_PATH,
+      "-s",
+      "FILESYSTEM=0",
+      "-s",
+      "MALLOC=emmalloc",
+      "-s",
+      "SUPPORT_LONGJMP=0",
       "-s",
       "ALLOW_MEMORY_GROWTH=1",
       "-s",
@@ -144,6 +158,8 @@ export async function buildOpus() {
       "EXPORT_NAME=createLibopusModule",
       "-s",
       "SINGLE_FILE=1",
+      "-s",
+      "WASM_BIGINT=1",
     ],
     { cwd: projectRoot }
   )

@@ -1,38 +1,26 @@
 #!/bin/bash
 # WASM 构建脚本 - 从项目根目录运行
-# Usage: ./scripts/wasm/build-wasm.sh
+# Usage:
+#   ./scripts/wasm/build-wasm.sh
+#   ./scripts/wasm/build-wasm.sh opus
+#   ./scripts/wasm/build-wasm.sh opus,flac
+#   ./scripts/wasm/build-wasm.sh flac
+#   ./scripts/wasm/build-wasm.sh aac
+#   ./scripts/wasm/build-wasm.sh amr
+#   ./scripts/wasm/build-wasm.sh all
 
 set -e
 
-# Ensure we're in project root
-if [ ! -f "package.json" ]; then
-  echo "Error: Must run from project root directory"
-  exit 1
-fi
+CODEC="${1:-all}"
 
-# Build Docker image if not exists
-if ! docker images | grep -q "audio-recorder-wasm"; then
-  echo "=== Building Docker image ==="
-  docker build -f scripts/wasm/Dockerfile -t audio-recorder-wasm .
-fi
+case "$CODEC" in
+  opus|flac|aac|amr|all|*,*)
+    ;;
+  *)
+    echo "Unknown codec: $CODEC"
+    echo "Usage: ./scripts/wasm/build-wasm.sh [opus|flac|aac|amr|all|comma-separated list]"
+    exit 1
+    ;;
+esac
 
-echo ""
-echo "=== Building Opus WASM module ==="
-MSYS_NO_PATHCONV=1 docker run --rm \
-  -v "$(pwd)/.cache:/build/.cache" \
-  -v "$(pwd)/src/codecs/opus:/build/src/codecs/opus" \
-  audio-recorder-wasm --codec=opus
-
-echo ""
-echo "=== Building FLAC WASM module ==="
-MSYS_NO_PATHCONV=1 docker run --rm \
-  -v "$(pwd)/.cache:/build/.cache" \
-  -v "$(pwd)/src/codecs/flac:/build/src/codecs/flac" \
-  audio-recorder-wasm --codec=flac
-
-echo ""
-echo "✓ WASM modules built successfully"
-echo ""
-echo "Generated files:"
-echo "  - src/codecs/opus/libopus.wasm.mjs"
-echo "  - src/codecs/flac/libflac.wasm.mjs"
+node ./scripts/wasm/build-docker.mjs --codec="${CODEC}"

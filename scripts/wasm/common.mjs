@@ -12,34 +12,86 @@ import { dirname } from "path"
  * Download a file from URL with SHA-256 verification
  * @param {string} url - Download URL
  * @param {string} outputPath - Local file path
- * @param {string} expectedSha256 - Expected SHA-256 hash (hex string)
+ * @param expectedSha
+ * @param shaType
  */
-export async function downloadAndVerify(url, outputPath, expectedSha256) {
+export async function downloadAndVerify(
+  url,
+  outputPath,
+  expectedSha,
+  shaType = "SHA-256"
+) {
   console.log(`Downloading ${url}...`)
 
   await mkdir(dirname(outputPath), { recursive: true })
 
-  const response = await fetch(url)
+  const response = await fetch(url, { redirect: "follow" })
   if (!response.ok) {
     throw new Error(`Failed to download ${url}: ${response.statusText}`)
+  }
+
+  const finalUrl = response.url || url
+  const contentType = response.headers.get("content-type") || ""
+  if (/text\/html/i.test(contentType)) {
+    throw new Error(
+      `Expected an archive but received HTML from ${finalUrl}. ` +
+        `The upstream mirror or redirect target likely changed.`
+    )
   }
 
   const fileStream = createWriteStream(outputPath)
   await pipeline(response.body, fileStream)
 
-  console.log(`Verifying SHA-256...`)
-  const fileBuffer = await readFile(outputPath)
+  console.log(`Verifying ${shaType}...`)
+  if (shaType === "SHA-256") {
+    await verifyExistingFileSha256(outputPath, expectedSha)
+  } else {
+    await verifyExistingFileSha1(outputPath, expectedSha)
+  }
+
+  console.log(`✓ ${shaType} verified`)
+}
+
+/**
+ * Verify an existing file against an expected SHA-256 hash
+ * @param {string} path - Local file path
+ * @param {string} expectedSha256 - Expected SHA-256 hash (hex string)
+ */
+export async function verifyExistingFileSha256(path, expectedSha256) {
+  const fileBuffer = await readFile(path)
   const hash = createHash("sha256").update(fileBuffer).digest("hex")
 
   if (hash !== expectedSha256) {
     throw new Error(
-      `SHA-256 mismatch!\n` +
+      `SHA-256 mismatch for cached file!\n` +
+        `  File:     ${path}\n` +
         `  Expected: ${expectedSha256}\n` +
         `  Got:      ${hash}`
     )
   }
 
-  console.log(`✓ SHA-256 verified`)
+  console.log(`✓ SHA-256 verified: ${path}`)
+}
+
+/**
+ * Verify an existing file against an expected SHA-256 hash
+ * @param {string} path - Local file path
+ * @param {string} expectedSha1 - Expected SHA-256 hash (hex string)
+ */
+export async function verifyExistingFileSha1(path, expectedSha1) {
+  const fileBuffer = await readFile(path)
+  const hash = createHash("sha1").update(fileBuffer).digest("hex")
+
+  if (hash !== expectedSha1) {
+    throw new Error(
+      `SHA-1 mismatch for cached file!\n` +
+        `  File:     ${path}\n` +
+        `  Expected: ${expectedSha1}\n` +
+        `  Got:      ${hash}`
+    )
+  }
+
+  console.log(`✓ SHA-1 verified: ${path}`)
 }
 
 /**

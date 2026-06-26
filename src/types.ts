@@ -8,6 +8,9 @@ import type { RecorderStorageOptions } from "@/storage/types"
 import type { PcmExportOptions, PcmExportResult } from "@/codecs/base/pcm-types"
 import type { WavExportOptions, WavExportResult } from "@/codecs/base/wav-types"
 import type { Mp3ExportOptions, Mp3ExportResult } from "@/codecs/mp3/types"
+import type { FlacExportOptions, FlacExportResult } from "@/codecs/flac"
+import type { OpusExportOptions, OpusExportResult } from "@/codecs/opus"
+import type { G711ExportOptions, G711ExportResult } from "@/codecs/g711"
 
 /**
  * 音频声道数。支持任意正整数，常见值：
@@ -222,4 +225,8 @@ export interface EncoderMap {
   pcm: { options: PcmExportOptions; result: PcmExportResult }
   wav: { options: WavExportOptions; result: WavExportResult }
   mp3: { options: Mp3ExportOptions; result: Mp3ExportResult }
+  flac: { options: FlacExportOptions; result: FlacExportResult }
+  ogg: { options: OpusExportOptions; result: OpusExportResult }
+  webm: { options: OpusExportOptions; result: OpusExportResult }
+  g711: { options: G711ExportOptions; result: G711ExportResult }
 }

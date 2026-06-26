@@ -61,6 +61,13 @@ async function exists(path) {
   }
 }
 
+const COMPILE_ENV = {
+  ...process.env,
+  CFLAGS: "-DNDEBUG -O3 -flto -msimd128",
+  CXXFLAGS: "-DNDEBUG -O3 -flto -msimd128",
+  LDFLAGS: "-O3 -flto",
+}
+
 export async function buildFlac() {
   console.log(`Building libflac ${FLAC_VERSION} WASM module...`)
 
@@ -100,7 +107,7 @@ export async function buildFlac() {
       "--enable-static",
       "--host=wasm32-unknown-emscripten",
     ],
-    { cwd: BUILD_DIR }
+    { cwd: BUILD_DIR, env: COMPILE_ENV }
   )
 
   // Build libflac
@@ -114,6 +121,7 @@ export async function buildFlac() {
     [
       "-O3",
       "-flto",
+      "-msimd128",
       "-I",
       join(SOURCE_DIR, "include"),
       "-I",
@@ -122,6 +130,12 @@ export async function buildFlac() {
       join(BUILD_DIR, "src/libFLAC/.libs/libFLAC.a"),
       "-o",
       OUTPUT_PATH,
+      "-s",
+      "FILESYSTEM=0",
+      "-s",
+      "MALLOC=emmalloc",
+      "-s",
+      "SUPPORT_LONGJMP=0",
       "-s",
       "ALLOW_MEMORY_GROWTH=1",
       "-s",
@@ -141,7 +155,7 @@ export async function buildFlac() {
       "-s",
       "SINGLE_FILE=1",
       "-s",
-      "RESERVED_FUNCTION_POINTERS=4",
+      "WASM_BIGINT=1",
     ],
     { cwd: projectRoot }
   )

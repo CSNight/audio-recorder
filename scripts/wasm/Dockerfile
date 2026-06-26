@@ -1,4 +1,4 @@
-# Dockerfile for building WASM modules (Opus and FLAC)
+# Dockerfile for building WASM modules
 FROM emscripten/emsdk:3.1.74
 
 WORKDIR /build
