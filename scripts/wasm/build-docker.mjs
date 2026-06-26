@@ -24,10 +24,7 @@ const artifactPaths = {
   opus: ["src/codecs/opus/libopus.wasm.mjs"],
   flac: ["src/codecs/flac/libflac.wasm.mjs"],
   aac: ["src/codecs/aac/libaac.wasm.mjs"],
-  amr: [
-    "src/codecs/amr/libamrnb.wasm.mjs",
-    "src/codecs/amr/libamrwb.wasm.mjs",
-  ],
+  amr: ["src/codecs/amr/libamrnb.wasm.mjs", "src/codecs/amr/libamrwb.wasm.mjs"],
 }
 
 const { values } = parseArgs({
@@ -133,14 +130,7 @@ async function ensureDockerImage() {
   console.log("\n=== Building WASM Docker image ===\n")
   await run(
     "docker",
-    [
-      "build",
-      "-f",
-      "scripts/wasm/Dockerfile",
-      "-t",
-      imageName,
-      ".",
-    ],
+    ["build", "-f", "scripts/wasm/Dockerfile", "-t", imageName, "."],
     { cwd: projectRoot }
   )
 }
@@ -156,9 +146,13 @@ async function copyArtifactsFromContainer(containerName) {
 
   for (const relativePath of selectedArtifactPaths) {
     const hostPath = resolve(projectRoot, relativePath)
-    await run("docker", ["cp", `${containerName}:/build/${relativePath}`, hostPath], {
-      cwd: projectRoot,
-    })
+    await run(
+      "docker",
+      ["cp", `${containerName}:/build/${relativePath}`, hostPath],
+      {
+        cwd: projectRoot,
+      }
+    )
   }
 }
 
@@ -176,9 +170,9 @@ async function runDockerBuild() {
     await run("docker", ["start", "-a", containerName], { cwd: projectRoot })
     await copyArtifactsFromContainer(containerName)
   } finally {
-    await run("docker", ["rm", "-f", containerName], { cwd: projectRoot }).catch(
-      () => {}
-    )
+    await run("docker", ["rm", "-f", containerName], {
+      cwd: projectRoot,
+    }).catch(() => {})
   }
 }
 

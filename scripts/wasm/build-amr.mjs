@@ -216,11 +216,7 @@ async function buildAmrWb() {
     extractArgs: "-xzf",
   })
 
-  await configureAutotools(
-    VO_SOURCE_DIR,
-    VO_BUILD_DIR,
-    "none"
-  )
+  await configureAutotools(VO_SOURCE_DIR, VO_BUILD_DIR, "none")
 
   const jobs = getBuildJobs("AMR_WASM_BUILD_JOBS")
   await emmake(["make", "-j", String(jobs)], { cwd: VO_BUILD_DIR })
