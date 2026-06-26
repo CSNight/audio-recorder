@@ -34,7 +34,7 @@ export interface LibFlacModule {
   ): number
   _FLAC__stream_encoder_set_total_samples_estimate(
     encoder: number,
-    totalSamples: number
+    totalSamples: bigint
   ): number
   _FLAC__stream_encoder_set_streamable_subset(
     encoder: number,

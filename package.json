@@ -67,6 +67,14 @@
     "./codecs/flac": {
       "types": "./dist/codecs/flac/index.d.ts",
       "import": "./dist/codecs/flac/index.js"
+    },
+    "./codecs/aac": {
+      "types": "./dist/codecs/aac/index.d.ts",
+      "import": "./dist/codecs/aac/index.js"
+    },
+    "./codecs/amr": {
+      "types": "./dist/codecs/amr/index.d.ts",
+      "import": "./dist/codecs/amr/index.js"
     }
   },
   "devDependencies": {

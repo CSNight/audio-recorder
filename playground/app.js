@@ -27,14 +27,16 @@ import {
 import { g711SnapshotEncoderDefinition } from "/dist/codecs/g711/index.js"
 import {
   oggChunkedEncoderDefinition,
-  webmChunkedEncoderDefinition,
   oggSnapshotEncoderDefinition,
+  webmChunkedEncoderDefinition,
   webmSnapshotEncoderDefinition,
 } from "/dist/codecs/opus/index.js"
 import {
   flacChunkedEncoderDefinition,
   flacSnapshotEncoderDefinition,
 } from "/dist/codecs/flac/index.js"
+import { aacSnapshotEncoderDefinition } from "/dist/codecs/aac/index.js"
+import { amrSnapshotEncoderDefinition } from "/dist/codecs/amr/index.js"
 
 const PLAYGROUND_SOURCE_MODE = {
   microphone: RecorderInputSource.Microphone,
@@ -65,6 +67,7 @@ createApp({
       storageMode: PLAYGROUND_STORAGE_MODE.memory,
       persistenceBackend: PLAYGROUND_PERSISTENCE_BACKEND.indexeddb,
       requestedChannelCount: 1,
+      amrBandMode: "nb",
       inputStrategy: "auto", // "auto" | media-recorder | audio-worklet | script-processor
       memoryThresholdBytes: 256 * 1024,
       pendingActionLabel: "",
@@ -385,6 +388,8 @@ createApp({
             opusOggResult,
             opusWebmResult,
             flacResult,
+            aacResult,
+            amrResult,
           ] = await Promise.all([
             recorder.exportEncoded("pcm"),
             recorder.exportEncoded("wav"),
@@ -393,6 +398,8 @@ createApp({
             recorder.exportEncoded("ogg"),
             recorder.exportEncoded("webm"),
             recorder.exportEncoded("flac"),
+            recorder.exportEncoded("aac"),
+            recorder.exportEncoded("amr", { bandMode: state.amrBandMode }),
           ])
           state.exportedBytes = pcmResult.data.byteLength
           state.lastExportResult = {
@@ -403,6 +410,8 @@ createApp({
             opusOgg: opusOggResult,
             opusWebm: opusWebmResult,
             flac: flacResult,
+            aac: aacResult,
+            amr: amrResult,
           }
           state.storageDiagnostics = await collectStorageDiagnostics(
             state.storageMode,
@@ -414,7 +423,7 @@ createApp({
               : null
           appendLog(
             "info",
-            `录音已停止，共接收 ${state.summary.frames} 帧，累计时长 ${state.summary.durationMs.toFixed(1)}ms，PCM ${pcmResult.data.byteLength} byte，WAV ${wavResult.arrayBuffer.byteLength} byte，MP3 ${mp3Result.data.byteLength} byte，Opus OGG ${opusOggResult.data.byteLength} byte，FLAC ${flacResult.data.byteLength} byte。`
+            `录音已停止，共接收 ${state.summary.frames} 帧，累计时长 ${state.summary.durationMs.toFixed(1)}ms，PCM ${pcmResult.data.byteLength} byte，WAV ${wavResult.arrayBuffer.byteLength} byte，MP3 ${mp3Result.data.byteLength} byte，AAC ${aacResult.data.byteLength} byte，AMR ${amrResult.data.byteLength} byte，Opus OGG ${opusOggResult.data.byteLength} byte，FLAC ${flacResult.data.byteLength} byte。`
           )
         },
         "",
@@ -478,6 +487,35 @@ createApp({
       appendLog(
         "info",
         `G.711 文件已下载：${result.sampleRate}Hz ${result.variant}，${result.data.byteLength} byte。`
+      )
+    }
+
+    function downloadAAC() {
+      const result = state.lastExportResult?.aac
+      if (!result) return
+      const blob = new Blob([result.data.buffer], { type: result.mimeType })
+      triggerDownload(
+        blob,
+        `recording_${result.sampleRate}hz_${result.channels}ch_${result.bitrate}bps.aac`
+      )
+      appendLog(
+        "info",
+        `AAC 文件已下载：${result.sampleRate}Hz ${result.channels}ch ${result.bitrate}bps，${result.data.byteLength} byte。`
+      )
+    }
+
+    function downloadAMR() {
+      const result = state.lastExportResult?.amr
+      if (!result) return
+      const blob = new Blob([result.data.buffer], { type: result.mimeType })
+      const extension = result.bandMode === "wb" ? "awb" : "amr"
+      triggerDownload(
+        blob,
+        `recording_${result.sampleRate}hz_${result.bandMode}.${extension}`
+      )
+      appendLog(
+        "info",
+        `AMR 文件已下载：${result.sampleRate}Hz ${result.bandMode}，${result.data.byteLength} byte。`
       )
     }
 
@@ -574,6 +612,8 @@ createApp({
       canPause,
       canResume,
       canStop,
+      downloadAAC,
+      downloadAMR,
       closeRecorder,
       downloadG711,
       downloadMP3,
@@ -668,6 +708,8 @@ function createPlaygroundRecorder(
       wavSnapshotEncoderDefinition,
       mp3SnapshotEncoderDefinition,
       g711SnapshotEncoderDefinition,
+      aacSnapshotEncoderDefinition,
+      amrSnapshotEncoderDefinition,
       oggSnapshotEncoderDefinition,
       webmSnapshotEncoderDefinition,
       flacSnapshotEncoderDefinition,

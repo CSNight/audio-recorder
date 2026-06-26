@@ -287,11 +287,20 @@
             <section class="panel">
               <h2>导出与下载</h2>
               <p class="supporting" style="margin-bottom: 0.75rem">
-                停止录音后可下载 PCM 原始数据或 WAV 音频文件。
+                停止录音后可下载 PCM 原始数据、WAV 以及各编码格式文件。
               </p>
+              <div class="control-row" style="margin-bottom: 0.75rem">
+                <label>
+                  <div class="stat-label">AMR 模式</div>
+                  <select v-model="state.amrBandMode" data-testid="amr-band-mode">
+                    <option value="nb">NB</option>
+                    <option value="wb">WB</option>
+                  </select>
+                </label>
+              </div>
               <div
                 class="control-grid"
-                style="grid-template-columns: repeat(7, 1fr)"
+                style="grid-template-columns: repeat(9, 1fr)"
               >
                 <button
                   :disabled="!state.lastExportResult"
@@ -320,6 +329,20 @@
                   @click="downloadG711"
                 >
                   ↓ G.711
+                </button>
+                <button
+                  :disabled="!state.lastExportResult"
+                  data-testid="download-aac-button"
+                  @click="downloadAAC"
+                >
+                  ↓ AAC
+                </button>
+                <button
+                  :disabled="!state.lastExportResult"
+                  data-testid="download-amr-button"
+                  @click="downloadAMR"
+                >
+                  ↓ AMR
                 </button>
                 <button
                   :disabled="!state.lastExportResult"
@@ -377,6 +400,18 @@
                   <p class="stat-label">G.711 大小</p>
                   <p class="stat-value" data-testid="export-g711-bytes">
                     {{ state.lastExportResult.g711.data.byteLength }} byte ({{ state.lastExportResult.g711.variant }})
+                  </p>
+                </article>
+                <article class="stat" v-if="state.lastExportResult.aac">
+                  <p class="stat-label">AAC 大小</p>
+                  <p class="stat-value" data-testid="export-aac-bytes">
+                    {{ state.lastExportResult.aac.data.byteLength }} byte
+                  </p>
+                </article>
+                <article class="stat" v-if="state.lastExportResult.amr">
+                  <p class="stat-label">AMR 大小</p>
+                  <p class="stat-value" data-testid="export-amr-bytes">
+                    {{ state.lastExportResult.amr.data.byteLength }} byte ({{ state.lastExportResult.amr.bandMode }})
                   </p>
                 </article>
                 <article class="stat" v-if="state.lastExportResult.opusOgg">

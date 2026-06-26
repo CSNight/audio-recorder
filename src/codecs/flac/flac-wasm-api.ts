@@ -41,6 +41,18 @@ const FLAC__STREAM_ENCODER_INIT_STATUS_ALREADY_INITIALIZED = 13
 let modulePromise: Promise<LibFlacModule> | undefined
 let moduleCache: LibFlacModule | undefined
 
+function toFlacTotalSamplesEstimate(totalSamples: number): bigint {
+  if (!Number.isSafeInteger(totalSamples) || totalSamples < 0) {
+    throw new FlacError(
+      `Invalid FLAC totalSamplesEstimate: ${totalSamples}`,
+      -1,
+      "setTotalSamplesEstimate"
+    )
+  }
+
+  return BigInt(totalSamples)
+}
+
 /**
  * Get or create the WASM module singleton
  */
@@ -165,7 +177,7 @@ export function createFlacEncoder(
   if (options.totalSamplesEstimate !== undefined) {
     module._FLAC__stream_encoder_set_total_samples_estimate(
       encoderPtr,
-      options.totalSamplesEstimate
+      toFlacTotalSamplesEstimate(options.totalSamplesEstimate)
     )
   }
 

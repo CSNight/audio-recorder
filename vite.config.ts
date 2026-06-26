@@ -35,6 +35,12 @@ export default defineConfig({
         "codecs/flac/index": fileURLToPath(
           new URL("./src/codecs/flac/index.ts", import.meta.url)
         ),
+        "codecs/aac/index": fileURLToPath(
+          new URL("./src/codecs/aac/index.ts", import.meta.url)
+        ),
+        "codecs/amr/index": fileURLToPath(
+          new URL("./src/codecs/amr/index.ts", import.meta.url)
+        ),
       },
       formats: ["es"],
       fileName: (_format, entryName) => `${entryName}.js`,

@@ -11,6 +11,8 @@ import type { Mp3ExportOptions, Mp3ExportResult } from "@/codecs/mp3/types"
 import type { FlacExportOptions, FlacExportResult } from "@/codecs/flac"
 import type { OpusExportOptions, OpusExportResult } from "@/codecs/opus"
 import type { G711ExportOptions, G711ExportResult } from "@/codecs/g711"
+import type { AacExportOptions, AacExportResult } from "@/codecs/aac"
+import type { AmrExportOptions, AmrExportResult } from "@/codecs/amr"
 
 /**
  * 音频声道数。支持任意正整数，常见值：
@@ -229,4 +231,6 @@ export interface EncoderMap {
   ogg: { options: OpusExportOptions; result: OpusExportResult }
   webm: { options: OpusExportOptions; result: OpusExportResult }
   g711: { options: G711ExportOptions; result: G711ExportResult }
+  aac: { options: AacExportOptions; result: AacExportResult }
+  amr: { options: AmrExportOptions; result: AmrExportResult }
 }
