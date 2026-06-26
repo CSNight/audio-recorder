@@ -1,12 +1,8 @@
-#include <emscripten.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "libavcodec/avcodec.h"
 #include "libavutil/channel_layout.h"
-#include "libavutil/log.h"
-#include "libavutil/opt.h"
 
 typedef struct {
   AVCodecContext *codec_ctx;
@@ -18,10 +14,7 @@ typedef struct {
   int encoded_duration;
 } EncoderContext;
 
-EMSCRIPTEN_KEEPALIVE
 EncoderContext *init_encoder(int channels, int sample_rate, int bitrate) {
-  av_log_set_level(AV_LOG_ERROR);
-
   const AVCodec *codec = avcodec_find_encoder(AV_CODEC_ID_AAC);
   if (!codec) {
     return NULL;
@@ -91,22 +84,18 @@ EncoderContext *init_encoder(int channels, int sample_rate, int bitrate) {
   return ctx;
 }
 
-EMSCRIPTEN_KEEPALIVE
 int get_encoder_frame_size(EncoderContext *ctx) {
   return ctx->codec_ctx->frame_size;
 }
 
-EMSCRIPTEN_KEEPALIVE
 uint8_t *get_encoder_extradata(EncoderContext *ctx) {
   return ctx->codec_ctx->extradata;
 }
 
-EMSCRIPTEN_KEEPALIVE
 int get_encoder_extradata_size(EncoderContext *ctx) {
   return ctx->codec_ctx->extradata_size;
 }
 
-EMSCRIPTEN_KEEPALIVE
 float *get_encode_input_ptr(EncoderContext *ctx, int size) {
   if (ctx->input_buffer_size < size) {
     free(ctx->input_buffer);
@@ -121,7 +110,6 @@ float *get_encode_input_ptr(EncoderContext *ctx, int size) {
   return ctx->input_buffer;
 }
 
-EMSCRIPTEN_KEEPALIVE
 int send_frame(EncoderContext *ctx, int64_t pts) {
   int channels = ctx->codec_ctx->ch_layout.nb_channels;
   int frame_size = ctx->frame->nb_samples;
@@ -138,7 +126,6 @@ int send_frame(EncoderContext *ctx, int64_t pts) {
   return avcodec_send_frame(ctx->codec_ctx, ctx->frame);
 }
 
-EMSCRIPTEN_KEEPALIVE
 int receive_packet(EncoderContext *ctx) {
   int ret = avcodec_receive_packet(ctx->codec_ctx, ctx->packet);
   if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
@@ -153,32 +140,26 @@ int receive_packet(EncoderContext *ctx) {
   return ctx->packet->size;
 }
 
-EMSCRIPTEN_KEEPALIVE
 void flush_encoder_start(EncoderContext *ctx) {
   avcodec_send_frame(ctx->codec_ctx, NULL);
 }
 
-EMSCRIPTEN_KEEPALIVE
 void reset_encoder(EncoderContext *ctx) {
   avcodec_flush_buffers(ctx->codec_ctx);
 }
 
-EMSCRIPTEN_KEEPALIVE
 uint8_t *get_encoded_data(EncoderContext *ctx) {
   return ctx->packet->data;
 }
 
-EMSCRIPTEN_KEEPALIVE
 int64_t get_encoded_pts(EncoderContext *ctx) {
   return ctx->encoded_pts;
 }
 
-EMSCRIPTEN_KEEPALIVE
 int get_encoded_duration(EncoderContext *ctx) {
   return ctx->encoded_duration;
 }
 
-EMSCRIPTEN_KEEPALIVE
 void close_encoder(EncoderContext *ctx) {
   free(ctx->input_buffer);
   av_frame_free(&ctx->frame);

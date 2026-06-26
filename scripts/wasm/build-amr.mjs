@@ -5,7 +5,7 @@
  * - opencore-amr 0.1.6 (AMR-NB)
  * - vo-amrwbenc 0.1.3 (AMR-WB)
  *
- * It only establishes the build layer and output contracts.
+ * Produces working encoder modules instead of placeholder bridge exports.
  */
 import { dirname, join, resolve } from "path"
 import { access, mkdir, rm } from "fs/promises"
@@ -216,6 +216,9 @@ async function buildAmrWb() {
     extractArgs: "-xzf",
   })
 
+  // vo-amrwbenc 0.1.3 ships an older config.sub that does not recognize the
+  // emscripten triplet. Keep the historical host placeholder so emconfigure
+  // can still inject emcc/emar/emranlib for the actual toolchain.
   await configureAutotools(VO_SOURCE_DIR, VO_BUILD_DIR, "none")
 
   const jobs = getBuildJobs("AMR_WASM_BUILD_JOBS")

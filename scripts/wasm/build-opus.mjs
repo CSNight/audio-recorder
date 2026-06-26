@@ -69,8 +69,8 @@ async function exists(path) {
 
 const COMPILE_ENV = {
   ...process.env,
-  CFLAGS: "-DNDEBUG -O3 -flto -msimd128",
-  CXXFLAGS: "-DNDEBUG -O3 -flto -msimd128",
+  CFLAGS: "-DNDEBUG -O3 -flto",
+  CXXFLAGS: "-DNDEBUG -O3 -flto",
   LDFLAGS: "-O3 -flto",
 }
 
@@ -125,7 +125,6 @@ export async function buildOpus() {
     [
       "-O3",
       "-flto",
-      "-msimd128",
       "-I",
       join(BUILD_DIR, "include"),
       "-I",

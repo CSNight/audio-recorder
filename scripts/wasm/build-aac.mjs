@@ -60,6 +60,8 @@ const EXPORTED_FUNCTIONS = [
   "_close_encoder",
 ]
 
+const EXPORTED_RUNTIME_METHODS = ["HEAPU8", "HEAPF32"]
+
 async function exists(path) {
   try {
     await access(path)
@@ -179,7 +181,7 @@ export async function buildAac() {
       "-s",
       `EXPORTED_FUNCTIONS=${JSON.stringify(EXPORTED_FUNCTIONS)}`,
       "-s",
-      'EXPORTED_RUNTIME_METHODS=["cwrap","HEAPU8","HEAPF32","UTF8ToString"]',
+      `EXPORTED_RUNTIME_METHODS=${JSON.stringify(EXPORTED_RUNTIME_METHODS)}`,
       "-s",
       "MODULARIZE=1",
       "-s",
