@@ -1,4 +1,8 @@
 import type { AmrBandMode, AmrEncoderHandle, AmrEncoderOptions } from "./types"
+// @ts-expect-error static
+import createLibAmrNbModule from "./libamrnb.wasm.mjs"
+// @ts-expect-error static
+import createLibAmrWbModule from "./libamrwb.wasm.mjs"
 
 type LibAmrModule = {
   HEAP16: Int16Array
@@ -45,8 +49,6 @@ let amrWbModuleCache: LibAmrWbModule | undefined
 
 async function getAmrNbModule(): Promise<LibAmrNbModule> {
   if (!amrNbModulePromise) {
-    // @ts-expect-error Emscripten single-file module is generated at build time.
-    const createLibAmrNbModule = (await import("./libamrnb.wasm.mjs")).default
     amrNbModulePromise = createLibAmrNbModule().then((mod: LibAmrNbModule) => {
       amrNbModuleCache = mod
       return mod
@@ -58,8 +60,6 @@ async function getAmrNbModule(): Promise<LibAmrNbModule> {
 
 async function getAmrWbModule(): Promise<LibAmrWbModule> {
   if (!amrWbModulePromise) {
-    // @ts-expect-error Emscripten single-file module is generated at build time.
-    const createLibAmrWbModule = (await import("./libamrwb.wasm.mjs")).default
     amrWbModulePromise = createLibAmrWbModule().then((mod: LibAmrWbModule) => {
       amrWbModuleCache = mod
       return mod

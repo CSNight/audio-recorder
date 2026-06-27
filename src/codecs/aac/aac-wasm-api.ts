@@ -1,5 +1,7 @@
 import type { AacEncoderHandle, AacEncoderOptions } from "./types"
 import { AacError } from "./types"
+// @ts-expect-error static
+import createLibAacModule from "./libaac.wasm.mjs"
 
 type LibAacModule = {
   HEAPF32: Float32Array
@@ -15,14 +17,11 @@ type LibAacModule = {
   _get_encoded_data(ctx: number): number
   _close_encoder(ctx: number): void
 }
-
 let modulePromise: Promise<LibAacModule> | undefined
 let moduleCache: LibAacModule | undefined
 
 async function getModule(): Promise<LibAacModule> {
   if (!modulePromise) {
-    // @ts-expect-error Emscripten single-file module is generated at build time.
-    const createLibAacModule = (await import("./libaac.wasm.mjs")).default
     modulePromise = createLibAacModule().then((mod: LibAacModule) => {
       moduleCache = mod
       return mod
