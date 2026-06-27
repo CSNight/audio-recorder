@@ -49,7 +49,12 @@ export default defineConfig({
       external: ["audio-recorder"],
       output: {
         minify: true,
-        chunkFileNames: "chunks/[name]-[hash].js",
+        chunkFileNames: (chunkInfo) => {
+          const name = chunkInfo.name ?? ""
+          const match = name.match(/^lib([a-z]+?)(?:nb|wb)?\.wasm/)
+          if (match) return `codecs/${match[1]}/[name]-[hash].js`
+          return "chunks/[name]-[hash].js"
+        },
       },
     },
     sourcemap: false,
