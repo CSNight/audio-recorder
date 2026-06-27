@@ -97,7 +97,7 @@
     "semi": false,
     "trailingComma": "es5",
     "bracketSpacing": true,
-    "endOfLine": "crlf",
+    "endOfLine": "lf",
     "bracketSameLine": false,
     "cursorOffset": 2
   },
