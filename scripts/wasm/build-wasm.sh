@@ -1,17 +1,18 @@
 #!/bin/bash
-# WASM 构建脚本 - 从项目根目录运行
+# WASM build helper, run from the project root.
 # Usage:
 #   ./scripts/wasm/build-wasm.sh
 #   ./scripts/wasm/build-wasm.sh opus
 #   ./scripts/wasm/build-wasm.sh opus,flac
-#   ./scripts/wasm/build-wasm.sh flac
-#   ./scripts/wasm/build-wasm.sh aac
-#   ./scripts/wasm/build-wasm.sh amr
 #   ./scripts/wasm/build-wasm.sh all
+#   ./scripts/wasm/build-wasm.sh all --simd-flac=on --simd-opus=off
 
 set -e
 
 CODEC="${1:-all}"
+if [ "$#" -gt 0 ]; then
+  shift
+fi
 
 case "$CODEC" in
   opus|flac|aac|amr|all|*,*)
@@ -23,4 +24,4 @@ case "$CODEC" in
     ;;
 esac
 
-node ./scripts/wasm/build-docker.mjs --codec="${CODEC}"
+node ./scripts/wasm/build-docker.mjs --codec="${CODEC}" "$@"

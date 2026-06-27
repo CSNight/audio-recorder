@@ -206,7 +206,6 @@ vendor/               上游 Recorder 参考实现
 
 基准命令：
 
-- 全量当前实现：`npm run benchmark:codecs -- --codec=all --simd=current --rounds=5 --warmup=1 --audio-ms=15000 --json-file=.cache/benchmark-results-current.json`
 - WASM SIMD 对比：`npm run benchmark:codecs -- --codec=flac,opus,aac,amr --simd=both --rounds=5 --warmup=1 --audio-ms=15000 --json-file=.cache/benchmark-results-simd.json`
 
 测试环境与参数：
@@ -257,3 +256,50 @@ vendor/               上游 Recorder 参考实现
 - SIMD 对比时，`off` 和 `on` 会针对同一组 `name` 做一一比较。
 
 旧版只基于单一纯音、且混合了 snapshot 与流式路径的结果表已经移除；需要重新跑新的矩阵结果时，请以上述命令生成新的 JSON 再做汇总。
+
+### 最近一次结果（2026-06-27）
+
+以下汇总基于 2026-06-27 重新实测；上半部分按同一 `codec / variant / scenario` 对 `tone / chirp / noise` 三种素材取算术平均，下半部分是 WASM codec 的 SIMD `off / on` 对比。该次实测原始结果见 `.cache/benchmark-results-current.json` 与 `.cache/benchmark-results-simd.json`。
+
+当前实现汇总：
+
+| 编码器 | 变体 | 场景 | 平均耗时（ms） | 平均实时倍速（x） | 平均输出大小（bytes） |
+| --- | --- | --- | ---: | ---: | ---: |
+| `pcm` | `default` | `snapshot` | 0.48 | 31493.03 | 1440000 |
+| `pcm` | `default` | `streaming` | 3.82 | 3987.75 | 1440000 |
+| `wav` | `default` | `snapshot` | 1.06 | 14286.82 | 1440044 |
+| `wav` | `default` | `streaming` | 2.12 | 8476.78 | 1440352 |
+| `mp3` | `default` | `snapshot` | 208.64 | 74.52 | 240384 |
+| `mp3` | `default` | `streaming` | 202.66 | 77.35 | 240384 |
+| `flac` | `default` | `snapshot` | 9.40 | 1605.46 | 679568 |
+| `flac` | `default` | `streaming` | 9.72 | 1544.66 | 679568 |
+| `opus` | `ogg` | `snapshot` | 46.06 | 330.08 | 262774 |
+| `opus` | `ogg` | `streaming` | 46.28 | 327.95 | 263229 |
+| `opus` | `webm` | `snapshot` | 44.59 | 340.67 | 246569 |
+| `opus` | `webm` | `streaming` | 44.96 | 338.10 | 246569 |
+| `aac` | `default` | `snapshot` | 94.23 | 159.34 | 245066 |
+| `aac` | `default` | `streaming` | 95.11 | 157.78 | 245066 |
+| `amr` | `nb` | `snapshot` | 30.56 | 490.85 | 24006 |
+| `amr` | `nb` | `streaming` | 30.98 | 484.29 | 24006 |
+| `amr` | `wb` | `snapshot` | 58.87 | 254.94 | 45759 |
+| `amr` | `wb` | `streaming` | 58.74 | 255.39 | 45759 |
+
+WASM SIMD 对比汇总：
+
+- `avgSpeedup > 1` 表示开启 SIMD 后更快。
+- 这次测试里 `flac` 和 `aac` 收益最明显，`opus` 次之，`amr-wb` 有中等收益，`amr-nb` 基本持平。
+
+| 编码器 | 变体 | 场景 | 平均加速比（off / on） | 最小加速比 | 最大加速比 |
+| --- | --- | --- | ---: | ---: | ---: |
+| `flac` | `default` | `snapshot` | 1.373 | 1.337 | 1.423 |
+| `flac` | `default` | `streaming` | 1.287 | 1.256 | 1.312 |
+| `opus` | `ogg` | `snapshot` | 1.095 | 1.063 | 1.131 |
+| `opus` | `ogg` | `streaming` | 1.114 | 1.081 | 1.131 |
+| `opus` | `webm` | `snapshot` | 1.138 | 1.088 | 1.167 |
+| `opus` | `webm` | `streaming` | 1.123 | 1.082 | 1.150 |
+| `aac` | `default` | `snapshot` | 1.313 | 1.277 | 1.349 |
+| `aac` | `default` | `streaming` | 1.333 | 1.295 | 1.392 |
+| `amr` | `nb` | `snapshot` | 0.992 | 0.985 | 0.997 |
+| `amr` | `nb` | `streaming` | 0.973 | 0.939 | 1.007 |
+| `amr` | `wb` | `snapshot` | 1.187 | 1.181 | 1.192 |
+| `amr` | `wb` | `streaming` | 1.114 | 1.099 | 1.122 |

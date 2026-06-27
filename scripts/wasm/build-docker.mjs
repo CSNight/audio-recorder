@@ -9,17 +9,24 @@
  *   node build-docker.mjs --codec=flac,aac
  *   node build-docker.mjs --codec=amr --codec=opus
  *   node build-docker.mjs --codec=all
+ *   node build-docker.mjs --codec=all --simd-flac=on --simd-opus=off
  */
 import { parseArgs } from "util"
 import { spawn } from "child_process"
 import { mkdir } from "fs/promises"
 import { resolve, dirname } from "path"
 import { fileURLToPath } from "url"
+import {
+  applyCodecSimdCliOverrides,
+  createCodecSimdArgOptions,
+  getCodecSimdEnvName,
+  supportedWasmCodecs,
+} from "./common.mjs"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const projectRoot = resolve(__dirname, "../..")
 const imageName = "audio-recorder-wasm"
-const supportedCodecs = ["opus", "flac", "aac", "amr"]
+const supportedCodecs = supportedWasmCodecs
 const artifactPaths = {
   opus: ["src/codecs/opus/libopus.wasm.mjs"],
   flac: ["src/codecs/flac/libflac.wasm.mjs"],
@@ -34,6 +41,7 @@ const { values } = parseArgs({
       multiple: true,
       default: ["all"],
     },
+    ...createCodecSimdArgOptions(supportedCodecs),
   },
 })
 
@@ -66,6 +74,7 @@ function parseCodecSelection(codecValues) {
 
 const codecs = parseCodecSelection(values.codec)
 const codecArg = codecs.join(",")
+applyCodecSimdCliOverrides(values, supportedCodecs)
 
 function run(command, args, options = {}) {
   return new Promise((resolvePromise, rejectPromise) => {
@@ -169,6 +178,13 @@ async function runDockerBuild() {
     )
   }
 
+  for (const codec of supportedCodecs) {
+    const envName = getCodecSimdEnvName(codec)
+    if (process.env[envName] !== undefined) {
+      dockerCreateArgs.push("-e", `${envName}=${process.env[envName]}`)
+    }
+  }
+
   dockerCreateArgs.push(imageName, `--codec=${codecArg}`)
 
   try {
@@ -187,6 +203,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("\n✗ Docker WASM build failed:", err)
+  console.error("\nDocker WASM build failed:", err)
   process.exit(1)
 })

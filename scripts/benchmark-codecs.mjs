@@ -5,7 +5,7 @@ import { parseArgs } from "util"
 
 const supportedCodecs = ["pcm", "wav", "mp3", "flac", "opus", "aac", "amr"]
 const wasmCodecs = new Set(["flac", "opus", "aac", "amr"])
-const supportedSimdModes = ["both", "on", "off", "current"]
+const supportedSimdModes = ["both", "on", "off"]
 
 const { values } = parseArgs({
   options: {
@@ -256,9 +256,7 @@ async function main() {
   const resultsByMode = {}
 
   for (const simdMode of simdModes) {
-    if (simdMode !== "current") {
-      await buildArtifacts(codecs, simdMode)
-    }
+    await buildArtifacts(codecs, simdMode)
 
     console.log(`\n=== Benchmarking (${simdMode}) ===\n`)
     resultsByMode[simdMode] = await runBenchmarks(

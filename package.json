@@ -12,6 +12,7 @@
     "prepare": "husky",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build:wasm": "node ./scripts/wasm/build-docker.mjs --codec=all",
+    "build:wasm:select": "node ./scripts/wasm/build-docker.mjs",
     "benchmark:codecs": "node ./scripts/benchmark-codecs.mjs",
     "test": "npm run test:unit && npm run test:functional",
     "test:unit": "vitest run --coverage",

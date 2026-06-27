@@ -31,7 +31,7 @@ const BUILD_DIR = join(CACHE_DIR, `ffmpeg-${FFMPEG_VERSION}-build-aac`)
 const WRAPPER_C = join(projectRoot, "scripts/native/aac_wasm_wrapper.c")
 const OUTPUT_PATH = join(projectRoot, "src/codecs/aac/libaac.wasm.mjs")
 
-const SIMD_FLAGS = getWasmSimdFlags(true)
+const SIMD_FLAGS = getWasmSimdFlags("aac", false)
 
 const COMPILE_ENV = {
   ...process.env,

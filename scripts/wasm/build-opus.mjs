@@ -32,7 +32,7 @@ const BUILD_DIR = join(CACHE_DIR, `opus-${OPUS_VERSION}-build`)
 const WRAPPER_C = join(projectRoot, "scripts/native/opus_wasm_wrapper.c")
 const OUTPUT_PATH = join(projectRoot, "src/codecs/opus/libopus.wasm.mjs")
 
-// All exported functions (23 functions from opus_wasm_wrapper.c)
+// Only keep symbols that are used by the public JS wrapper.
 const EXPORTED_FUNCTIONS = [
   "_free",
   "_malloc",
@@ -44,19 +44,8 @@ const EXPORTED_FUNCTIONS = [
   "_oc_destroy_encoder",
   "_oc_encode",
   "_oc_encode_float",
-  "_oc_decoder_ctl",
   "_oc_encoder_ctl",
-  "_oc_encoder_ctl_get_bitrate",
-  "_oc_encoder_ctl_get_in_dtx",
   "_oc_encoder_ctl_get_lookahead",
-  "_oc_get_version_string",
-  "_oc_packet_get_bandwidth",
-  "_oc_packet_get_nb_channels",
-  "_oc_packet_get_nb_frames",
-  "_oc_packet_get_nb_samples",
-  "_oc_packet_get_samples_per_frame",
-  "_oc_packet_parse",
-  "_oc_packet_validate_decode",
   "_oc_strerror",
 ]
 
@@ -69,7 +58,7 @@ async function exists(path) {
   }
 }
 
-const SIMD_FLAGS = getWasmSimdFlags(false)
+const SIMD_FLAGS = getWasmSimdFlags("opus", false)
 
 const COMPILE_ENV = {
   ...process.env,

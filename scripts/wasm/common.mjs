@@ -8,6 +8,8 @@ import { pipeline } from "stream/promises"
 import { spawn } from "child_process"
 import { dirname } from "path"
 
+export const supportedWasmCodecs = ["opus", "flac", "aac", "amr"]
+
 /**
  * Download a file from URL with SHA-256 verification
  * @param {string} url - Download URL
@@ -49,7 +51,7 @@ export async function downloadAndVerify(
     await verifyExistingFileSha1(outputPath, expectedSha)
   }
 
-  console.log(`✓ ${shaType} verified`)
+  console.log(`${shaType} verified`)
 }
 
 /**
@@ -70,13 +72,13 @@ export async function verifyExistingFileSha256(path, expectedSha256) {
     )
   }
 
-  console.log(`✓ SHA-256 verified: ${path}`)
+  console.log(`SHA-256 verified: ${path}`)
 }
 
 /**
- * Verify an existing file against an expected SHA-256 hash
+ * Verify an existing file against an expected SHA-1 hash
  * @param {string} path - Local file path
- * @param {string} expectedSha1 - Expected SHA-256 hash (hex string)
+ * @param {string} expectedSha1 - Expected SHA-1 hash (hex string)
  */
 export async function verifyExistingFileSha1(path, expectedSha1) {
   const fileBuffer = await readFile(path)
@@ -91,7 +93,7 @@ export async function verifyExistingFileSha1(path, expectedSha1) {
     )
   }
 
-  console.log(`✓ SHA-1 verified: ${path}`)
+  console.log(`SHA-1 verified: ${path}`)
 }
 
 /**
@@ -152,12 +154,7 @@ export function getBuildJobs(envVar = "BUILD_JOBS") {
   return parseInt(jobs, 10)
 }
 
-export function resolveWasmSimdEnabled(defaultValue) {
-  const rawValue = process.env.AUDIO_RECORDER_WASM_SIMD
-  if (rawValue === undefined) {
-    return defaultValue
-  }
-
+function parseSimdToggleValue(rawValue, sourceName) {
   const normalized = rawValue.trim().toLowerCase()
   if (["1", "true", "yes", "on"].includes(normalized)) {
     return true
@@ -168,11 +165,57 @@ export function resolveWasmSimdEnabled(defaultValue) {
   }
 
   throw new Error(
-    `Invalid AUDIO_RECORDER_WASM_SIMD value: ${rawValue}. ` +
+    `Invalid ${sourceName} value: ${rawValue}. ` +
       `Expected one of 1/0/true/false/on/off.`
   )
 }
 
-export function getWasmSimdFlags(defaultValue) {
-  return resolveWasmSimdEnabled(defaultValue) ? ["-msimd128"] : []
+export function getCodecSimdEnvName(codec) {
+  return `AUDIO_RECORDER_WASM_SIMD_${codec.trim().toUpperCase()}`
+}
+
+export function createCodecSimdArgOptions(codecs = supportedWasmCodecs) {
+  return Object.fromEntries(
+    codecs.map((codec) => [
+      `simd-${codec}`,
+      {
+        type: "string",
+      },
+    ])
+  )
+}
+
+export function applyCodecSimdCliOverrides(
+  values,
+  codecs = supportedWasmCodecs
+) {
+  for (const codec of codecs) {
+    const optionName = `simd-${codec}`
+    const rawValue = values[optionName]
+    if (rawValue === undefined) {
+      continue
+    }
+
+    const enabled = parseSimdToggleValue(rawValue, `--${optionName}`)
+    process.env[getCodecSimdEnvName(codec)] = enabled ? "1" : "0"
+  }
+}
+
+export function resolveWasmSimdEnabled(codec, defaultValue) {
+  const codecEnvName = getCodecSimdEnvName(codec)
+  const codecRawValue = process.env[codecEnvName]
+  if (codecRawValue !== undefined) {
+    return parseSimdToggleValue(codecRawValue, codecEnvName)
+  }
+
+  const rawValue = process.env.AUDIO_RECORDER_WASM_SIMD
+  if (rawValue === undefined) {
+    return defaultValue
+  }
+
+  return parseSimdToggleValue(rawValue, "AUDIO_RECORDER_WASM_SIMD")
+}
+
+export function getWasmSimdFlags(codec, defaultValue) {
+  return resolveWasmSimdEnabled(codec, defaultValue) ? ["-msimd128"] : []
 }

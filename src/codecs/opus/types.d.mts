@@ -40,9 +40,7 @@ export interface LibopusModule {
     maxDataBytes: number
   ): number
   _oc_encoder_ctl(encoder: number, request: number, value: number): number
-  _oc_encoder_ctl_get_bitrate(encoder: number): number
   _oc_encoder_ctl_get_lookahead(encoder: number): number
-  _oc_encoder_ctl_get_in_dtx(encoder: number): number
 
   // Decoder functions
   _oc_create_decoder(
@@ -67,30 +65,9 @@ export interface LibopusModule {
     frameSize: number,
     decodeFec: number
   ): number
-  _oc_decoder_ctl(decoder: number, request: number, value: number): number
-
-  // Packet utilities
-  _oc_packet_get_bandwidth(data: number): number
-  _oc_packet_get_nb_channels(data: number): number
-  _oc_packet_get_nb_frames(data: number, len: number): number
-  _oc_packet_get_nb_samples(
-    data: number,
-    len: number,
-    sampleRate: number
-  ): number
-  _oc_packet_get_samples_per_frame(data: number, sampleRate: number): number
-  _oc_packet_parse(data: number, len: number): number
-  _oc_packet_validate_decode(
-    data: number,
-    len: number,
-    sampleRate: number
-  ): number
 
   // Error handling
   _oc_strerror(code: number): number
-
-  // Version info
-  _oc_get_version_string(): number
 }
 
 declare function createLibopusModule(): Promise<LibopusModule>

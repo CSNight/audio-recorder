@@ -6,10 +6,16 @@
  *   node build.mjs --codec=flac,aac
  *   node build.mjs --codec=amr --codec=opus
  *   node build.mjs --codec=all
+ *   node build.mjs --codec=all --simd-flac=on --simd-opus=off
  */
 import { parseArgs } from "util"
+import {
+  applyCodecSimdCliOverrides,
+  createCodecSimdArgOptions,
+  supportedWasmCodecs,
+} from "./common.mjs"
 
-const supportedCodecs = ["opus", "flac", "aac", "amr"]
+const supportedCodecs = supportedWasmCodecs
 
 const { values } = parseArgs({
   options: {
@@ -17,6 +23,7 @@ const { values } = parseArgs({
       type: "string",
       multiple: true,
     },
+    ...createCodecSimdArgOptions(supportedCodecs),
   },
 })
 
@@ -48,6 +55,7 @@ function parseCodecSelection(codecValues) {
 }
 
 const codecs = parseCodecSelection(values.codec)
+applyCodecSimdCliOverrides(values, supportedCodecs)
 
 async function main() {
   if (codecs.includes("opus")) {
@@ -74,10 +82,10 @@ async function main() {
     await buildAmr()
   }
 
-  console.log("\n✓ Build complete")
+  console.log("\nBuild complete")
 }
 
 main().catch((err) => {
-  console.error("\n✗ Build failed:", err)
+  console.error("\nBuild failed:", err)
   process.exit(1)
 })

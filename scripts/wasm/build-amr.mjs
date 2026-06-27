@@ -83,7 +83,7 @@ async function exists(path) {
   }
 }
 
-const SIMD_FLAGS = getWasmSimdFlags(true)
+const SIMD_FLAGS = getWasmSimdFlags("amr", false)
 
 const COMPILE_ENV = {
   ...process.env,
