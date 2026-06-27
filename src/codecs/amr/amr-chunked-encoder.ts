@@ -3,7 +3,7 @@ import type {
   ChunkedEncoderDefinition,
 } from "@/plugins/streaming-export/types"
 import type { PcmBufferSnapshot } from "@/buffer/types"
-import { resample } from "@/utils/resample"
+import { resample } from "audio-recorder"
 import {
   createAmrEncoder,
   getAmrStreamHeader,

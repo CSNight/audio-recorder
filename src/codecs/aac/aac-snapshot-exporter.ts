@@ -1,6 +1,6 @@
 import type { PcmBufferSnapshot } from "@/buffer/types"
 import type { SnapshotEncoderDefinition } from "@/types"
-import { resample } from "@/utils/resample"
+import { resample } from "audio-recorder"
 import { createAacEncoder, preloadAacModule } from "./aac-wasm-api"
 import type { AacExportOptions, AacExportResult } from "./types"
 

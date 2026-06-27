@@ -3,7 +3,7 @@ import type {
   ChunkedEncoderDefinition,
 } from "@/plugins/streaming-export/types"
 import type { PcmBufferSnapshot } from "@/buffer/types"
-import { resample } from "@/utils/resample"
+import { resample } from "audio-recorder"
 import { createAacEncoder, preloadAacModule } from "./aac-wasm-api"
 import type { AacEncoderHandle, AacEncoderOptions } from "./types"
 
