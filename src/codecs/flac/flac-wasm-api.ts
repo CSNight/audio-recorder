@@ -53,13 +53,14 @@ function toFlacTotalSamplesEstimate(totalSamples: number): bigint {
   return BigInt(totalSamples)
 }
 
-// @ts-expect-error static
-import createLibFlacModule from "./libflac.wasm.mjs"
 /**
  * Get or create the WASM module singleton
  */
 async function getModule(): Promise<LibFlacModule> {
   if (!modulePromise) {
+    // Dynamic import of the WASM module
+    // @ts-expect-error - WASM module type
+    const createLibFlacModule = (await import("./libflac.wasm.mjs")).default
     modulePromise = createLibFlacModule().then((m: LibFlacModule) => {
       moduleCache = m
       return m
