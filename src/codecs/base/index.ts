@@ -8,12 +8,6 @@
  */
 import InlinePcmWorker from "./pcm-worker.ts?worker&inline"
 import { pcmChunkedEncoderDefinition } from "./pcm-chunked-encoder"
-
-pcmChunkedEncoderDefinition.workerFactory = () => new InlinePcmWorker()
-
-export { pcmChunkedEncoderDefinition }
-export { pcmSnapshotEncoderDefinition } from "./pcm-snapshot-encoder"
-export type { PcmChunkedEncoderOptions } from "./pcm-chunked-encoder"
 /**
  * WAV 编解码器插件入口（可选 Vite entry point）。
  *
@@ -22,6 +16,12 @@ export type { PcmChunkedEncoderOptions } from "./pcm-chunked-encoder"
  */
 import InlineWavWorker from "./wav-worker.ts?worker&inline"
 import { wavChunkedEncoderDefinition } from "./wav-chunked-encoder"
+
+pcmChunkedEncoderDefinition.workerFactory = () => new InlinePcmWorker()
+
+export { pcmChunkedEncoderDefinition }
+export { pcmSnapshotEncoderDefinition } from "./pcm-snapshot-encoder"
+export type { PcmChunkedEncoderOptions } from "./pcm-chunked-encoder"
 ;(
   wavChunkedEncoderDefinition as typeof wavChunkedEncoderDefinition & {
     workerFactory?: () => Worker

@@ -56,6 +56,53 @@ export class OggMuxer {
   }
 
   /**
+   * Get header pages (ID Header + Comment Header)
+   */
+  getHeaderPages(): Uint8Array {
+    // ID Header page (BOS flag, granule=0, sequence=0)
+    const opusHead = this.createOpusHead()
+    const idHeaderSegmentTable = this.buildSegmentTable(opusHead.length)
+    const idHeaderPage = this.buildPage(
+      FLAG_BOS,
+      0n,
+      idHeaderSegmentTable,
+      opusHead
+    )
+
+    // Comment Header page (granule=0, sequence=1)
+    const opusTags = this.createOpusTags()
+    const commentHeaderSegmentTable = this.buildSegmentTable(opusTags.length)
+    const commentHeaderPage = this.buildPage(
+      0,
+      0n,
+      commentHeaderSegmentTable,
+      opusTags
+    )
+
+    return this.concat(idHeaderPage, commentHeaderPage)
+  }
+
+  /**
+   * Write a data frame
+   * @param frame - Opus frame data
+   * @param granulePosition - Absolute granule position (at 48kHz)
+   */
+  writeFrame(frame: Uint8Array, granulePosition: bigint): Uint8Array {
+    const segmentTable = this.buildSegmentTable(frame.length)
+    return this.buildPage(0, granulePosition, segmentTable, frame)
+  }
+
+  /**
+   * Write final frame with EOS flag
+   * @param frame - Opus frame data
+   * @param granulePosition - Absolute granule position (at 48kHz)
+   */
+  writeFinalFrame(frame: Uint8Array, granulePosition: bigint): Uint8Array {
+    const segmentTable = this.buildSegmentTable(frame.length)
+    return this.buildPage(FLAG_EOS, granulePosition, segmentTable, frame)
+  }
+
+  /**
    * Generate random serial number
    */
   private generateSerialNumber(): number {
@@ -204,52 +251,5 @@ export class OggMuxer {
       VENDOR_STRING,
       this.writeUint32LE(0) // user comment list length (empty)
     )
-  }
-
-  /**
-   * Get header pages (ID Header + Comment Header)
-   */
-  getHeaderPages(): Uint8Array {
-    // ID Header page (BOS flag, granule=0, sequence=0)
-    const opusHead = this.createOpusHead()
-    const idHeaderSegmentTable = this.buildSegmentTable(opusHead.length)
-    const idHeaderPage = this.buildPage(
-      FLAG_BOS,
-      0n,
-      idHeaderSegmentTable,
-      opusHead
-    )
-
-    // Comment Header page (granule=0, sequence=1)
-    const opusTags = this.createOpusTags()
-    const commentHeaderSegmentTable = this.buildSegmentTable(opusTags.length)
-    const commentHeaderPage = this.buildPage(
-      0,
-      0n,
-      commentHeaderSegmentTable,
-      opusTags
-    )
-
-    return this.concat(idHeaderPage, commentHeaderPage)
-  }
-
-  /**
-   * Write a data frame
-   * @param frame - Opus frame data
-   * @param granulePosition - Absolute granule position (at 48kHz)
-   */
-  writeFrame(frame: Uint8Array, granulePosition: bigint): Uint8Array {
-    const segmentTable = this.buildSegmentTable(frame.length)
-    return this.buildPage(0, granulePosition, segmentTable, frame)
-  }
-
-  /**
-   * Write final frame with EOS flag
-   * @param frame - Opus frame data
-   * @param granulePosition - Absolute granule position (at 48kHz)
-   */
-  writeFinalFrame(frame: Uint8Array, granulePosition: bigint): Uint8Array {
-    const segmentTable = this.buildSegmentTable(frame.length)
-    return this.buildPage(FLAG_EOS, granulePosition, segmentTable, frame)
   }
 }

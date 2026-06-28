@@ -16,8 +16,6 @@
 
 import InlineFlacWorker from "./flac-worker.ts?worker&inline"
 import { flacChunkedEncoderDefinition } from "./flac-chunked-encoder"
-
-// 注入 Worker factory
 ;(
   flacChunkedEncoderDefinition as typeof flacChunkedEncoderDefinition & {
     workerFactory?: () => Worker

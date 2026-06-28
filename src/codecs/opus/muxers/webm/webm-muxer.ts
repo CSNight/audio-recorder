@@ -16,12 +16,12 @@
  */
 
 import {
-  writeId,
-  writeVint,
-  writeUint,
-  writeFloat64,
-  writeElement,
   concat,
+  writeElement,
+  writeFloat64,
+  writeId,
+  writeUint,
+  writeVint,
 } from "./ebml-writer"
 
 export interface WebmMuxerOptions {
@@ -82,6 +82,65 @@ export class WebmMuxer {
     this.sampleRate = options.sampleRate
     this.channels = options.channels
     this.trackUID = this.generateTrackUID()
+  }
+
+  /**
+   * Get WebM headers (EBML Header + Segment start + Info + Tracks)
+   */
+  getHeaders(): Uint8Array {
+    const ebmlHeader = this.createEBMLHeader()
+
+    // Segment with unknown size
+    const segmentHeader = concat(writeId(Segment), UNKNOWN_SIZE_BYTES)
+
+    const info = this.createInfo()
+    const tracks = this.createTracks()
+
+    return concat(ebmlHeader, segmentHeader, info, tracks)
+  }
+
+  /**
+   * Write a frame
+   * Automatically manages Cluster boundaries (~1 second or ~50 frames)
+   *
+   * @param frame - Opus frame data
+   * @param timestampMs - Absolute timestamp in milliseconds
+   */
+  writeFrame(frame: Uint8Array, timestampMs: number): Uint8Array {
+    const output: Uint8Array[] = []
+
+    // Start new cluster if needed
+    if (!this.clusterStarted || this.clusterFrameCount >= 50) {
+      const clusterHeader = concat(
+        writeId(Cluster),
+        UNKNOWN_SIZE_BYTES,
+        writeElement(Timestamp, writeUint(timestampMs))
+      )
+
+      output.push(clusterHeader)
+      this.currentClusterTimestamp = timestampMs
+      this.clusterStarted = true
+      this.clusterFrameCount = 0
+    }
+
+    // Calculate relative timecode
+    const relativeTimecode = timestampMs - this.currentClusterTimestamp
+
+    // Create SimpleBlock
+    const simpleBlock = this.createSimpleBlock(1, relativeTimecode, true, frame)
+    output.push(simpleBlock)
+
+    this.clusterFrameCount++
+
+    return concat(...output)
+  }
+
+  /**
+   * Finalize the stream (no-op for streaming WebM)
+   */
+  finalize(): Uint8Array {
+    // For streaming WebM with unknown size, no finalization needed
+    return new Uint8Array(0)
   }
 
   /**
@@ -201,21 +260,6 @@ export class WebmMuxer {
   }
 
   /**
-   * Get WebM headers (EBML Header + Segment start + Info + Tracks)
-   */
-  getHeaders(): Uint8Array {
-    const ebmlHeader = this.createEBMLHeader()
-
-    // Segment with unknown size
-    const segmentHeader = concat(writeId(Segment), UNKNOWN_SIZE_BYTES)
-
-    const info = this.createInfo()
-    const tracks = this.createTracks()
-
-    return concat(ebmlHeader, segmentHeader, info, tracks)
-  }
-
-  /**
    * Create SimpleBlock
    * @param trackNumber - Track number (1)
    * @param timecode - Relative timecode (int16, relative to Cluster Timestamp)
@@ -249,49 +293,5 @@ export class WebmMuxer {
     )
 
     return writeElement(SimpleBlock, blockData)
-  }
-
-  /**
-   * Write a frame
-   * Automatically manages Cluster boundaries (~1 second or ~50 frames)
-   *
-   * @param frame - Opus frame data
-   * @param timestampMs - Absolute timestamp in milliseconds
-   */
-  writeFrame(frame: Uint8Array, timestampMs: number): Uint8Array {
-    const output: Uint8Array[] = []
-
-    // Start new cluster if needed
-    if (!this.clusterStarted || this.clusterFrameCount >= 50) {
-      const clusterHeader = concat(
-        writeId(Cluster),
-        UNKNOWN_SIZE_BYTES,
-        writeElement(Timestamp, writeUint(timestampMs))
-      )
-
-      output.push(clusterHeader)
-      this.currentClusterTimestamp = timestampMs
-      this.clusterStarted = true
-      this.clusterFrameCount = 0
-    }
-
-    // Calculate relative timecode
-    const relativeTimecode = timestampMs - this.currentClusterTimestamp
-
-    // Create SimpleBlock
-    const simpleBlock = this.createSimpleBlock(1, relativeTimecode, true, frame)
-    output.push(simpleBlock)
-
-    this.clusterFrameCount++
-
-    return concat(...output)
-  }
-
-  /**
-   * Finalize the stream (no-op for streaming WebM)
-   */
-  finalize(): Uint8Array {
-    // For streaming WebM with unknown size, no finalization needed
-    return new Uint8Array(0)
   }
 }

@@ -103,68 +103,6 @@ export class ChunkedEncoderBridge {
     }
   }
 
-  private createReadyPromise(): void {
-    this.readyPromise = new Promise<void>((resolve, reject) => {
-      this.resolveReady = resolve
-      this.rejectReady = reject
-    })
-    // readyPromise may reject before callers await it. Attach a noop catch to
-    // keep the rejection observable through later awaits without reporting it
-    // as an unhandled rejection.
-    this.readyPromise.catch(() => {})
-  }
-
-  private resolveWorkerReady(): void {
-    this.workerError = null
-    this.resolveReady?.()
-    this.resolveReady = null
-    this.rejectReady = null
-  }
-
-  private rejectWorkerReady(err: Error): void {
-    this.workerError = err
-    this.rejectReady?.(err)
-    this.resolveReady = null
-    this.rejectReady = null
-  }
-
-  private setupWorkerHandlers(): void {
-    this.worker!.onmessage = (event: MessageEvent<WorkerOutgoingMessage>) => {
-      const msg = event.data
-
-      if (msg.type === "ready") {
-        this.resolveWorkerReady()
-        return
-      }
-
-      if (msg.type === "error" && msg.seqId < 0) {
-        this.rejectWorkerReady(new Error(msg.message))
-        return
-      }
-
-      const entry = this.pending.get(msg.seqId)
-      if (entry === undefined) {
-        return
-      }
-      this.pending.delete(msg.seqId)
-
-      if (msg.type === "result") {
-        entry.resolve(msg.result)
-      } else {
-        entry.reject(new Error(msg.message))
-      }
-    }
-
-    this.worker!.onerror = (event) => {
-      const err = new Error(event.message ?? "Worker error")
-      this.rejectWorkerReady(err)
-      for (const entry of this.pending.values()) {
-        entry.reject(err)
-      }
-      this.pending.clear()
-    }
-  }
-
   async feedFrame(
     channels: number,
     sampleRate: number,
@@ -262,6 +200,68 @@ export class ChunkedEncoderBridge {
       this.pending.clear()
       this.worker.terminate()
       this.worker = null
+    }
+  }
+
+  private createReadyPromise(): void {
+    this.readyPromise = new Promise<void>((resolve, reject) => {
+      this.resolveReady = resolve
+      this.rejectReady = reject
+    })
+    // readyPromise may reject before callers await it. Attach a noop catch to
+    // keep the rejection observable through later awaits without reporting it
+    // as an unhandled rejection.
+    this.readyPromise.catch(() => {})
+  }
+
+  private resolveWorkerReady(): void {
+    this.workerError = null
+    this.resolveReady?.()
+    this.resolveReady = null
+    this.rejectReady = null
+  }
+
+  private rejectWorkerReady(err: Error): void {
+    this.workerError = err
+    this.rejectReady?.(err)
+    this.resolveReady = null
+    this.rejectReady = null
+  }
+
+  private setupWorkerHandlers(): void {
+    this.worker!.onmessage = (event: MessageEvent<WorkerOutgoingMessage>) => {
+      const msg = event.data
+
+      if (msg.type === "ready") {
+        this.resolveWorkerReady()
+        return
+      }
+
+      if (msg.type === "error" && msg.seqId < 0) {
+        this.rejectWorkerReady(new Error(msg.message))
+        return
+      }
+
+      const entry = this.pending.get(msg.seqId)
+      if (entry === undefined) {
+        return
+      }
+      this.pending.delete(msg.seqId)
+
+      if (msg.type === "result") {
+        entry.resolve(msg.result)
+      } else {
+        entry.reject(new Error(msg.message))
+      }
+    }
+
+    this.worker!.onerror = (event) => {
+      const err = new Error(event.message ?? "Worker error")
+      this.rejectWorkerReady(err)
+      for (const entry of this.pending.values()) {
+        entry.reject(err)
+      }
+      this.pending.clear()
     }
   }
 }

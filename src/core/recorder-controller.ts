@@ -1,14 +1,9 @@
 import { createPcmBufferStore } from "@/buffer/pcm-buffer-store"
 import type { RecorderInputAdapter, RecorderInputSession } from "@/input/types"
 import { checkRecorderCapability } from "@/input/capability-check"
-import type { EncoderMap, SnapshotEncoderDefinition } from "@/types"
-import { PcmFramePipeline } from "@/pipeline/pcm-frame-pipeline"
-import type { RecorderFramePipeline } from "@/pipeline/types"
-import { PluginHost } from "@/plugins/plugin-host"
-import type { RecorderPlugin } from "@/plugins/types"
-import type { RecorderStorageOptions } from "@/storage/types"
 import type {
   AudioFrame,
+  EncoderMap,
   RecorderEventMap,
   RecorderFrameEvent,
   RecorderInputOptions,
@@ -18,12 +13,18 @@ import type {
   RecorderRuntimeInfo,
   RecorderSessionSummary,
   RecorderStateChangeEvent,
+  SnapshotEncoderDefinition,
 } from "@/types"
 import {
   RecorderInputSource,
   RecorderState,
   RecorderWarningCode,
 } from "@/types"
+import { PcmFramePipeline } from "@/pipeline/pcm-frame-pipeline"
+import type { RecorderFramePipeline } from "@/pipeline/types"
+import { PluginHost } from "@/plugins/plugin-host"
+import type { RecorderPlugin } from "@/plugins/types"
+import type { RecorderStorageOptions } from "@/storage/types"
 import { EventBus } from "@/core/event-bus"
 
 /**
