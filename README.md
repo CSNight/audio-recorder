@@ -257,11 +257,11 @@ vendor/               上游 Recorder 参考实现
 
 旧版只基于单一纯音、且混合了 snapshot 与流式路径的结果表已经移除；需要重新跑新的矩阵结果时，请以上述命令生成新的 JSON 再做汇总。
 
-### 最近一次结果（2026-06-27）
+### 最近一次结果（2026-06-28）
 
-以下汇总基于 2026-06-27 重新实测；上半部分按同一 `codec / variant / scenario` 对 `tone / chirp / noise` 三种素材取算术平均，下半部分是 WASM codec 的 SIMD `off / on` 对比。该次实测原始结果见 `.cache/benchmark-results-current.json` 与 `.cache/benchmark-results-simd.json`。
+以下汇总基于 2026-06-28 重新实测；上半部分按同一 `codec / variant / scenario` 对 `tone / chirp / noise` 三种素材取算术平均，下半部分是 WASM codec 的 SIMD `off / on` 对比。该次实测原始结果见 `.cache/benchmark-results-current.json` 与 `.cache/benchmark-results-simd.json`。
 
-当前实现汇总：
+当前实现汇总（SIMD ON）：
 
 | 编码器 | 变体 | 场景 | 平均耗时（ms） | 平均实时倍速（x） | 平均输出大小（bytes） |
 | --- | --- | --- | ---: | ---: | ---: |
@@ -271,35 +271,35 @@ vendor/               上游 Recorder 参考实现
 | `wav` | `default` | `streaming` | 2.12 | 8476.78 | 1440352 |
 | `mp3` | `default` | `snapshot` | 208.64 | 74.52 | 240384 |
 | `mp3` | `default` | `streaming` | 202.66 | 77.35 | 240384 |
-| `flac` | `default` | `snapshot` | 9.40 | 1605.46 | 679568 |
-| `flac` | `default` | `streaming` | 9.72 | 1544.66 | 679568 |
-| `opus` | `ogg` | `snapshot` | 46.06 | 330.08 | 262774 |
-| `opus` | `ogg` | `streaming` | 46.28 | 327.95 | 263229 |
-| `opus` | `webm` | `snapshot` | 44.59 | 340.67 | 246569 |
-| `opus` | `webm` | `streaming` | 44.96 | 338.10 | 246569 |
-| `aac` | `default` | `snapshot` | 94.23 | 159.34 | 245066 |
-| `aac` | `default` | `streaming` | 95.11 | 157.78 | 245066 |
-| `amr` | `nb` | `snapshot` | 30.56 | 490.85 | 24006 |
-| `amr` | `nb` | `streaming` | 30.98 | 484.29 | 24006 |
-| `amr` | `wb` | `snapshot` | 58.87 | 254.94 | 45759 |
-| `amr` | `wb` | `streaming` | 58.74 | 255.39 | 45759 |
+| `flac` | `default` | `snapshot` | 11.04 | 1374.19 | 679568 |
+| `flac` | `default` | `streaming` | 10.37 | 1447.88 | 679568 |
+| `opus` | `ogg` | `snapshot` | 49.84 | 305.77 | 262774 |
+| `opus` | `ogg` | `streaming` | 49.66 | 307.30 | 263229 |
+| `opus` | `webm` | `snapshot` | 48.38 | 314.75 | 246569 |
+| `opus` | `webm` | `streaming` | 48.40 | 315.27 | 246569 |
+| `aac` | `default` | `snapshot` | 94.14 | 159.52 | 245066 |
+| `aac` | `default` | `streaming` | 96.38 | 155.70 | 245066 |
+| `amr` | `nb` | `snapshot` | 29.05 | 516.49 | 24006 |
+| `amr` | `nb` | `streaming` | 29.09 | 515.67 | 24006 |
+| `amr` | `wb` | `snapshot` | 59.24 | 253.26 | 45759 |
+| `amr` | `wb` | `streaming` | 59.31 | 252.93 | 45759 |
 
 WASM SIMD 对比汇总：
 
 - `avgSpeedup > 1` 表示开启 SIMD 后更快。
-- 这次测试里 `flac` 和 `aac` 收益最明显，`opus` 次之，`amr-wb` 有中等收益，`amr-nb` 基本持平。
+- 这次测试里 `flac` 和 `aac` 收益最明显，`opus-webm` 次之，`opus-ogg` 和 `amr-wb` 有中等收益，`amr-nb` 收益有限。
 
 | 编码器 | 变体 | 场景 | 平均加速比（off / on） | 最小加速比 | 最大加速比 |
 | --- | --- | --- | ---: | ---: | ---: |
-| `flac` | `default` | `snapshot` | 1.373 | 1.337 | 1.423 |
-| `flac` | `default` | `streaming` | 1.287 | 1.256 | 1.312 |
-| `opus` | `ogg` | `snapshot` | 1.095 | 1.063 | 1.131 |
-| `opus` | `ogg` | `streaming` | 1.114 | 1.081 | 1.131 |
-| `opus` | `webm` | `snapshot` | 1.138 | 1.088 | 1.167 |
-| `opus` | `webm` | `streaming` | 1.123 | 1.082 | 1.150 |
-| `aac` | `default` | `snapshot` | 1.313 | 1.277 | 1.349 |
-| `aac` | `default` | `streaming` | 1.333 | 1.295 | 1.392 |
-| `amr` | `nb` | `snapshot` | 0.992 | 0.985 | 0.997 |
-| `amr` | `nb` | `streaming` | 0.973 | 0.939 | 1.007 |
-| `amr` | `wb` | `snapshot` | 1.187 | 1.181 | 1.192 |
-| `amr` | `wb` | `streaming` | 1.114 | 1.099 | 1.122 |
+| `flac` | `default` | `snapshot` | 1.370 | 1.242 | 1.536 |
+| `flac` | `default` | `streaming` | 1.305 | 1.269 | 1.352 |
+| `opus` | `ogg` | `snapshot` | 1.130 | 1.105 | 1.175 |
+| `opus` | `ogg` | `streaming` | 1.118 | 1.110 | 1.126 |
+| `opus` | `webm` | `snapshot` | 1.215 | 1.077 | 1.351 |
+| `opus` | `webm` | `streaming` | 1.264 | 1.203 | 1.374 |
+| `aac` | `default` | `snapshot` | 1.377 | 1.335 | 1.424 |
+| `aac` | `default` | `streaming` | 1.361 | 1.301 | 1.401 |
+| `amr` | `nb` | `snapshot` | 1.055 | 1.026 | 1.083 |
+| `amr` | `nb` | `streaming` | 1.097 | 1.067 | 1.144 |
+| `amr` | `wb` | `snapshot` | 1.107 | 1.092 | 1.131 |
+| `amr` | `wb` | `streaming` | 1.126 | 1.116 | 1.135 |
