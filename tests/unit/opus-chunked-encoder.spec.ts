@@ -206,9 +206,9 @@ describe("Opus chunked encoder definitions", () => {
     expect(webmMuxerInstances[0]?.writeFrame).toHaveBeenNthCalledWith(
       2,
       new Uint8Array([2]),
-      20
+      0.5
     )
-    expect(result).toEqual(new Uint8Array([50, 0, 50, 20]))
+    expect(result).toEqual(new Uint8Array([50, 0, 50, 0.5]))
   })
 
   it("pads the final WebM frame and appends finalize output", () => {
