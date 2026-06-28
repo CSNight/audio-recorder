@@ -168,6 +168,12 @@ function runChunkedEncoder(definition, snapshot, options) {
   }
 }
 
+async function preloadDefinitions(definitions) {
+  for (const definition of definitions) {
+    await definition.preload?.()
+  }
+}
+
 async function benchmarkCase({
   name,
   codec,
@@ -365,6 +371,10 @@ async function run() {
 
   if (codecs.includes("mp3")) {
     const mp3 = await import("../dist/codecs/mp3/index.js")
+    await preloadDefinitions([
+      mp3.mp3SnapshotEncoderDefinition,
+      mp3.mp3ChunkedEncoderDefinition,
+    ])
 
     await benchmarkMaterialSet({
       cases,
@@ -405,8 +415,10 @@ async function run() {
 
   if (codecs.includes("flac")) {
     const flac = await import("../dist/codecs/flac/index.js")
-    await flac.flacSnapshotEncoderDefinition.preload?.()
-    await flac.flacChunkedEncoderDefinition.preload?.()
+    await preloadDefinitions([
+      flac.flacSnapshotEncoderDefinition,
+      flac.flacChunkedEncoderDefinition,
+    ])
 
     await benchmarkMaterialSet({
       cases,
@@ -456,10 +468,12 @@ async function run() {
 
   if (codecs.includes("opus")) {
     const opus = await import("../dist/codecs/opus/index.js")
-    await opus.oggSnapshotEncoderDefinition.preload?.()
-    await opus.webmSnapshotEncoderDefinition.preload?.()
-    await opus.oggChunkedEncoderDefinition.preload?.()
-    await opus.webmChunkedEncoderDefinition.preload?.()
+    await preloadDefinitions([
+      opus.oggSnapshotEncoderDefinition,
+      opus.webmSnapshotEncoderDefinition,
+      opus.oggChunkedEncoderDefinition,
+      opus.webmChunkedEncoderDefinition,
+    ])
 
     const opusVariants = [
       {
@@ -534,8 +548,10 @@ async function run() {
 
   if (codecs.includes("aac")) {
     const aac = await import("../dist/codecs/aac/index.js")
-    await aac.aacSnapshotEncoderDefinition.preload?.()
-    await aac.aacChunkedEncoderDefinition.preload?.()
+    await preloadDefinitions([
+      aac.aacSnapshotEncoderDefinition,
+      aac.aacChunkedEncoderDefinition,
+    ])
 
     await benchmarkMaterialSet({
       cases,
@@ -576,8 +592,10 @@ async function run() {
 
   if (codecs.includes("amr")) {
     const amr = await import("../dist/codecs/amr/index.js")
-    await amr.amrSnapshotEncoderDefinition.preload?.()
-    await amr.amrChunkedEncoderDefinition.preload?.()
+    await preloadDefinitions([
+      amr.amrSnapshotEncoderDefinition,
+      amr.amrChunkedEncoderDefinition,
+    ])
 
     for (const bandMode of ["nb", "wb"]) {
       const sampleRate = bandMode === "nb" ? 8000 : 16000

@@ -4,7 +4,7 @@ import { writeFile } from "fs/promises"
 import { parseArgs } from "util"
 
 const supportedCodecs = ["pcm", "wav", "mp3", "flac", "opus", "aac", "amr"]
-const wasmCodecs = new Set(["flac", "opus", "aac", "amr"])
+const wasmCodecs = new Set(["mp3", "flac", "opus", "aac", "amr"])
 const supportedSimdModes = ["both", "on", "off"]
 
 const { values } = parseArgs({
