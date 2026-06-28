@@ -206,7 +206,55 @@ describe("ChunkedEncoderBridge", () => {
     await expect(feedPromise).rejects.toThrow("ChunkedEncoderBridge disposed")
     expect(worker.terminated).toBe(true)
   })
+  it("rejects feedFrame and flush when worker init fails before ready", async () => {
+    vi.stubGlobal("Worker", class {})
 
+    const worker = new FakeWorker()
+    const bridge = new ChunkedEncoderBridge({
+      format: "custom",
+      definition: {
+        format: "custom",
+        workerFactory: () => worker as unknown as Worker,
+        create: () => ({
+          feedFrame: () => null,
+          flush: () => null,
+          dispose: () => undefined,
+        }),
+      },
+    })
+
+    worker.emitMessage({ type: "error", message: "init failed", seqId: -1 })
+
+    await expect(bridge.feedFrame(1, 16000, mono([1]))).rejects.toThrow(
+      "init failed"
+    )
+    await expect(bridge.flush()).rejects.toThrow("init failed")
+  })
+
+  it("rejects a queued feedFrame when disposed before worker becomes ready", async () => {
+    vi.stubGlobal("Worker", class {})
+
+    const worker = new FakeWorker()
+    const bridge = new ChunkedEncoderBridge({
+      format: "custom",
+      definition: {
+        format: "custom",
+        workerFactory: () => worker as unknown as Worker,
+        create: () => ({
+          feedFrame: () => null,
+          flush: () => null,
+          dispose: () => undefined,
+        }),
+      },
+    })
+
+    const feedPromise = bridge.feedFrame(1, 16000, mono([3]))
+    await Promise.resolve()
+
+    bridge.dispose()
+
+    await expect(feedPromise).rejects.toThrow("ChunkedEncoderBridge disposed")
+  })
   it("falls back to the main thread when worker construction fails", async () => {
     vi.stubGlobal("Worker", class {})
 

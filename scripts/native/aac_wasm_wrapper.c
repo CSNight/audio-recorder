@@ -3,7 +3,7 @@
 
 #include "libavcodec/avcodec.h"
 #include "libavutil/channel_layout.h"
-
+#include "libavutil/log.h"
 typedef struct {
   AVCodecContext *codec_ctx;
   AVPacket *packet;
@@ -15,6 +15,8 @@ typedef struct {
 } EncoderContext;
 
 EncoderContext *init_encoder(int channels, int sample_rate, int bitrate) {
+  av_log_set_level(AV_LOG_ERROR);
+
   const AVCodec *codec = avcodec_find_encoder(AV_CODEC_ID_AAC);
   if (!codec) {
     return NULL;

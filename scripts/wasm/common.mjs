@@ -8,7 +8,7 @@ import { pipeline } from "stream/promises"
 import { spawn } from "child_process"
 import { dirname } from "path"
 
-export const supportedWasmCodecs = ["opus", "flac", "aac", "amr"]
+export const supportedWasmCodecs = ["opus", "flac", "aac", "amr", "mp3"]
 
 /**
  * Download a file from URL with SHA-256 verification
@@ -129,6 +129,7 @@ export async function execCommand(command, args, options = {}) {
  * Execute emconfigure
  */
 export async function emconfigure(args, options = {}) {
+  console.log(args, options)
   return execCommand("emconfigure", args, options)
 }
 
@@ -136,6 +137,7 @@ export async function emconfigure(args, options = {}) {
  * Execute emmake
  */
 export async function emmake(args, options = {}) {
+  console.log(args, options)
   return execCommand("emmake", args, options)
 }
 
@@ -143,6 +145,7 @@ export async function emmake(args, options = {}) {
  * Execute emcc
  */
 export async function emcc(args, options = {}) {
+  console.log(args, options)
   return execCommand("emcc", args, options)
 }
 

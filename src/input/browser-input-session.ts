@@ -85,13 +85,16 @@ export class BrowserInputSession
     this.backend = backend
   }
 
-  acceptFrame(planarFloat: readonly Float32Array[], timestamp: number): void {
+  acceptFrame(
+    planarFloat: readonly Float32Array[],
+    timestamp: number,
+    sampleRate = this.audioContext.sampleRate
+  ): void {
     if (this.sessionState !== InputSessionState.Recording) {
       return
     }
 
     const now = performance.now()
-    const sampleRate = this.audioContext.sampleRate
     const frameLength = planarFloat[0]?.length ?? 0
     const pcmTime = Math.round((frameLength / sampleRate) * 1000)
 
@@ -136,12 +139,12 @@ export class BrowserInputSession
             { length: planarFloat.length },
             () => silentChannel
           )
-          this.processFrame(silentPlanar, now)
+          this.processFrame(silentPlanar, now, sampleRate)
         }
       }
     }
 
-    this.processFrame(planarFloat, timestamp)
+    this.processFrame(planarFloat, timestamp, sampleRate)
   }
 
   async start(): Promise<void> {
@@ -207,17 +210,14 @@ export class BrowserInputSession
 
   private processFrame(
     planarFloat: readonly Float32Array[],
-    timestamp: number
+    timestamp: number,
+    sampleRate: number
   ): void {
     const nextChannelCount = resolveChannelCount(planarFloat.length)
     this.activeChannelCount = nextChannelCount
     this.reportChannelCountAdjustmentIfNeeded(nextChannelCount)
 
-    const frame = createAudioFrame(
-      planarFloat,
-      this.audioContext.sampleRate,
-      timestamp
-    )
+    const frame = createAudioFrame(planarFloat, sampleRate, timestamp)
 
     this.summary.frames += 1
     this.summary.durationMs += frame.durationMs

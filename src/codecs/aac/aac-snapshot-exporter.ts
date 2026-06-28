@@ -53,11 +53,10 @@ export function exportAacSnapshot(
       ? snapshot
       : resample(snapshot, targetSampleRate, {})
 
-  const bitrate = options.bitrate ?? 128_000
   const encoder = createAacEncoder({
     sampleRate: normalized.sampleRate,
     channels: normalized.channels,
-    bitrate,
+    bitrate: options.bitrate ?? 128_000,
   })
 
   const chunks: Uint8Array[] = []
@@ -105,7 +104,7 @@ export function exportAacSnapshot(
     mimeType: "audio/aac",
     sampleRate: normalized.sampleRate,
     channels: normalized.channels,
-    bitrate,
+    bitrate: encoder.bitrate,
   }
 }
 

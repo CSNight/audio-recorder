@@ -55,6 +55,17 @@ describe("aacSnapshotEncoderDefinition", () => {
     expect((result.data[1]! & 0xf0) === 0xf0).toBe(true)
   })
 
+  it("clamps default bitrate for low sample-rate mono export", () => {
+    const snapshot = makeSnapshot(16000, 1, 16000)
+    const result = exportAacSnapshot(snapshot)
+
+    expect(result.sampleRate).toBe(16000)
+    expect(result.channels).toBe(1)
+    expect(result.bitrate).toBe(96000)
+    expect(result.data.byteLength).toBeGreaterThan(0)
+    expect(result.data[0]).toBe(0xff)
+  })
+
   it("resamples to the requested sampleRate before encoding", () => {
     const snapshot = makeSnapshot(48000, 1, 48000)
     const result = exportAacSnapshot(snapshot, { sampleRate: 44100 })

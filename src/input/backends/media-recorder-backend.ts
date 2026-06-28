@@ -148,7 +148,7 @@ export function createMediaRecorderBackend(
             })
           }
 
-          sink.acceptFrame(result, performance.now())
+          sink.acceptFrame(result, performance.now(), extractScope.webmSR)
         })
         .catch(() => {
           /* ignore read errors */

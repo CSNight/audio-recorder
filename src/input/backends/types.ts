@@ -6,7 +6,11 @@ import type { AudioChannelCount, RecorderInputStrategy } from "@/types"
  * InputBackend 解析出每帧后调用，session 负责状态门控、丢帧补偿与 Int16 转换。
  */
 export interface InputFrameSink {
-  acceptFrame: (planar: readonly Float32Array[], timestamp: number) => void
+  acceptFrame: (
+    planar: readonly Float32Array[],
+    timestamp: number,
+    sampleRate?: number
+  ) => void
 }
 
 /**

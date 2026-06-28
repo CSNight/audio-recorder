@@ -4,7 +4,7 @@ import { AacError } from "@/codecs/aac/types"
 function createMockAacModule(overrides: Partial<any> = {}) {
   const HEAPF32 = new Float32Array(64)
   const HEAPU8 = new Uint8Array(64)
-  let currentPacket = new Uint8Array(0)
+  let currentPacket: Uint8Array<ArrayBufferLike> = new Uint8Array(0)
   const packetQueue: Array<number | Uint8Array> = []
 
   const module = {
@@ -160,6 +160,24 @@ describe("aac-wasm-api", () => {
     encoder.free()
     expect(module._close_encoder).toHaveBeenCalledTimes(1)
     expect(() => encoder.flush()).toThrow("AAC encoder has been freed")
+  })
+
+  it("clamps bitrate to the AAC frame limit before initializing the encoder", async () => {
+    const module = createMockAacModule()
+    vi.doMock("@/codecs/aac/libaac.wasm.mjs", () => ({
+      default: vi.fn(async () => module),
+    }))
+
+    const api = await import("@/codecs/aac/aac-wasm-api")
+    await api.preloadAacModule()
+    const encoder = api.createAacEncoder({
+      sampleRate: 16000,
+      channels: 1,
+      bitrate: 128000,
+    })
+
+    expect(module._init_encoder).toHaveBeenCalledWith(1, 16000, 96000)
+    expect(encoder.bitrate).toBe(96000)
   })
 
   it("validates encode input length and packet drain failures", async () => {

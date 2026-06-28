@@ -40,6 +40,7 @@ export class ChunkedEncoderBridge {
   private worker: Worker | null = null
   private encoder: ChunkedEncoder | null = null
   private disposed = false
+  private workerError: Error | null = null
 
   // 保存 definition，供 reset() 主线程模式调用 definition.create()
   private readonly definition: ChunkedEncoderDefinition
@@ -54,6 +55,7 @@ export class ChunkedEncoderBridge {
   // Worker 就绪信号；init/reset 完成前 feedFrame/flush 自动等待
   private readyPromise: Promise<void> = Promise.resolve()
   private resolveReady: (() => void) | null = null
+  private rejectReady: ((reason: Error) => void) | null = null
 
   constructor(opts: ChunkedEncoderBridgeOptions) {
     this.definition = opts.definition
@@ -92,6 +94,7 @@ export class ChunkedEncoderBridge {
   /** 每次录音开始前调用，重置 encoder 状态 */
   reset(encoderOptions?: unknown): void {
     if (this.worker !== null) {
+      this.workerError = null
       this.createReadyPromise()
       this.worker.postMessage({ type: "reset", options: encoderOptions })
     } else if (this.encoder !== null) {
@@ -101,9 +104,28 @@ export class ChunkedEncoderBridge {
   }
 
   private createReadyPromise(): void {
-    this.readyPromise = new Promise<void>((resolve) => {
+    this.readyPromise = new Promise<void>((resolve, reject) => {
       this.resolveReady = resolve
+      this.rejectReady = reject
     })
+    // readyPromise may reject before callers await it. Attach a noop catch to
+    // keep the rejection observable through later awaits without reporting it
+    // as an unhandled rejection.
+    this.readyPromise.catch(() => {})
+  }
+
+  private resolveWorkerReady(): void {
+    this.workerError = null
+    this.resolveReady?.()
+    this.resolveReady = null
+    this.rejectReady = null
+  }
+
+  private rejectWorkerReady(err: Error): void {
+    this.workerError = err
+    this.rejectReady?.(err)
+    this.resolveReady = null
+    this.rejectReady = null
   }
 
   private setupWorkerHandlers(): void {
@@ -111,7 +133,12 @@ export class ChunkedEncoderBridge {
       const msg = event.data
 
       if (msg.type === "ready") {
-        this.resolveReady?.()
+        this.resolveWorkerReady()
+        return
+      }
+
+      if (msg.type === "error" && msg.seqId < 0) {
+        this.rejectWorkerReady(new Error(msg.message))
         return
       }
 
@@ -130,6 +157,7 @@ export class ChunkedEncoderBridge {
 
     this.worker!.onerror = (event) => {
       const err = new Error(event.message ?? "Worker error")
+      this.rejectWorkerReady(err)
       for (const entry of this.pending.values()) {
         entry.reject(err)
       }
@@ -149,8 +177,16 @@ export class ChunkedEncoderBridge {
     }
 
     if (this.worker !== null) {
+      if (this.workerError) {
+        return Promise.reject(this.workerError)
+      }
+
       // 先等 ready（init 或 reset 完成），正常路径下已 resolve，await 几乎零开销
       await this.readyPromise
+      if (this.workerError) {
+        return Promise.reject(this.workerError)
+      }
+
       const seqId = this.nextSeqId++
       return new Promise<Uint8Array | null>((resolve, reject) => {
         this.pending.set(seqId, { resolve, reject })
@@ -182,7 +218,15 @@ export class ChunkedEncoderBridge {
     }
 
     if (this.worker !== null) {
+      if (this.workerError) {
+        return Promise.reject(this.workerError)
+      }
+
       await this.readyPromise
+      if (this.workerError) {
+        return Promise.reject(this.workerError)
+      }
+
       const seqId = this.nextSeqId++
       return new Promise<Uint8Array | null>((resolve, reject) => {
         this.pending.set(seqId, { resolve, reject })
@@ -211,6 +255,7 @@ export class ChunkedEncoderBridge {
     if (this.worker !== null) {
       this.worker.postMessage({ type: "dispose" })
       const err = new Error("ChunkedEncoderBridge disposed")
+      this.rejectWorkerReady(err)
       for (const entry of this.pending.values()) {
         entry.reject(err)
       }

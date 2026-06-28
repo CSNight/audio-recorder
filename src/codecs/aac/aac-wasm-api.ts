@@ -19,6 +19,27 @@ type LibAacModule = {
 let modulePromise: Promise<LibAacModule> | undefined
 let moduleCache: LibAacModule | undefined
 
+const AAC_SAMPLES_PER_FRAME = 1024
+const AAC_MAX_BITS_PER_CHANNEL_PER_FRAME = 6144
+
+// Clamp bitrate before init to avoid FFmpeg AAC-LC frame-limit warnings.
+function normalizeAacBitrate(
+  sampleRate: number,
+  channels: number,
+  bitrate?: number
+): number {
+  const requestedBitrate = bitrate ?? 128_000
+  const maxBitrate = Math.max(
+    1,
+    Math.floor(
+      (AAC_MAX_BITS_PER_CHANNEL_PER_FRAME * sampleRate * channels) /
+        AAC_SAMPLES_PER_FRAME
+    )
+  )
+
+  return Math.min(requestedBitrate, maxBitrate)
+}
+
 async function getModule(): Promise<LibAacModule> {
   if (!modulePromise) {
     // @ts-expect-error Emscripten single-file module is generated at build time.
@@ -63,7 +84,11 @@ export function createAacEncoder(options: AacEncoderOptions): AacEncoderHandle {
   }
 
   const module = moduleCache
-  const bitrate = options.bitrate ?? 128_000
+  const bitrate = normalizeAacBitrate(
+    options.sampleRate,
+    options.channels,
+    options.bitrate
+  )
   const encoderPtr = module._init_encoder(
     options.channels,
     options.sampleRate,
