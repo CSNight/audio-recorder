@@ -5,14 +5,14 @@
  * `libmp3lame.a` with Emscripten, and then links it with the local bridge
  * wrapper so the runtime does not depend on vendored Mediabunny artifacts.
  */
-import { join, resolve, dirname } from "path"
-import { mkdir, rm, access } from "fs/promises"
+import { dirname, join, resolve } from "path"
+import { access, mkdir, rm } from "fs/promises"
 import { fileURLToPath } from "url"
 import {
   downloadAndVerify,
+  emcc,
   emconfigure,
   emmake,
-  emcc,
   getBuildJobs,
   getWasmSimdFlags,
   verifyExistingFileSha256,

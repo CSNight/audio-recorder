@@ -1,490 +1,492 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <title>audio-recorder Vue Playground</title>
-    <link href="./style.css" rel="stylesheet" />
-  </head>
-  <body>
-    <div id="app">
-      <main class="page">
+    <link href="./style.css" rel="stylesheet"/>
+</head>
+<body>
+<div id="app">
+    <main class="page">
         <section class="hero">
-          <p class="eyebrow">Vue Playground</p>
-          <h1>audio-recorder 简版示例页</h1>
-          <p class="lede">
-            这个 playground 不再直接引用工程源码，而是通过
-            <code>/dist/index.js</code>
-            消费库的打包产物。Vue 运行时通过 CDN 引入，不额外建立 Vue 工程。
-          </p>
-          <div class="hero-meta">
-            <span class="meta-pill">CDN Vue</span>
-            <span class="meta-pill">Built Artifact Only</span>
-            <span class="meta-pill">Microphone / External Stream</span>
-          </div>
-          <p class="supporting">
-            <a class="top-link" href="/">返回根页说明</a>
-          </p>
+            <p class="eyebrow">Vue Playground</p>
+            <h1>audio-recorder 简版示例页</h1>
+            <p class="lede">
+                这个 playground 不再直接引用工程源码，而是通过
+                <code>/dist/index.js</code>
+                消费库的打包产物。Vue 运行时通过 CDN 引入，不额外建立 Vue 工程。
+            </p>
+            <div class="hero-meta">
+                <span class="meta-pill">CDN Vue</span>
+                <span class="meta-pill">Built Artifact Only</span>
+                <span class="meta-pill">Microphone / External Stream</span>
+            </div>
+            <p class="supporting">
+                <a class="top-link" href="/">返回根页说明</a>
+            </p>
         </section>
 
         <section class="grid">
-          <div class="stack">
-            <section class="panel">
-              <h2>控制区</h2>
-              <div class="control-row">
-                <label>
-                  <div class="stat-label">输入来源</div>
-                  <select
-                    v-model="state.sourceMode"
-                    data-testid="source-mode"
-                    @change="handleSourceModeChange"
-                  >
-                    <option :value="PLAYGROUND_SOURCE_MODE.microphone">
-                      麦克风
-                    </option>
-                    <option :value="PLAYGROUND_SOURCE_MODE.externalTone">
-                      外部音调流
-                    </option>
-                  </select>
-                </label>
-                <label
-                  v-if="state.sourceMode === PLAYGROUND_SOURCE_MODE.microphone"
-                >
-                  <div class="stat-label">
-                    麦克风设备
-                    <button
-                      class="inline-btn"
-                      data-testid="refresh-devices-button"
-                      style="
+            <div class="stack">
+                <section class="panel">
+                    <h2>控制区</h2>
+                    <div class="control-row">
+                        <label>
+                            <div class="stat-label">输入来源</div>
+                            <select
+                                    @change="handleSourceModeChange"
+                                    data-testid="source-mode"
+                                    v-model="state.sourceMode"
+                            >
+                                <option :value="PLAYGROUND_SOURCE_MODE.microphone">
+                                    麦克风
+                                </option>
+                                <option :value="PLAYGROUND_SOURCE_MODE.externalTone">
+                                    外部音调流
+                                </option>
+                            </select>
+                        </label>
+                        <label
+                                v-if="state.sourceMode === PLAYGROUND_SOURCE_MODE.microphone"
+                        >
+                            <div class="stat-label">
+                                麦克风设备
+                                <button
+                                        @click="refreshMicrophoneDevices"
+                                        class="inline-btn"
+                                        data-testid="refresh-devices-button"
+                                        style="
                         margin-left: 0.4rem;
                         font-size: 0.7rem;
                         padding: 0.1rem 0.4rem;
                       "
-                      @click="refreshMicrophoneDevices"
+                                >
+                                    ↻ 刷新
+                                </button>
+                            </div>
+                            <select
+                                    data-testid="device-select"
+                                    v-model="state.selectedDeviceId"
+                            >
+                                <option value="">默认麦克风</option>
+                                <option
+                                        :key="device.deviceId"
+                                        :value="device.deviceId"
+                                        v-for="device in state.microphoneDevices"
+                                >
+                                    {{ device.label || `麦克风 ${device.deviceId.slice(0,
+                                    8)}…` }}
+                                </option>
+                            </select>
+                        </label>
+                        <label>
+                            <div class="stat-label">期望声道</div>
+                            <select
+                                    data-testid="channel-count"
+                                    v-model.number="state.requestedChannelCount"
+                            >
+                                <option :value="1">单声道</option>
+                                <option :value="2">双声道</option>
+                            </select>
+                        </label>
+                        <label>
+                            <div class="stat-label">采集策略</div>
+                            <select
+                                    data-testid="input-strategy"
+                                    v-model="state.inputStrategy"
+                            >
+                                <option value="auto">自动（优先 MediaRecorder）</option>
+                                <option value="media-recorder">MediaRecorder</option>
+                                <option value="audio-worklet">AudioWorklet</option>
+                                <option value="script-processor">
+                                    ScriptProcessor（已废弃）
+                                </option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="control-row">
+                        <label>
+                            <div class="stat-label">存储模式</div>
+                            <select
+                                    :disabled="!canChangeStorageMode"
+                                    @change="handleStorageModeChange"
+                                    data-testid="storage-mode"
+                                    v-model="state.storageMode"
+                            >
+                                <option :value="PLAYGROUND_STORAGE_MODE.memory">
+                                    纯内存
+                                </option>
+                                <option :value="PLAYGROUND_STORAGE_MODE.persistent">
+                                    持久化模式
+                                </option>
+                                <option :value="PLAYGROUND_STORAGE_MODE.auto">
+                                    自动模式
+                                </option>
+                            </select>
+                        </label>
+                        <label>
+                            <div class="stat-label">持久化后端</div>
+                            <select
+                                    :disabled="!canChangeStorageMode || state.storageMode === PLAYGROUND_STORAGE_MODE.memory"
+                                    @change="handleStorageModeChange"
+                                    data-testid="persistence-backend"
+                                    v-model="state.persistenceBackend"
+                            >
+                                <option :value="PLAYGROUND_PERSISTENCE_BACKEND.indexeddb">
+                                    IndexedDB
+                                </option>
+                                <option :value="PLAYGROUND_PERSISTENCE_BACKEND.opfs">
+                                    OPFS
+                                </option>
+                            </select>
+                        </label>
+                    </div>
+                    <div class="control-row">
+                        <label>
+                            <div class="stat-label">溢写阈值(byte)</div>
+                            <input
+                                    :disabled="!canChangeStorageMode || state.storageMode !== PLAYGROUND_STORAGE_MODE.auto"
+                                    data-testid="memory-threshold"
+                                    min="1"
+                                    step="1"
+                                    type="number"
+                                    v-model.number="state.memoryThresholdBytes"
+                            />
+                        </label>
+                    </div>
+                    <p class="supporting storage-note" data-testid="storage-hint">
+                        {{ storageHint }}
+                    </p>
+                    <div class="control-grid">
+                        <button
+                                :disabled="!canOpen"
+                                @click="openRecorder"
+                                id="open-button"
+                        >
+                            打开
+                        </button>
+                        <button
+                                :disabled="!canStart"
+                                @click="startRecorder"
+                                id="start-button"
+                        >
+                            开始
+                        </button>
+                        <button
+                                :disabled="!canPause"
+                                @click="pauseRecorder"
+                                id="pause-button"
+                        >
+                            暂停
+                        </button>
+                        <button
+                                :disabled="!canResume"
+                                @click="resumeRecorder"
+                                id="resume-button"
+                        >
+                            恢复
+                        </button>
+                        <button
+                                :disabled="!canStop"
+                                @click="stopRecorder"
+                                id="stop-button"
+                        >
+                            停止
+                        </button>
+                        <button
+                                :disabled="!canClose"
+                                @click="closeRecorder"
+                                id="close-button"
+                        >
+                            关闭
+                        </button>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <h2>实时状态</h2>
+                    <div class="stats-grid">
+                        <article class="stat">
+                            <p class="stat-label">录音器状态</p>
+                            <p class="stat-value" id="state-value">
+                                {{ state.recorderState }}
+                            </p>
+                        </article>
+                        <article class="stat">
+                            <p class="stat-label">已接收帧数</p>
+                            <p class="stat-value" id="frame-count-value">
+                                {{ state.frameCount }}
+                            </p>
+                        </article>
+                        <article class="stat">
+                            <p class="stat-label">实际采样率</p>
+                            <p class="stat-value" id="sample-rate-value">
+                                {{ state.runtimeInfo?.actualSampleRate ??
+                                state.runtimeInfo?.requestedSampleRate ?? "-" }}
+                            </p>
+                        </article>
+                        <article class="stat">
+                            <p class="stat-label">实际声道</p>
+                            <p class="stat-value" id="channels-value">
+                                {{ state.runtimeInfo?.actualChannelCount ??
+                                state.runtimeInfo?.requestedChannelCount ?? "-" }}
+                            </p>
+                        </article>
+                        <article class="stat">
+                            <p class="stat-label">实际采集链路</p>
+                            <p class="stat-value" data-testid="input-strategy-value">
+                                {{ state.runtimeInfo?.inputStrategy ?? "-" }}
+                            </p>
+                        </article>
+                        <article class="stat">
+                            <p class="stat-label">持久化后端</p>
+                            <p
+                                    class="stat-value"
+                                    data-testid="active-persistence-backend"
+                            >
+                                {{ state.activePersistenceBackend ?? "-" }}
+                            </p>
+                        </article>
+                        <article class="stat">
+                            <p class="stat-label">导出 PCM 大小</p>
+                            <p class="stat-value" data-testid="exported-bytes-value">
+                                {{ state.exportedBytes ?? "-" }}
+                            </p>
+                        </article>
+                        <article class="stat">
+                            <p class="stat-label">处理状态</p>
+                            <p class="stat-value" data-testid="pending-action-value">
+                                {{ state.pendingActionLabel || "-" }}
+                            </p>
+                        </article>
+                    </div>
+                    <div class="meter-panel">
+                        <p class="stat-label">实时电平估算</p>
+                        <div class="meter-shell">
+                            <div
+                                    :style="{ width: `${state.levelPercent}%` }"
+                                    class="meter-fill"
+                            ></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <h2>运行时快照</h2>
+                    <pre class="json" id="runtime-json">{{ runtimeJson }}</pre>
+                </section>
+            </div>
+
+            <div class="stack">
+                <section class="panel">
+                    <h2>会话摘要</h2>
+                    <pre class="json" id="summary-json">{{ summaryJson }}</pre>
+                </section>
+
+                <section class="panel">
+                    <h2>导出与下载</h2>
+                    <p class="supporting" style="margin-bottom: 0.75rem">
+                        停止录音后可下载 PCM 原始数据、WAV 以及各编码格式文件。
+                    </p>
+                    <div class="control-row" style="margin-bottom: 0.75rem">
+                        <label>
+                            <div class="stat-label">AMR 模式</div>
+                            <select data-testid="amr-band-mode" v-model="state.amrBandMode">
+                                <option value="nb">NB</option>
+                                <option value="wb">WB</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div
+                            class="control-grid"
+                            style="grid-template-columns: repeat(9, 1fr)"
                     >
-                      ↻ 刷新
-                    </button>
-                  </div>
-                  <select
-                    v-model="state.selectedDeviceId"
-                    data-testid="device-select"
-                  >
-                    <option value="">默认麦克风</option>
-                    <option
-                      v-for="device in state.microphoneDevices"
-                      :key="device.deviceId"
-                      :value="device.deviceId"
+                        <button
+                                :disabled="!state.lastExportResult"
+                                @click="downloadPCM"
+                                data-testid="download-pcm-button"
+                        >
+                            ↓ PCM
+                        </button>
+                        <button
+                                :disabled="!state.lastExportResult"
+                                @click="downloadWAV"
+                                data-testid="download-wav-button"
+                        >
+                            ↓ WAV
+                        </button>
+                        <button
+                                :disabled="!state.lastExportResult"
+                                @click="downloadMP3"
+                                data-testid="download-mp3-button"
+                        >
+                            ↓ MP3
+                        </button>
+                        <button
+                                :disabled="!state.lastExportResult"
+                                @click="downloadG711"
+                                data-testid="download-g711-button"
+                        >
+                            ↓ G.711
+                        </button>
+                        <button
+                                :disabled="!state.lastExportResult"
+                                @click="downloadAAC"
+                                data-testid="download-aac-button"
+                        >
+                            ↓ AAC
+                        </button>
+                        <button
+                                :disabled="!state.lastExportResult"
+                                @click="downloadAMR"
+                                data-testid="download-amr-button"
+                        >
+                            ↓ AMR
+                        </button>
+                        <button
+                                :disabled="!state.lastExportResult"
+                                @click="downloadOpusOgg"
+                                data-testid="download-opus-ogg-button"
+                        >
+                            ↓ Opus OGG
+                        </button>
+                        <button
+                                :disabled="!state.lastExportResult"
+                                @click="downloadOpusWebm"
+                                data-testid="download-opus-webm-button"
+                        >
+                            ↓ Opus WebM
+                        </button>
+                        <button
+                                :disabled="!state.lastExportResult"
+                                @click="downloadFLAC"
+                                data-testid="download-flac-button"
+                        >
+                            ↓ FLAC
+                        </button>
+                    </div>
+                    <div
+                            class="stats-grid"
+                            style="margin-top: 0.75rem"
+                            v-if="state.lastExportResult"
                     >
-                      {{ device.label || `麦克风 ${device.deviceId.slice(0,
-                      8)}…` }}
-                    </option>
-                  </select>
-                </label>
-                <label>
-                  <div class="stat-label">期望声道</div>
-                  <select
-                    v-model.number="state.requestedChannelCount"
-                    data-testid="channel-count"
-                  >
-                    <option :value="1">单声道</option>
-                    <option :value="2">双声道</option>
-                  </select>
-                </label>
-                <label>
-                  <div class="stat-label">采集策略</div>
-                  <select
-                    v-model="state.inputStrategy"
-                    data-testid="input-strategy"
-                  >
-                    <option value="auto">自动（优先 MediaRecorder）</option>
-                    <option value="media-recorder">MediaRecorder</option>
-                    <option value="audio-worklet">AudioWorklet</option>
-                    <option value="script-processor">
-                      ScriptProcessor（已废弃）
-                    </option>
-                  </select>
-                </label>
-              </div>
-              <div class="control-row">
-                <label>
-                  <div class="stat-label">存储模式</div>
-                  <select
-                    v-model="state.storageMode"
-                    :disabled="!canChangeStorageMode"
-                    data-testid="storage-mode"
-                    @change="handleStorageModeChange"
-                  >
-                    <option :value="PLAYGROUND_STORAGE_MODE.memory">
-                      纯内存
-                    </option>
-                    <option :value="PLAYGROUND_STORAGE_MODE.persistent">
-                      持久化模式
-                    </option>
-                    <option :value="PLAYGROUND_STORAGE_MODE.auto">
-                      自动模式
-                    </option>
-                  </select>
-                </label>
-                <label>
-                  <div class="stat-label">持久化后端</div>
-                  <select
-                    v-model="state.persistenceBackend"
-                    :disabled="!canChangeStorageMode || state.storageMode === PLAYGROUND_STORAGE_MODE.memory"
-                    data-testid="persistence-backend"
-                    @change="handleStorageModeChange"
-                  >
-                    <option :value="PLAYGROUND_PERSISTENCE_BACKEND.indexeddb">
-                      IndexedDB
-                    </option>
-                    <option :value="PLAYGROUND_PERSISTENCE_BACKEND.opfs">
-                      OPFS
-                    </option>
-                  </select>
-                </label>
-              </div>
-              <div class="control-row">
-                <label>
-                  <div class="stat-label">溢写阈值(byte)</div>
-                  <input
-                    v-model.number="state.memoryThresholdBytes"
-                    :disabled="!canChangeStorageMode || state.storageMode !== PLAYGROUND_STORAGE_MODE.auto"
-                    data-testid="memory-threshold"
-                    min="1"
-                    step="1"
-                    type="number"
-                  />
-                </label>
-              </div>
-              <p class="supporting storage-note" data-testid="storage-hint">
-                {{ storageHint }}
-              </p>
-              <div class="control-grid">
-                <button
-                  :disabled="!canOpen"
-                  id="open-button"
-                  @click="openRecorder"
-                >
-                  打开
-                </button>
-                <button
-                  :disabled="!canStart"
-                  id="start-button"
-                  @click="startRecorder"
-                >
-                  开始
-                </button>
-                <button
-                  :disabled="!canPause"
-                  id="pause-button"
-                  @click="pauseRecorder"
-                >
-                  暂停
-                </button>
-                <button
-                  :disabled="!canResume"
-                  id="resume-button"
-                  @click="resumeRecorder"
-                >
-                  恢复
-                </button>
-                <button
-                  :disabled="!canStop"
-                  id="stop-button"
-                  @click="stopRecorder"
-                >
-                  停止
-                </button>
-                <button
-                  :disabled="!canClose"
-                  id="close-button"
-                  @click="closeRecorder"
-                >
-                  关闭
-                </button>
-              </div>
-            </section>
+                        <article class="stat">
+                            <p class="stat-label">PCM 大小</p>
+                            <p class="stat-value" data-testid="export-pcm-bytes">
+                                {{ state.lastExportResult.pcm.data.byteLength }} byte
+                            </p>
+                        </article>
+                        <article class="stat">
+                            <p class="stat-label">WAV 大小</p>
+                            <p class="stat-value" data-testid="export-wav-bytes">
+                                {{ state.lastExportResult.wav.arrayBuffer.byteLength }} byte
+                            </p>
+                        </article>
+                        <article class="stat">
+                            <p class="stat-label">采样率</p>
+                            <p class="stat-value" data-testid="export-sample-rate">
+                                {{ state.lastExportResult.wav.sampleRate }} Hz
+                            </p>
+                        </article>
+                        <article class="stat">
+                            <p class="stat-label">声道 / 位深</p>
+                            <p class="stat-value" data-testid="export-channels-bitrate">
+                                {{ state.lastExportResult.wav.channels }}ch / {{
+                                state.lastExportResult.wav.bitRate }}bit
+                            </p>
+                        </article>
+                        <article class="stat">
+                            <p class="stat-label">G.711 大小</p>
+                            <p class="stat-value" data-testid="export-g711-bytes">
+                                {{ state.lastExportResult.g711.data.byteLength }} byte ({{
+                                state.lastExportResult.g711.variant }})
+                            </p>
+                        </article>
+                        <article class="stat" v-if="state.lastExportResult.aac">
+                            <p class="stat-label">AAC 大小</p>
+                            <p class="stat-value" data-testid="export-aac-bytes">
+                                {{ state.lastExportResult.aac.data.byteLength }} byte
+                            </p>
+                        </article>
+                        <article class="stat" v-if="state.lastExportResult.amr">
+                            <p class="stat-label">AMR 大小</p>
+                            <p class="stat-value" data-testid="export-amr-bytes">
+                                {{ state.lastExportResult.amr.data.byteLength }} byte ({{
+                                state.lastExportResult.amr.bandMode }})
+                            </p>
+                        </article>
+                        <article class="stat" v-if="state.lastExportResult.opusOgg">
+                            <p class="stat-label">Opus OGG 大小</p>
+                            <p class="stat-value" data-testid="export-opus-ogg-bytes">
+                                {{ state.lastExportResult.opusOgg.data.byteLength }} byte
+                            </p>
+                        </article>
+                        <article class="stat" v-if="state.lastExportResult.opusWebm">
+                            <p class="stat-label">Opus WebM 大小</p>
+                            <p class="stat-value" data-testid="export-opus-webm-bytes">
+                                {{ state.lastExportResult.opusWebm.data.byteLength }} byte
+                            </p>
+                        </article>
+                        <article class="stat" v-if="state.lastExportResult.flac">
+                            <p class="stat-label">FLAC 大小</p>
+                            <p class="stat-value" data-testid="export-flac-bytes">
+                                {{ state.lastExportResult.flac.data.byteLength }} byte
+                            </p>
+                        </article>
+                    </div>
+                    <p
+                            class="supporting"
+                            style="margin-top: 0.5rem; opacity: 0.6"
+                            v-else
+                    >
+                        尚未完成录音，停止后将自动导出。
+                    </p>
+                </section>
 
-            <section class="panel">
-              <h2>实时状态</h2>
-              <div class="stats-grid">
-                <article class="stat">
-                  <p class="stat-label">录音器状态</p>
-                  <p class="stat-value" id="state-value">
-                    {{ state.recorderState }}
-                  </p>
-                </article>
-                <article class="stat">
-                  <p class="stat-label">已接收帧数</p>
-                  <p class="stat-value" id="frame-count-value">
-                    {{ state.frameCount }}
-                  </p>
-                </article>
-                <article class="stat">
-                  <p class="stat-label">实际采样率</p>
-                  <p class="stat-value" id="sample-rate-value">
-                    {{ state.runtimeInfo?.actualSampleRate ??
-                    state.runtimeInfo?.requestedSampleRate ?? "-" }}
-                  </p>
-                </article>
-                <article class="stat">
-                  <p class="stat-label">实际声道</p>
-                  <p class="stat-value" id="channels-value">
-                    {{ state.runtimeInfo?.actualChannelCount ??
-                    state.runtimeInfo?.requestedChannelCount ?? "-" }}
-                  </p>
-                </article>
-                <article class="stat">
-                  <p class="stat-label">实际采集链路</p>
-                  <p class="stat-value" data-testid="input-strategy-value">
-                    {{ state.runtimeInfo?.inputStrategy ?? "-" }}
-                  </p>
-                </article>
-                <article class="stat">
-                  <p class="stat-label">持久化后端</p>
-                  <p
-                    class="stat-value"
-                    data-testid="active-persistence-backend"
-                  >
-                    {{ state.activePersistenceBackend ?? "-" }}
-                  </p>
-                </article>
-                <article class="stat">
-                  <p class="stat-label">导出 PCM 大小</p>
-                  <p class="stat-value" data-testid="exported-bytes-value">
-                    {{ state.exportedBytes ?? "-" }}
-                  </p>
-                </article>
-                <article class="stat">
-                  <p class="stat-label">处理状态</p>
-                  <p class="stat-value" data-testid="pending-action-value">
-                    {{ state.pendingActionLabel || "-" }}
-                  </p>
-                </article>
-              </div>
-              <div class="meter-panel">
-                <p class="stat-label">实时电平估算</p>
-                <div class="meter-shell">
-                  <div
-                    :style="{ width: `${state.levelPercent}%` }"
-                    class="meter-fill"
-                  ></div>
-                </div>
-              </div>
-            </section>
-
-            <section class="panel">
-              <h2>运行时快照</h2>
-              <pre class="json" id="runtime-json">{{ runtimeJson }}</pre>
-            </section>
-          </div>
-
-          <div class="stack">
-            <section class="panel">
-              <h2>会话摘要</h2>
-              <pre class="json" id="summary-json">{{ summaryJson }}</pre>
-            </section>
-
-            <section class="panel">
-              <h2>导出与下载</h2>
-              <p class="supporting" style="margin-bottom: 0.75rem">
-                停止录音后可下载 PCM 原始数据、WAV 以及各编码格式文件。
-              </p>
-              <div class="control-row" style="margin-bottom: 0.75rem">
-                <label>
-                  <div class="stat-label">AMR 模式</div>
-                  <select v-model="state.amrBandMode" data-testid="amr-band-mode">
-                    <option value="nb">NB</option>
-                    <option value="wb">WB</option>
-                  </select>
-                </label>
-              </div>
-              <div
-                class="control-grid"
-                style="grid-template-columns: repeat(9, 1fr)"
-              >
-                <button
-                  :disabled="!state.lastExportResult"
-                  data-testid="download-pcm-button"
-                  @click="downloadPCM"
-                >
-                  ↓ PCM
-                </button>
-                <button
-                  :disabled="!state.lastExportResult"
-                  data-testid="download-wav-button"
-                  @click="downloadWAV"
-                >
-                  ↓ WAV
-                </button>
-                <button
-                  :disabled="!state.lastExportResult"
-                  data-testid="download-mp3-button"
-                  @click="downloadMP3"
-                >
-                  ↓ MP3
-                </button>
-                <button
-                  :disabled="!state.lastExportResult"
-                  data-testid="download-g711-button"
-                  @click="downloadG711"
-                >
-                  ↓ G.711
-                </button>
-                <button
-                  :disabled="!state.lastExportResult"
-                  data-testid="download-aac-button"
-                  @click="downloadAAC"
-                >
-                  ↓ AAC
-                </button>
-                <button
-                  :disabled="!state.lastExportResult"
-                  data-testid="download-amr-button"
-                  @click="downloadAMR"
-                >
-                  ↓ AMR
-                </button>
-                <button
-                  :disabled="!state.lastExportResult"
-                  data-testid="download-opus-ogg-button"
-                  @click="downloadOpusOgg"
-                >
-                  ↓ Opus OGG
-                </button>
-                <button
-                  :disabled="!state.lastExportResult"
-                  data-testid="download-opus-webm-button"
-                  @click="downloadOpusWebm"
-                >
-                  ↓ Opus WebM
-                </button>
-                <button
-                  :disabled="!state.lastExportResult"
-                  data-testid="download-flac-button"
-                  @click="downloadFLAC"
-                >
-                  ↓ FLAC
-                </button>
-              </div>
-              <div
-                v-if="state.lastExportResult"
-                class="stats-grid"
-                style="margin-top: 0.75rem"
-              >
-                <article class="stat">
-                  <p class="stat-label">PCM 大小</p>
-                  <p class="stat-value" data-testid="export-pcm-bytes">
-                    {{ state.lastExportResult.pcm.data.byteLength }} byte
-                  </p>
-                </article>
-                <article class="stat">
-                  <p class="stat-label">WAV 大小</p>
-                  <p class="stat-value" data-testid="export-wav-bytes">
-                    {{ state.lastExportResult.wav.arrayBuffer.byteLength }} byte
-                  </p>
-                </article>
-                <article class="stat">
-                  <p class="stat-label">采样率</p>
-                  <p class="stat-value" data-testid="export-sample-rate">
-                    {{ state.lastExportResult.wav.sampleRate }} Hz
-                  </p>
-                </article>
-                <article class="stat">
-                  <p class="stat-label">声道 / 位深</p>
-                  <p class="stat-value" data-testid="export-channels-bitrate">
-                    {{ state.lastExportResult.wav.channels }}ch / {{
-                    state.lastExportResult.wav.bitRate }}bit
-                  </p>
-                </article>
-                <article class="stat">
-                  <p class="stat-label">G.711 大小</p>
-                  <p class="stat-value" data-testid="export-g711-bytes">
-                    {{ state.lastExportResult.g711.data.byteLength }} byte ({{ state.lastExportResult.g711.variant }})
-                  </p>
-                </article>
-                <article class="stat" v-if="state.lastExportResult.aac">
-                  <p class="stat-label">AAC 大小</p>
-                  <p class="stat-value" data-testid="export-aac-bytes">
-                    {{ state.lastExportResult.aac.data.byteLength }} byte
-                  </p>
-                </article>
-                <article class="stat" v-if="state.lastExportResult.amr">
-                  <p class="stat-label">AMR 大小</p>
-                  <p class="stat-value" data-testid="export-amr-bytes">
-                    {{ state.lastExportResult.amr.data.byteLength }} byte ({{ state.lastExportResult.amr.bandMode }})
-                  </p>
-                </article>
-                <article class="stat" v-if="state.lastExportResult.opusOgg">
-                  <p class="stat-label">Opus OGG 大小</p>
-                  <p class="stat-value" data-testid="export-opus-ogg-bytes">
-                    {{ state.lastExportResult.opusOgg.data.byteLength }} byte
-                  </p>
-                </article>
-                <article class="stat" v-if="state.lastExportResult.opusWebm">
-                  <p class="stat-label">Opus WebM 大小</p>
-                  <p class="stat-value" data-testid="export-opus-webm-bytes">
-                    {{ state.lastExportResult.opusWebm.data.byteLength }} byte
-                  </p>
-                </article>
-                <article class="stat" v-if="state.lastExportResult.flac">
-                  <p class="stat-label">FLAC 大小</p>
-                  <p class="stat-value" data-testid="export-flac-bytes">
-                    {{ state.lastExportResult.flac.data.byteLength }} byte
-                  </p>
-                </article>
-              </div>
-              <p
-                v-else
-                class="supporting"
-                style="margin-top: 0.5rem; opacity: 0.6"
-              >
-                尚未完成录音，停止后将自动导出。
-              </p>
-            </section>
-
-            <section class="panel">
-              <h2>存储诊断</h2>
-              <pre class="json" data-testid="storage-json">
+                <section class="panel">
+                    <h2>存储诊断</h2>
+                    <pre class="json" data-testid="storage-json">
 {{ storageJson }}</pre
-              >
-            </section>
+                    >
+                </section>
 
-            <section class="panel">
-              <h2>事件日志</h2>
-              <ul class="log-list" id="log-list">
-                <li
-                  v-for="item in state.logs"
-                  :key="`${item.time}-${item.message}`"
-                  class="log-item"
-                >
-                  <span class="log-time">{{ item.time }}</span>
-                  <span :class="['log-type', item.type]">{{ item.type }}</span>
-                  <p class="log-message">{{ item.message }}</p>
-                </li>
-              </ul>
-            </section>
+                <section class="panel">
+                    <h2>事件日志</h2>
+                    <ul class="log-list" id="log-list">
+                        <li
+                                :key="`${item.time}-${item.message}`"
+                                class="log-item"
+                                v-for="item in state.logs"
+                        >
+                            <span class="log-time">{{ item.time }}</span>
+                            <span :class="['log-type', item.type]">{{ item.type }}</span>
+                            <p class="log-message">{{ item.message }}</p>
+                        </li>
+                    </ul>
+                </section>
 
-            <section class="panel">
-              <h2>说明</h2>
-              <ul class="hint-list">
-                <li>
-                  当前页面直接 import
-                  <code>/dist/index.js</code>，用于验证打包产物对外行为。
-                </li>
-                <li>Vue 通过 CDN 版 ESM 引入，不在仓库里再建一套 Vue 工程。</li>
-                <li>
-                  建议先使用“外部音调流”，这样不依赖麦克风权限也能完整走一遍主链路。
-                </li>
-                <li>
-                  存储模式可切到 IndexedDB / OPFS，用于验证长录音溢写能力是否按
-                  session 清理。
-                </li>
-              </ul>
-            </section>
-          </div>
+                <section class="panel">
+                    <h2>说明</h2>
+                    <ul class="hint-list">
+                        <li>
+                            当前页面直接 import
+                            <code>/dist/index.js</code>，用于验证打包产物对外行为。
+                        </li>
+                        <li>Vue 通过 CDN 版 ESM 引入，不在仓库里再建一套 Vue 工程。</li>
+                        <li>
+                            建议先使用“外部音调流”，这样不依赖麦克风权限也能完整走一遍主链路。
+                        </li>
+                        <li>
+                            存储模式可切到 IndexedDB / OPFS，用于验证长录音溢写能力是否按
+                            session 清理。
+                        </li>
+                    </ul>
+                </section>
+            </div>
         </section>
-      </main>
-    </div>
-    <script src="./app.js" type="module"></script>
-  </body>
+    </main>
+</div>
+<script src="./app.js" type="module"></script>
+</body>
 </html>

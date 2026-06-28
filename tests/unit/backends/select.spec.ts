@@ -1,4 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { selectInputBackend } from "@/input/backends/select"
+import type { InputBackendContext } from "@/input/backends/types"
+import { InputBackendUnavailableError } from "@/input/backends/types"
+import { RecorderWarningCode } from "@/types"
 
 const mrFactory = vi.hoisted(() => vi.fn())
 const workletFactory = vi.hoisted(() => vi.fn())
@@ -13,11 +17,6 @@ vi.mock("@/input/backends/audio-worklet-backend", () => ({
 vi.mock("@/input/backends/script-processor-backend", () => ({
   createScriptProcessorBackend: spFactory,
 }))
-
-import { selectInputBackend } from "@/input/backends/select"
-import { InputBackendUnavailableError } from "@/input/backends/types"
-import type { InputBackendContext } from "@/input/backends/types"
-import { RecorderWarningCode } from "@/types"
 
 function fakeBackend(strategy: string) {
   return { strategy, suspend: vi.fn(), resume: vi.fn(), dispose: vi.fn() }

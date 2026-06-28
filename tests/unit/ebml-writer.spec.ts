@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest"
 import {
-  writeVint,
-  writeUint,
-  writeInt,
+  concat,
+  writeElement,
   writeFloat64,
   writeId,
-  writeElement,
-  concat,
+  writeInt,
+  writeUint,
+  writeVint,
 } from "@/codecs/opus/muxers/webm/ebml-writer"
 
 // ---- writeVint ---------------------------------------------------------------

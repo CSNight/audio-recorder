@@ -182,21 +182,21 @@ describe("Opus chunked encoder definitions", () => {
       .mockReturnValueOnce(new Uint8Array([1]))
       .mockReturnValueOnce(new Uint8Array([2]))
     const encoder = webmChunkedEncoderDefinition.create({
-      sampleRate: 200,
+      sampleRate: 8000,
       channels: 1,
     })
 
-    expect(encoder.feedFrame(1, 200, mono([1, 2]))).toEqual(
+    expect(encoder.feedFrame(1, 8000, mono([1, 2]))).toEqual(
       new Uint8Array([40])
     )
-    const result = encoder.feedFrame(1, 200, mono([3, 4, 5, 6, 7, 8]))
+    const result = encoder.feedFrame(1, 8000, mono([3, 4, 5, 6, 7, 8]))
 
     expect(encode).toHaveBeenNthCalledWith(1, new Int16Array([1, 2, 3, 4]))
     expect(encode).toHaveBeenNthCalledWith(2, new Int16Array([5, 6, 7, 8]))
     expect(webmMuxerInstances[0]?.options).toEqual({
-      sampleRate: 200,
+      sampleRate: 8000,
       channels: 1,
-      frameDurationMs: 20,
+      frameDurationMs: 0.5,
     })
     expect(webmMuxerInstances[0]?.writeFrame).toHaveBeenNthCalledWith(
       1,
@@ -214,11 +214,11 @@ describe("Opus chunked encoder definitions", () => {
   it("pads the final WebM frame and appends finalize output", () => {
     encode.mockReturnValueOnce(new Uint8Array([5]))
     const encoder = webmChunkedEncoderDefinition.create({
-      sampleRate: 400,
+      sampleRate: 8000,
       channels: 1,
     })
 
-    encoder.feedFrame(1, 400, mono([1, 2]))
+    encoder.feedFrame(1, 8000, mono([1, 2]))
     const result = encoder.flush()
 
     expect(encode).toHaveBeenCalledWith(new Int16Array([1, 2, 0, 0]))

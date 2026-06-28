@@ -1,16 +1,16 @@
 import { describe, expect, it, vi } from "vitest"
 import type {
+  InputSessionSummary,
   RecorderInputAdapter,
   RecorderInputHandlers,
   RecorderInputRequest,
   RecorderInputSession,
-  InputSessionSummary,
 } from "@/input/types"
 import { RecorderController } from "@/core/recorder-controller"
 import {
+  type RecorderInputStrategy,
   RecorderState,
   RecorderWarningCode,
-  type RecorderInputStrategy,
 } from "@/types"
 import type { RecorderPlugin } from "@/plugins/types"
 import type { RecorderPersistencePlugin } from "@/storage/types"
@@ -20,12 +20,11 @@ import { wavSnapshotEncoderDefinition } from "@/codecs/base/wav-snapshot-encoder
 
 class FakeInputSession implements RecorderInputSession {
   closeCalls = 0
+  public actualInputStrategy: RecorderInputStrategy = "media-recorder"
   private readonly summary: InputSessionSummary = {
     frames: 0,
     durationMs: 0,
   }
-
-  public actualInputStrategy: RecorderInputStrategy = "media-recorder"
 
   constructor(
     private readonly handlers: RecorderInputHandlers,

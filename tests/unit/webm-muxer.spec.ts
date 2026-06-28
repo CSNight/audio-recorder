@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { WebmMuxer } from "@/codecs/opus/muxers/webm/webm-muxer"
-import { writeVint, writeElement } from "@/codecs/opus/muxers/webm/ebml-writer"
+import { writeElement, writeVint } from "@/codecs/opus/muxers/webm/ebml-writer"
 
 // ---- helpers ---------------------------------------------------------------
 

@@ -4,14 +4,14 @@
  * This follows Mediabunny's encoder-only bridge. ADTS, when needed, should be
  * assembled in the JS layer from the encoder extradata instead of via libavformat.
  */
-import { join, resolve, dirname } from "path"
-import { mkdir, rm, access } from "fs/promises"
+import { dirname, join, resolve } from "path"
+import { access, mkdir, rm } from "fs/promises"
 import { fileURLToPath } from "url"
 import {
   downloadAndVerify,
+  emcc,
   emconfigure,
   emmake,
-  emcc,
   getBuildJobs,
   getWasmSimdFlags,
 } from "./common.mjs"

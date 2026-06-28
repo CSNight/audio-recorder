@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { createMediaRecorderBackend } from "@/input/backends/media-recorder-backend"
-import { InputBackendUnavailableError } from "@/input/backends/types"
 import type { InputBackendContext } from "@/input/backends/types"
+import { InputBackendUnavailableError } from "@/input/backends/types"
 import { RecorderWarningCode } from "@/types"
 
 const createWebMExtractScopeMock = vi.hoisted(() => vi.fn())

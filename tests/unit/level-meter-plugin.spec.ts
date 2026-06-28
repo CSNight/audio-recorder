@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest"
 import type {
+  InputSessionSummary,
   RecorderInputAdapter,
   RecorderInputHandlers,
   RecorderInputSession,
-  InputSessionSummary,
 } from "@/input/types"
 import { RecorderController } from "@/core/recorder-controller"
 import { createLevelMeterPlugin } from "@/plugins/level-meter/index"

@@ -14,7 +14,7 @@
 import { parseArgs } from "util"
 import { spawn } from "child_process"
 import { mkdir } from "fs/promises"
-import { resolve, dirname } from "path"
+import { dirname, resolve } from "path"
 import { fileURLToPath } from "url"
 import {
   applyCodecSimdCliOverrides,

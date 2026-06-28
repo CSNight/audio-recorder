@@ -2,14 +2,14 @@
  * Build libopus 1.6.1 WASM module
  * Adapted from vendor/libopus-wasm/scripts/build-libopus-wasm.mjs
  */
-import { join, resolve, dirname } from "path"
-import { mkdir, rm, access } from "fs/promises"
+import { dirname, join, resolve } from "path"
+import { access, mkdir, rm } from "fs/promises"
 import { fileURLToPath } from "url"
 import {
   downloadAndVerify,
+  emcc,
   emconfigure,
   emmake,
-  emcc,
   getBuildJobs,
   getWasmSimdFlags,
   verifyExistingFileSha256,

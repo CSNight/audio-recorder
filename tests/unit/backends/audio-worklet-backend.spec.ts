@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { createAudioWorkletBackend } from "@/input/backends/audio-worklet-backend"
-import { InputBackendUnavailableError } from "@/input/backends/types"
 import type { InputBackendContext } from "@/input/backends/types"
+import { InputBackendUnavailableError } from "@/input/backends/types"
 
 function createAudioContextStub(addModule = vi.fn(async () => {})) {
   const sourceNode = { connect: vi.fn(), disconnect: vi.fn() }

@@ -63,7 +63,7 @@ export function exportAacSnapshot(
   const totalSamples = normalized.planar[0]?.length ?? 0
 
   for (let offset = 0; offset < totalSamples; offset += encoder.frameSize) {
-    const chunkPlanar = normalized.planar.map((channel: Uint8Array) => {
+    const chunkPlanar = normalized.planar.map((channel: Int16Array) => {
       const slice = channel.subarray(offset, offset + encoder.frameSize)
       if (slice.length === encoder.frameSize) {
         return slice
