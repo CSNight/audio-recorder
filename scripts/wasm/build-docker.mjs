@@ -32,6 +32,7 @@ const artifactPaths = {
   flac: ["src/codecs/flac/libflac.wasm.mjs"],
   aac: ["src/codecs/aac/libaac.wasm.mjs"],
   amr: ["src/codecs/amr/libamrnb.wasm.mjs", "src/codecs/amr/libamrwb.wasm.mjs"],
+  mp3: ["src/codecs/mp3/libmp3.wasm.mjs"],
 }
 
 const { values } = parseArgs({
@@ -133,6 +134,7 @@ async function ensureHostDirs() {
   await mkdir(resolve(projectRoot, "src/codecs/flac"), { recursive: true })
   await mkdir(resolve(projectRoot, "src/codecs/aac"), { recursive: true })
   await mkdir(resolve(projectRoot, "src/codecs/amr"), { recursive: true })
+  await mkdir(resolve(projectRoot, "src/codecs/mp3"), { recursive: true })
 }
 
 async function ensureDockerImage() {

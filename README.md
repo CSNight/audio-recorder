@@ -172,7 +172,7 @@ vendor/               上游 Recorder 参考实现
 | PCM（原始） | `codecs/base` | **57** | **52** | **11** | 仅 `Float32Array` / `Int16Array`，ES2022 类型化数组 |
 | WAV | `codecs/base` | **57** | **52** | **11** | 同上，无额外 Web API |
 | G.711（μ-law / a-law） | `codecs/g711` | **57** | **52** | **11** | 纯算术运算，无额外 Web API |
-| MP3（lamejs） | `codecs/mp3` | **57** | **52** | **11** | 纯 JS 实现，无 WASM，无额外 Web API |
+| MP3（libmp3lame WASM） | `codecs/mp3` | **57** | **52** | **11** | `WebAssembly.instantiate()`（Emscripten 胶水层） |
 | FLAC（libflac WASM） | `codecs/flac` | **57** | **52** | **11** | `WebAssembly.instantiate()`（Emscripten 胶水层）；已移除 `Symbol.dispose` |
 | Opus（libopus WASM） | `codecs/opus` | **57** | **52** | **11** | `WebAssembly.instantiate()`（同上）；Opus 编码器使用 `BigInt`（ES2020，Chrome 67+，以 WASM 57 为瓶颈） |
 
@@ -198,7 +198,7 @@ vendor/               上游 Recorder 参考实现
 ## 当前边界
 
 - 根入口不会自动注册任何编码器；调用 `exportEncoded()` 前需要显式传入或注册对应 `SnapshotEncoderDefinition`
-- MP3 作为可选子路径存在，避免把 `lamejs` 依赖注入主包
+- MP3 作为可选子路径存在，避免把 MP3 WASM 编码器依赖注入主包
 - `script-processor` 仅作为兼容性兜底，不建议作为默认录音方案
 - Phase 5、Phase 6 中规划的更多编解码器和插件扩展目前尚未开发
 

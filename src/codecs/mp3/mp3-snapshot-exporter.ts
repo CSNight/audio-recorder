@@ -1,92 +1,164 @@
 /**
- * MP3 全量快照导出。
+ * MP3 ???????
  *
- * 与 pcm-exporter.ts / wav-exporter.ts 角色完全对称：
- * 输入 PcmBufferSnapshot（完整录音数据），输出单个连续 Uint8Array（完整 MP3 文件）。
+ * ? pcm-exporter.ts / wav-exporter.ts ???????
+ * ?? PcmBufferSnapshot??????????????? Uint8Array??? MP3 ????
  *
- * 始终在主线程同步执行，不经过 Worker（snapshot 已是完整数据，无"实时流"语义）。
+ * ?????????????? Worker?snapshot ?????????????????
  */
 import type { PcmBufferSnapshot } from "@/buffer/types"
+import type { SnapshotEncoderDefinition } from "@/types"
 import { resample } from "audio-recorder"
-import { Mp3Encoder } from "./vendor/lame.all.js"
+import {
+  createMp3Encoder,
+  preloadMp3Module,
+  resolveMp3EncoderOptions,
+} from "./mp3-wasm-api"
 import type {
-  LameMp3Encoder,
-  LameMp3EncoderConstructor,
   Mp3ExportOptions,
   Mp3ExportResult,
+  ResolvedMp3EncoderOptions,
 } from "./types"
-import type { SnapshotEncoderDefinition } from "@/types"
 
-/** lamejs 标准 MPEG 帧大小（每帧 1152 样本） */
 const MPEG_FRAME_SIZE = 1152
+
+function downmixToMono(planar: Int16Array[], channels: number): Int16Array {
+  const frameLength = planar[0]?.length ?? 0
+  const mono = new Int16Array(frameLength)
+
+  for (let i = 0; i < frameLength; i++) {
+    let sum = 0
+    for (let channel = 0; channel < channels; channel++) {
+      sum += planar[channel]?.[i] ?? 0
+    }
+    mono[i] = Math.round(sum / Math.max(1, channels))
+  }
+
+  return mono
+}
+
+function normalizeSnapshot(
+  snapshot: PcmBufferSnapshot,
+  options: Mp3ExportOptions
+): {
+  left: Int16Array
+  right: Int16Array
+  channels: 1 | 2
+  sampleRate: ResolvedMp3EncoderOptions["sampleRate"]
+  durationMs: number
+  encoderOptions: ResolvedMp3EncoderOptions
+} {
+  const desiredChannels =
+    options.channelMode === "mono" ? 1 : snapshot.channels > 1 ? 2 : 1
+  const encoderOptions = resolveMp3EncoderOptions(
+    options,
+    options.sampleRate ?? snapshot.sampleRate,
+    desiredChannels
+  )
+
+  const planar =
+    encoderOptions.channelMode === "mono"
+      ? [
+          snapshot.channels <= 1
+            ? (snapshot.planar[0] ?? new Int16Array(0))
+            : downmixToMono(snapshot.planar, snapshot.channels),
+        ]
+      : [
+          snapshot.planar[0] ?? new Int16Array(0),
+          snapshot.channels > 1
+            ? (snapshot.planar[1] ?? snapshot.planar[0] ?? new Int16Array(0))
+            : (snapshot.planar[0] ?? new Int16Array(0)),
+        ]
+
+  const normalized =
+    encoderOptions.sampleRate === snapshot.sampleRate
+      ? {
+          sampleRate: snapshot.sampleRate,
+          channels: encoderOptions.channelMode === "mono" ? 1 : 2,
+          durationMs: snapshot.durationMs,
+          planar,
+        }
+      : resample(
+          {
+            sampleRate: snapshot.sampleRate,
+            channels: encoderOptions.channelMode === "mono" ? 1 : 2,
+            frameCount: snapshot.frameCount,
+            durationMs: snapshot.durationMs,
+            planar,
+          },
+          encoderOptions.sampleRate,
+          {}
+        )
+
+  const left = normalized.planar[0] ?? new Int16Array(0)
+  const right =
+    encoderOptions.channelMode === "mono"
+      ? left
+      : (normalized.planar[1] ?? left)
+
+  return {
+    left,
+    right,
+    channels: encoderOptions.channelMode === "mono" ? 1 : 2,
+    sampleRate: encoderOptions.sampleRate,
+    durationMs: normalized.durationMs,
+    encoderOptions,
+  }
+}
 
 export function exportMp3Snapshot(
   snapshot: PcmBufferSnapshot,
   options: Mp3ExportOptions = {}
 ): Mp3ExportResult {
-  const bitrateKbps = options.bitrateKbps ?? 128
-  const targetSampleRate = options.sampleRate ?? snapshot.sampleRate
-
-  // 可选重采样
-  const normalized = resample(snapshot, targetSampleRate, {})
-
-  const { sampleRate, channels, durationMs } = normalized
-  const left = normalized.planar[0] ?? new Int16Array(0)
-  // MP3 只支持单声道/双声道。对于多声道音频：
-  // - 单声道：right 复用 left（lamejs mono 模式会忽略 right）
-  // - 双声道：使用原始的 left/right
-  // - 3+ 声道：取前两个声道作为 left/right
-  const right = channels > 1 ? (normalized.planar[1] ?? left) : left
-
-  // lamejs 只接受 1 或 2 作为 channels 参数
-  const mp3Channels = Math.min(channels, 2)
-
-  const encoder = new (Mp3Encoder as unknown as LameMp3EncoderConstructor)(
-    mp3Channels,
-    sampleRate,
-    bitrateKbps
-  ) as LameMp3Encoder
-
+  const normalized = normalizeSnapshot(snapshot, options)
+  const encoder = createMp3Encoder(
+    normalized.encoderOptions,
+    normalized.channels
+  )
   const chunks: Uint8Array[] = []
-  const totalSamples = left.length
 
-  for (let offset = 0; offset < totalSamples; offset += MPEG_FRAME_SIZE) {
-    const l = left.subarray(offset, offset + MPEG_FRAME_SIZE)
-    const r = right.subarray(offset, offset + MPEG_FRAME_SIZE)
-    const encoded = encoder.encodeBuffer(l, r)
+  for (
+    let offset = 0;
+    offset < normalized.left.length;
+    offset += MPEG_FRAME_SIZE
+  ) {
+    const left = normalized.left.subarray(offset, offset + MPEG_FRAME_SIZE)
+    const right = normalized.right.subarray(offset, offset + MPEG_FRAME_SIZE)
+    const encoded = encoder.encode(left, right, left.length)
     if (encoded.length > 0) {
-      chunks.push(Uint8Array.from(encoded))
+      chunks.push(encoded)
     }
   }
 
-  // 冲刷末尾残余帧
   const flushed = encoder.flush()
   if (flushed.length > 0) {
-    chunks.push(Uint8Array.from(flushed))
+    chunks.push(flushed)
   }
+  encoder.free()
 
-  // 合并所有分片为单个连续 Uint8Array
-  const totalBytes = chunks.reduce((sum, c) => sum + c.byteLength, 0)
+  const totalBytes = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0)
   const data = new Uint8Array(totalBytes)
-  let pos = 0
+  let offset = 0
   for (const chunk of chunks) {
-    data.set(chunk, pos)
-    pos += chunk.byteLength
+    data.set(chunk, offset)
+    offset += chunk.byteLength
   }
 
   return {
-    sampleRate,
-    channels: mp3Channels as 1 | 2,
-    bitrateKbps,
-    durationMs,
+    sampleRate: normalized.sampleRate,
+    channels: normalized.channels,
+    bitrateKbps: normalized.encoderOptions.bitrateKbps,
+    durationMs: normalized.durationMs,
     data,
   }
 }
+
 export const mp3SnapshotEncoderDefinition: SnapshotEncoderDefinition<
   "mp3",
   Mp3ExportOptions,
   Mp3ExportResult
 > = {
   type: "mp3",
+  preload: preloadMp3Module,
   export: (snapshot, options) => exportMp3Snapshot(snapshot, options),
 }

@@ -1,11 +1,49 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi, beforeEach } from "vitest"
 import type { PcmBufferSnapshot } from "@/buffer/types"
-import {
-  exportMp3Snapshot,
-  mp3SnapshotEncoderDefinition,
-} from "@/codecs/mp3/mp3-snapshot-exporter"
+import type { Mp3WasmEncoderHandle } from "@/codecs/mp3/types"
 
-/** 生成简单的正弦波 PCM 数据，避免全 0 静音导致 lamejs 内部分支被跳过 */
+const preloadMp3Module = vi.fn(async () => {})
+const createMp3Encoder =
+  vi.fn<(options: unknown, channels: 1 | 2) => Mp3WasmEncoderHandle>()
+
+const mockEncode =
+  vi.fn<
+    (left: Int16Array, right: Int16Array, sampleCount: number) => Uint8Array
+  >()
+const mockFlush = vi.fn<() => Uint8Array>()
+const mockFree = vi.fn<() => void>()
+
+vi.mock("@/codecs/mp3/mp3-wasm-api", () => ({
+  preloadMp3Module,
+  createMp3Encoder,
+  resolveMp3EncoderOptions: (
+    options: Record<string, unknown> = {},
+    sampleRate: number,
+    channels: number
+  ) => ({
+    bitrateKbps: (options.bitrateKbps as number | undefined) ?? 128,
+    mode: (options.mode as string | undefined) ?? "cbr",
+    vbrQuality: (options.vbrQuality as number | undefined) ?? 4,
+    sampleRate: ((options.sampleRate as number | undefined) ?? sampleRate) as
+      | 8000
+      | 11025
+      | 12000
+      | 16000
+      | 22050
+      | 24000
+      | 32000
+      | 44100
+      | 48000,
+    channelMode:
+      (options.channelMode as string | undefined) ??
+      (channels > 1 ? "stereo" : "mono"),
+    quality: (options.quality as number | undefined) ?? 2,
+  }),
+}))
+
+const { exportMp3Snapshot, mp3SnapshotEncoderDefinition } =
+  await import("@/codecs/mp3/mp3-snapshot-exporter")
+
 function sine(length: number, freq = 440, sampleRate = 44100): Int16Array {
   const out = new Int16Array(length)
   for (let i = 0; i < length; i++) {
@@ -32,118 +70,122 @@ function makeSnapshot(
   }
 }
 
+beforeEach(() => {
+  vi.clearAllMocks()
+  mockEncode.mockReturnValue(new Uint8Array([1, 2, 3]))
+  mockFlush.mockReturnValue(new Uint8Array([4, 5]))
+  createMp3Encoder.mockImplementation(
+    (options: unknown, channels: 1 | 2) =>
+      ({
+        sampleRate: (options as { sampleRate: 44100 | 48000 | 8000 })
+          .sampleRate,
+        channels,
+        encode: mockEncode,
+        flush: mockFlush,
+        free: mockFree,
+      }) as Mp3WasmEncoderHandle
+  )
+})
+
 describe("mp3SnapshotEncoderDefinition", () => {
-  it("has type 'mp3'", () => {
+  it("has type 'mp3' and exposes preload", async () => {
     expect(mp3SnapshotEncoderDefinition.type).toBe("mp3")
-  })
-
-  it("export() delegates to exportMp3Snapshot", async () => {
-    const snapshot = makeSnapshot(4608, 1)
-    const result = await mp3SnapshotEncoderDefinition.export(snapshot, {})
-    expect(result.data.byteLength).toBeGreaterThan(0)
+    expect(mp3SnapshotEncoderDefinition.preload).toBe(preloadMp3Module)
+    await mp3SnapshotEncoderDefinition.preload?.()
+    expect(preloadMp3Module).toHaveBeenCalledTimes(1)
   })
 })
 
-describe("exportMp3Snapshot: basic output", () => {
-  it("produces non-empty MP3 data for a mono snapshot spanning multiple frames", () => {
-    // 4 个 MPEG 帧 (4 * 1152)，确保 encodeBuffer 至少产出一次 + flush 产出
-    const snapshot = makeSnapshot(1152 * 4, 1)
-    const result = exportMp3Snapshot(snapshot)
-
-    expect(result.data).toBeInstanceOf(Uint8Array)
-    expect(result.data.byteLength).toBeGreaterThan(0)
+describe("exportMp3Snapshot", () => {
+  it("produces merged MP3 data for mono input", () => {
+    const result = exportMp3Snapshot(makeSnapshot(1152 * 2, 1))
     expect(result.sampleRate).toBe(44100)
     expect(result.channels).toBe(1)
     expect(result.bitrateKbps).toBe(128)
+    expect(Array.from(result.data)).toEqual([1, 2, 3, 1, 2, 3, 4, 5])
   })
 
-  it("uses default bitrate 128 when not specified", () => {
-    const snapshot = makeSnapshot(1152 * 2, 1)
-    const result = exportMp3Snapshot(snapshot, {})
-    expect(result.bitrateKbps).toBe(128)
+  it("passes explicit CBR settings to the encoder", () => {
+    exportMp3Snapshot(makeSnapshot(1152, 1), {
+      bitrateKbps: 192,
+      mode: "cbr",
+      quality: 4,
+    })
+    expect(createMp3Encoder).toHaveBeenCalledWith(
+      expect.objectContaining({ bitrateKbps: 192, mode: "cbr", quality: 4 }),
+      1
+    )
   })
 
-  it("respects custom bitrateKbps option", () => {
-    const snapshot = makeSnapshot(1152 * 2, 1)
-    const result = exportMp3Snapshot(snapshot, { bitrateKbps: 320 })
-    expect(result.bitrateKbps).toBe(320)
+  it("passes VBR settings to the encoder", () => {
+    exportMp3Snapshot(makeSnapshot(1152, 2), {
+      mode: "vbr",
+      vbrQuality: 1,
+      channelMode: "joint-stereo",
+    })
+    expect(createMp3Encoder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "vbr",
+        vbrQuality: 1,
+        channelMode: "joint-stereo",
+      }),
+      2
+    )
   })
 
-  it("higher bitrate produces different (typically larger) output than lower bitrate for same input", () => {
-    const snapshot = makeSnapshot(1152 * 8, 1)
-    const low = exportMp3Snapshot(snapshot, { bitrateKbps: 64 })
-    const high = exportMp3Snapshot(snapshot, { bitrateKbps: 320 })
-    expect(low.data.byteLength).not.toBe(high.data.byteLength)
-  })
-})
-
-describe("exportMp3Snapshot: channel handling", () => {
-  it("mono snapshot produces channels=1 in result", () => {
-    const snapshot = makeSnapshot(1152 * 2, 1)
-    const result = exportMp3Snapshot(snapshot)
-    expect(result.channels).toBe(1)
+  it("defaults to stereo when input has more than one channel", () => {
+    exportMp3Snapshot(makeSnapshot(1152, 2))
+    expect(createMp3Encoder).toHaveBeenCalledWith(
+      expect.objectContaining({ channelMode: "stereo" }),
+      2
+    )
   })
 
-  it("stereo snapshot produces channels=2 in result", () => {
-    const snapshot = makeSnapshot(1152 * 2, 2)
-    const result = exportMp3Snapshot(snapshot)
-    expect(result.channels).toBe(2)
+  it("uses the first two channels for stereo-oriented output", () => {
+    const snapshot = makeSnapshot(8, 3)
+    exportMp3Snapshot(snapshot, { channelMode: "stereo" })
+    const [left, right, sampleCount] = mockEncode.mock.calls[0]!
+    expect(sampleCount).toBe(8)
+    expect(left).toEqual(snapshot.planar[0])
+    expect(right).toEqual(snapshot.planar[1])
   })
 
-  it("clamps channels to 2 for snapshots with 3+ channels (uses first two)", () => {
-    const snapshot = makeSnapshot(1152 * 2, 3)
-    const result = exportMp3Snapshot(snapshot)
-    expect(result.channels).toBe(2)
+  it("downmixes to mono when requested", () => {
+    const snapshot: PcmBufferSnapshot = {
+      sampleRate: 44100,
+      channels: 3,
+      frameCount: 1,
+      durationMs: 10,
+      planar: [
+        new Int16Array([10, 10, 10, 10]),
+        new Int16Array([20, 20, 20, 20]),
+        new Int16Array([40, 40, 40, 40]),
+      ],
+    }
+    exportMp3Snapshot(snapshot, { channelMode: "mono" })
+    const [left, right] = mockEncode.mock.calls[0]!
+    expect(Array.from(left as Int16Array)).toEqual([23, 23, 23, 23])
+    expect(Array.from(right as Int16Array)).toEqual([23, 23, 23, 23])
   })
 
-  it("stereo input produces different byte length than mono input of same duration", () => {
-    const mono = makeSnapshot(1152 * 4, 1)
-    const stereo = makeSnapshot(1152 * 4, 2)
-    const monoResult = exportMp3Snapshot(mono)
-    const stereoResult = exportMp3Snapshot(stereo)
-    // 双声道信息量更大，编码字节数通常更大（非严格相等比较，避免对 lamejs 内部实现细节过度断言）
-    expect(stereoResult.data.byteLength).toBeGreaterThan(0)
-    expect(monoResult.data.byteLength).toBeGreaterThan(0)
-  })
-})
-
-describe("exportMp3Snapshot: resampling", () => {
-  it("resamples to target sampleRate when option is specified", () => {
-    const snapshot = makeSnapshot(1152 * 4, 1, 48000)
-    const result = exportMp3Snapshot(snapshot, { sampleRate: 44100 })
-    expect(result.sampleRate).toBe(44100)
+  it("resamples to the requested sampleRate", () => {
+    const result = exportMp3Snapshot(makeSnapshot(4800, 1, 48000), {
+      sampleRate: 8000,
+    })
+    expect(result.sampleRate).toBe(8000)
+    expect(createMp3Encoder).toHaveBeenCalledWith(
+      expect.objectContaining({ sampleRate: 8000 }),
+      1
+    )
   })
 
-  it("uses original sampleRate when option is not specified", () => {
-    const snapshot = makeSnapshot(1152 * 2, 1, 48000)
-    const result = exportMp3Snapshot(snapshot)
-    expect(result.sampleRate).toBe(48000)
-  })
-
-  it("durationMs reflects resampled snapshot duration, not original", () => {
-    // 1 秒原始时长 @ 48000Hz，重采样到 8000Hz 后仍应约为 1000ms
-    const snapshot = makeSnapshot(48000, 1, 48000)
-    const result = exportMp3Snapshot(snapshot, { sampleRate: 8000 })
-    expect(result.durationMs).toBeCloseTo(1000, 0)
-  })
-})
-
-describe("exportMp3Snapshot: edge cases worth covering", () => {
-  it("handles empty snapshot (0 samples) without throwing", () => {
-    const snapshot = makeSnapshot(0, 1)
-    expect(() => exportMp3Snapshot(snapshot)).not.toThrow()
-  })
-
-  it("handles snapshot shorter than a single MPEG frame (no main-loop iteration, only flush)", () => {
-    const snapshot = makeSnapshot(100, 1)
-    const result = exportMp3Snapshot(snapshot)
-    // 仍可能由 flush() 产出数据（如 LAME 标签帧），不应抛错
+  it("handles empty input without throwing", () => {
+    const result = exportMp3Snapshot(makeSnapshot(0, 1))
     expect(result.data).toBeInstanceOf(Uint8Array)
   })
 
-  it("handles snapshot with samples not aligned to MPEG_FRAME_SIZE boundary", () => {
-    // 1152 * 2 + 500，最后一帧不足 1152
-    const snapshot = makeSnapshot(1152 * 2 + 500, 1)
-    expect(() => exportMp3Snapshot(snapshot)).not.toThrow()
+  it("always frees the encoder", () => {
+    exportMp3Snapshot(makeSnapshot(1152, 1))
+    expect(mockFree).toHaveBeenCalledTimes(1)
   })
 })

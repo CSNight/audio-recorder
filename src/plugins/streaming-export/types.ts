@@ -39,7 +39,7 @@ export interface ChunkedEncoderDefinition<TOptions = unknown> {
   /**
    * 可选：为本编码器创建专属 Worker 实例的工厂函数。
    * 未提供时退回主线程同步编码。
-   * MP3 等可选编解码器提供此字段，以便将 lamejs 等重型依赖隔离到独立 Worker blob 中。
+   * MP3 等可选编解码器提供此字段，以便将 WASM 模块等重型依赖隔离到独立 Worker blob 中。
    */
   workerFactory?: () => Worker
 

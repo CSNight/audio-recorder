@@ -230,7 +230,7 @@ createApp({
       await recorder.use(createLevelMeterPlugin())
       await recorder.use(
         createStreamingExportPlugin({
-          format: "flac",
+          format: "mp3",
           encoders: [
             mp3ChunkedEncoderDefinition,
             pcmChunkedEncoderDefinition,

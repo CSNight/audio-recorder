@@ -1,5 +1,5 @@
 # Dockerfile for building WASM modules
-FROM emscripten/emsdk:3.1.74
+FROM emscripten/emsdk:5.0.7
 
 WORKDIR /build
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*

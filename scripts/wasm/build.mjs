@@ -82,6 +82,12 @@ async function main() {
     await buildAmr()
   }
 
+  if (codecs.includes("mp3")) {
+    console.log("\n=== Building MP3 WASM ===\n")
+    const { buildMp3 } = await import("./build-mp3.mjs")
+    await buildMp3()
+  }
+
   console.log("\nBuild complete")
 }
 

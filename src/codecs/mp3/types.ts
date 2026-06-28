@@ -1,44 +1,64 @@
-/**
- * MP3 编码器相关类型定义（原 lamejs-adapter.ts 重命名而来）。
- *
- * lamejs 是无官方类型声明的 CJS 模块，环境类型声明见同目录 lamejs.d.ts
- * （declare module "lamejs"）。该文件不再持有 `Mp3EncoderClass` 适配常量——
- * codecs/mp3 下各实现（mp3-chunked-encoder.ts / mp3-snapshot-exporter.ts）
- * 均直接 `import { Mp3Encoder } from "lamejs"` 使用，类型由 lamejs.d.ts 提供。
- *
- * 本文件仅保留编码器接口形状的类型定义，供需要显式标注变量类型
- * （例如惰性初始化的 `let encoder: LameMp3Encoder | null = null`）的场景复用，
- * 避免散落多处重复声明同样的接口形状。
- */
+/** MP3 ????? */
+export type Mp3RateMode = "cbr" | "abr" | "vbr"
 
-/** lamejs Mp3Encoder 实例接口 */
-export interface LameMp3Encoder {
-  /**
-   * 编码一帧音频，left/right 为 Int16 PCM 数据。
-   * 单声道时 right 与 left 相同（lamejs 内部忽略 right）。
-   * 返回 Int8Array，长度为 0 时表示本帧内部缓冲未满，无产出。
-   */
-  encodeBuffer(left: Int16Array, right: Int16Array): Int8Array
-  /** 冲刷内部缓冲，返回最后一批 MP3 帧数据。 */
-  flush(): Int8Array
-}
+/** MP3 ????? */
+export type Mp3ChannelMode = "mono" | "stereo" | "joint-stereo"
 
-/** lamejs Mp3Encoder 构造函数类型 */
-export interface LameMp3EncoderConstructor {
-  new (channels: number, sampleRate: number, kbps: number): LameMp3Encoder
-}
-export interface Mp3ExportOptions {
-  /** 比特率（kbps），默认 128 */
+/** MP3 ????????? */
+export type Mp3SampleRate =
+  | 8000
+  | 11025
+  | 12000
+  | 16000
+  | 22050
+  | 24000
+  | 32000
+  | 44100
+  | 48000
+
+/** MP3 ??????? */
+export interface Mp3EncoderOptions {
+  /** ?????kbps??CBR / ABR ??????? 128? */
   bitrateKbps?: number
-  /** 目标采样率（可选重采样），未提供时使用 snapshot 原始采样率 */
-  sampleRate?: number
+  /** ??????? cbr? */
+  mode?: Mp3RateMode
+  /** VBR ?????0 ???9 ???? VBR ??????? 4? */
+  vbrQuality?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+  /** ?????????????????? */
+  sampleRate?: Mp3SampleRate
+  /** ?????????????? mono?????? stereo? */
+  channelMode?: Mp3ChannelMode
+  /** LAME ???????0 ???9 ????? 2? */
+  quality?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 }
+
+/** ???????? MP3 ????? */
+export interface ResolvedMp3EncoderOptions {
+  bitrateKbps: number
+  mode: Mp3RateMode
+  vbrQuality: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+  sampleRate: Mp3SampleRate
+  channelMode: Mp3ChannelMode
+  quality: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+}
+
+/** MP3 WASM ?????? */
+export interface Mp3WasmEncoderHandle {
+  sampleRate: Mp3SampleRate
+  channels: 1 | 2
+  encode(left: Int16Array, right: Int16Array, sampleCount: number): Uint8Array
+  flush(): Uint8Array
+  free(): void
+}
+
+/** MP3 ??????? */
+export type Mp3ExportOptions = Mp3EncoderOptions
 
 export interface Mp3ExportResult {
-  sampleRate: number
-  channels: number
+  sampleRate: Mp3SampleRate
+  channels: 1 | 2
   bitrateKbps: number
   durationMs: number
-  /** 完整 MP3 文件字节流 */
+  /** ?? MP3 ?????? */
   data: Uint8Array
 }
