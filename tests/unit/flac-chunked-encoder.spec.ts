@@ -9,9 +9,8 @@ vi.mock("@/codecs/flac/flac-wasm-api", () => ({
   preloadFlacModule,
 }))
 
-const { flacChunkedEncoderDefinition } = await import(
-  "@/codecs/flac/flac-chunked-encoder"
-)
+const { flacChunkedEncoderDefinition } =
+  await import("@/codecs/flac/flac-chunked-encoder")
 
 function mono(samples: number[]): Int16Array[] {
   return [new Int16Array(samples)]

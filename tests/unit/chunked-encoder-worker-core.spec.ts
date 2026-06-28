@@ -83,7 +83,11 @@ describe("createWorkerMessageHandler", () => {
 
     const dispatch = buildHandler(resolveDefinition)
 
-    await dispatch({ type: "init", format: "pcm", options: { bitsPerSample: 8 } })
+    await dispatch({
+      type: "init",
+      format: "pcm",
+      options: { bitsPerSample: 8 },
+    })
     await dispatch({
       type: "feedFrame",
       planar: [new Int16Array([9, 10])],

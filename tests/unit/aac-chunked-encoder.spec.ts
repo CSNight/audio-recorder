@@ -15,9 +15,8 @@ vi.mock("@/codecs/aac/aac-wasm-api", () => ({
   preloadAacModule,
 }))
 
-const { aacChunkedEncoderDefinition } = await import(
-  "@/codecs/aac/aac-chunked-encoder"
-)
+const { aacChunkedEncoderDefinition } =
+  await import("@/codecs/aac/aac-chunked-encoder")
 
 function mono(samples: number[]): Int16Array[] {
   return [new Int16Array(samples)]

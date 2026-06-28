@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { AmrEncoderHandle } from "@/codecs/amr/types"
 import type { PcmBufferSnapshot } from "@/buffer/types"
 
-const resample = vi.fn<
-  (snapshot: PcmBufferSnapshot, sampleRate: number) => PcmBufferSnapshot
->()
+const resample =
+  vi.fn<
+    (snapshot: PcmBufferSnapshot, sampleRate: number) => PcmBufferSnapshot
+  >()
 const createAmrEncoder = vi.fn<(options?: unknown) => AmrEncoderHandle>()
 const getAmrStreamHeader = vi.fn<(bandMode: "nb" | "wb") => Uint8Array>()
 const getAmrTargetSampleRate = vi.fn<(bandMode: "nb" | "wb") => 8000 | 16000>()
@@ -23,12 +24,10 @@ vi.mock("@/codecs/amr/amr-wasm-api", () => ({
   preloadAmrModules,
 }))
 
-const { amrChunkedEncoderDefinition } = await import(
-  "@/codecs/amr/amr-chunked-encoder"
-)
-const { exportAmrSnapshot, amrSnapshotEncoderDefinition } = await import(
-  "@/codecs/amr/amr-snapshot-exporter"
-)
+const { amrChunkedEncoderDefinition } =
+  await import("@/codecs/amr/amr-chunked-encoder")
+const { exportAmrSnapshot, amrSnapshotEncoderDefinition } =
+  await import("@/codecs/amr/amr-snapshot-exporter")
 
 function snapshot(planar: Int16Array[], sampleRate = 16000): PcmBufferSnapshot {
   return {
@@ -70,13 +69,11 @@ describe("amr mocked behaviors", () => {
           bandMode: ((options as { bandMode?: "nb" | "wb" })?.bandMode ??
             "nb") as "nb" | "wb",
           sampleRate:
-            ((options as { bandMode?: "nb" | "wb" })?.bandMode ?? "nb") ===
-            "wb"
+            ((options as { bandMode?: "nb" | "wb" })?.bandMode ?? "nb") === "wb"
               ? 16000
               : 8000,
           frameSize:
-            ((options as { bandMode?: "nb" | "wb" })?.bandMode ?? "nb") ===
-            "wb"
+            ((options as { bandMode?: "nb" | "wb" })?.bandMode ?? "nb") === "wb"
               ? 4
               : 2,
           encode,

@@ -95,9 +95,9 @@ describe("aac-wasm-api", () => {
 
     let api = await import("@/codecs/aac/aac-wasm-api")
     await api.preloadAacModule()
-    expect(() => api.createAacEncoder({ sampleRate: 48000, channels: 1 })).toThrow(
-      "Failed to initialize AAC encoder"
-    )
+    expect(() =>
+      api.createAacEncoder({ sampleRate: 48000, channels: 1 })
+    ).toThrow("Failed to initialize AAC encoder")
 
     vi.resetModules()
     const frameSizeModule = createMockAacModule({

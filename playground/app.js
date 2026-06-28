@@ -527,7 +527,7 @@ createApp({
       })
       triggerDownload(
         blob,
-        `recording_${result.sampleRate}hz_${result.channels}ch.opus`
+        `recording_${result.sampleRate}hz_${result.channels}ch.ogg`
       )
       appendLog(
         "info",

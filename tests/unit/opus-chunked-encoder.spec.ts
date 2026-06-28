@@ -9,8 +9,9 @@ const webmMuxerInstances: MockWebmMuxer[] = []
 class MockOggMuxer {
   readonly options: unknown
   readonly getHeaderPages = vi.fn(() => new Uint8Array([10]))
-  readonly writeFrame = vi.fn((_packet: Uint8Array, granulePosition: bigint) =>
-    new Uint8Array([20, Number(granulePosition)])
+  readonly writeFrame = vi.fn(
+    (_packet: Uint8Array, granulePosition: bigint) =>
+      new Uint8Array([20, Number(granulePosition)])
   )
   readonly writeFinalFrame = vi.fn(
     (_packet: Uint8Array, granulePosition: bigint) =>
@@ -26,8 +27,9 @@ class MockOggMuxer {
 class MockWebmMuxer {
   readonly options: unknown
   readonly getHeaders = vi.fn(() => new Uint8Array([40]))
-  readonly writeFrame = vi.fn((_packet: Uint8Array, timestampMs: number) =>
-    new Uint8Array([50, timestampMs])
+  readonly writeFrame = vi.fn(
+    (_packet: Uint8Array, timestampMs: number) =>
+      new Uint8Array([50, timestampMs])
   )
   readonly finalize = vi.fn(() => new Uint8Array([60]))
 

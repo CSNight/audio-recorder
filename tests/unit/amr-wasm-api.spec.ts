@@ -84,7 +84,9 @@ describe("amr-wasm-api", () => {
   it("throws when creating encoders before preload", async () => {
     const api = await import("@/codecs/amr/amr-wasm-api")
 
-    expect(() => api.createAmrEncoder()).toThrow("AMR-NB WASM module is not loaded")
+    expect(() => api.createAmrEncoder()).toThrow(
+      "AMR-NB WASM module is not loaded"
+    )
     expect(() => api.createAmrEncoder({ bandMode: "wb" })).toThrow(
       "AMR-WB WASM module is not loaded"
     )
