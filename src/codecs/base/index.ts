@@ -6,7 +6,7 @@
  *
  * 传入 createStreamingExportPlugin({ format: "pcm", encoders: [pcmChunkedEncoderDefinition] })。
  */
-import InlinePcmWorker from "./pcm-worker.ts?worker&inline"
+import PcmWorker from "./pcm-worker.ts?worker"
 import { pcmChunkedEncoderDefinition } from "./pcm-chunked-encoder"
 /**
  * WAV 编解码器插件入口（可选 Vite entry point）。
@@ -14,10 +14,10 @@ import { pcmChunkedEncoderDefinition } from "./pcm-chunked-encoder"
  * 导出 wavChunkedEncoderDefinition，供用户传入 createStreamingExportPlugin({ encoders: [...] }) 使用。
  * workerFactory 已设置为内联 WAV Worker blob。
  */
-import InlineWavWorker from "./wav-worker.ts?worker&inline"
+import WavWorker from "./wav-worker.ts?worker"
 import { wavChunkedEncoderDefinition } from "./wav-chunked-encoder"
 
-pcmChunkedEncoderDefinition.workerFactory = () => new InlinePcmWorker()
+pcmChunkedEncoderDefinition.workerFactory = () => new PcmWorker()
 
 export { pcmChunkedEncoderDefinition }
 export { pcmSnapshotEncoderDefinition } from "./pcm-snapshot-encoder"
@@ -26,7 +26,7 @@ export type { PcmChunkedEncoderOptions } from "./pcm-chunked-encoder"
   wavChunkedEncoderDefinition as typeof wavChunkedEncoderDefinition & {
     workerFactory?: () => Worker
   }
-).workerFactory = () => new InlineWavWorker()
+).workerFactory = () => new WavWorker()
 
 export { wavChunkedEncoderDefinition }
 

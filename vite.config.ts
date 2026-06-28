@@ -1,5 +1,6 @@
 import { fileURLToPath, URL } from "node:url"
 import { defineConfig } from "vite"
+import { workerChunksPlugin } from "./scripts/vite-worker-relink-plugin"
 
 export default defineConfig({
   build: {
@@ -52,15 +53,20 @@ export default defineConfig({
         comments: false,
         chunkFileNames: (chunkInfo) => {
           const name = chunkInfo.name ?? ""
-          const match = name.match(/^lib([a-z0-9]+?)(?:nb|wb)?\.wasm/)
-          if (match) return `codecs/${match[1]}/[name]-[hash].js`
+          const wasmMatch = name.match(/^lib([a-z0-9]+?)(?:nb|wb)?\.wasm/)
+          if (wasmMatch) return `codecs/${wasmMatch[1]}/[name]-[hash].js`
           return "chunks/[name]-[hash].js"
         },
+        sourcemap: false,
       },
     },
     sourcemap: false,
     target: "es2022",
   },
+  worker: {
+    format: "es",
+  },
+  plugins: [workerChunksPlugin()],
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),

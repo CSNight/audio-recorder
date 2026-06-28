@@ -6,5 +6,6 @@
  */
 import { mp3ChunkedEncoderDefinition } from "./mp3-chunked-encoder"
 import { createWorkerMessageHandler } from "@/workers/chunked-encoder-worker-core"
-
+// Worker 模块加载时立即预热 WASM（与主线程 setup() 的 preload 并行，各自独立模块实例）
+mp3ChunkedEncoderDefinition.preload?.()
 self.onmessage = createWorkerMessageHandler(() => mp3ChunkedEncoderDefinition)

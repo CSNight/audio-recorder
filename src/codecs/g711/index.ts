@@ -7,13 +7,13 @@
  * 导入此文件会为 g711ChunkedEncoderDefinition 注入 workerFactory，
  * G.711 算法代码内联为 Worker blob，不污染主包。
  */
-import InlineG711Worker from "./g711-worker.ts?worker&inline"
+import G711Worker from "./g711-worker.ts?worker"
 import { g711ChunkedEncoderDefinition } from "./g711-chunked-encoder"
 ;(
   g711ChunkedEncoderDefinition as typeof g711ChunkedEncoderDefinition & {
     workerFactory?: () => Worker
   }
-).workerFactory = () => new InlineG711Worker()
+).workerFactory = () => new G711Worker()
 
 export { g711ChunkedEncoderDefinition } from "./g711-chunked-encoder"
 export { g711SnapshotEncoderDefinition } from "./g711-snapshot-exporter"

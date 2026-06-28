@@ -17,14 +17,14 @@
  * 无需全局注册。
  */
 
-import InlineOpusWorker from "./opus-worker.ts?worker&inline"
+import OpusWorker from "./opus-worker.ts?worker"
 import {
   oggChunkedEncoderDefinition,
   webmChunkedEncoderDefinition,
 } from "./opus-chunked-encoder"
 
 // 注入 Worker factory（OGG 和 WebM 共用同一个 Worker）
-const makeWorker = () => new InlineOpusWorker()
+const makeWorker = () => new OpusWorker()
 
 ;(
   oggChunkedEncoderDefinition as typeof oggChunkedEncoderDefinition & {

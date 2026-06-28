@@ -14,13 +14,13 @@
  * options.encoders 传入 createStreamingExportPlugin，无需全局注册。
  */
 
-import InlineFlacWorker from "./flac-worker.ts?worker&inline"
+import FlacWorker from "./flac-worker.ts?worker"
 import { flacChunkedEncoderDefinition } from "./flac-chunked-encoder"
 ;(
   flacChunkedEncoderDefinition as typeof flacChunkedEncoderDefinition & {
     workerFactory?: () => Worker
   }
-).workerFactory = () => new InlineFlacWorker()
+).workerFactory = () => new FlacWorker()
 
 export { flacChunkedEncoderDefinition } from "./flac-chunked-encoder"
 export { flacSnapshotEncoderDefinition } from "./flac-snapshot-exporter"

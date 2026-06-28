@@ -10,13 +10,13 @@
  * 使用 streaming-export 的 MP3 流式编码时，将 mp3ChunkedEncoderDefinition 传入
  * options.encoders 后交由 createStreamingExportPlugin 使用即可。
  */
-import InlineMp3Worker from "./mp3-worker.ts?worker&inline"
+import Mp3Worker from "./mp3-worker.ts?worker"
 import { mp3ChunkedEncoderDefinition } from "./mp3-chunked-encoder"
 ;(
   mp3ChunkedEncoderDefinition as typeof mp3ChunkedEncoderDefinition & {
     workerFactory?: () => Worker
   }
-).workerFactory = () => new InlineMp3Worker()
+).workerFactory = () => new Mp3Worker()
 
 export { mp3ChunkedEncoderDefinition } from "./mp3-chunked-encoder"
 export { mp3SnapshotEncoderDefinition } from "./mp3-snapshot-exporter"
