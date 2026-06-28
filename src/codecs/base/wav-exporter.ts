@@ -5,6 +5,7 @@ import { createWavHeader } from "./wav-header"
 
 const WAV_MIME_TYPE = "audio/wav"
 
+/** 导出标准 WAV 文件：先复用 PCM 导出得到裸采样数据，再拼接 44 字节标准 WAV 头 */
 export function exportWavSnapshot(
   snapshot: PcmBufferSnapshot,
   options: WavExportOptions = {}

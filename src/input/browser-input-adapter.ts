@@ -113,7 +113,7 @@ export class BrowserInputAdapter implements RecorderInputAdapter {
       handlers,
       requestedChannelCount: actualTrackChannelCount,
       ownsStream,
-      disableEnvInFix: input.frameLossCompensation ?? false,
+      disableFrameLossCompensation: input.disableFrameLossCompensation ?? false,
     })
 
     const context: InputBackendContext = {

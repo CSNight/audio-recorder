@@ -25,7 +25,7 @@ export interface BrowserInputSessionOptions {
   handlers: RecorderInputHandlers
   requestedChannelCount: AudioChannelCount
   ownsStream: boolean
-  disableEnvInFix: boolean
+  disableFrameLossCompensation: boolean
 }
 
 /**
@@ -43,7 +43,7 @@ export class BrowserInputSession
   private readonly handlers: RecorderInputHandlers
   private readonly requestedChannelCount: AudioChannelCount
   private readonly ownsStream: boolean
-  private readonly disableEnvInFix: boolean
+  private readonly disableFrameLossCompensation: boolean
 
   private backend: InputBackend | undefined
   private sessionState = InputSessionState.Ready
@@ -62,7 +62,7 @@ export class BrowserInputSession
     this.requestedChannelCount = options.requestedChannelCount
     this.activeChannelCount = options.requestedChannelCount
     this.ownsStream = options.ownsStream
-    this.disableEnvInFix = options.disableEnvInFix
+    this.disableFrameLossCompensation = options.disableFrameLossCompensation
   }
 
   /** 实际采样率，由 AudioContext 决定，通常等于系统默认（44100 或 48000）。 */
@@ -131,11 +131,11 @@ export class BrowserInputSession
           kind: "warning",
           warning: {
             code: RecorderWarningCode.FrameLossDetected,
-            message: `Frame loss detected: ${Math.round(addTime)}ms gap. Total compensated: ${Math.round(this.envInFix)}ms. Compensation ${this.disableEnvInFix ? "disabled" : "applied"}.`,
+            message: `Frame loss detected: ${Math.round(addTime)}ms gap. Total compensated: ${Math.round(this.envInFix)}ms. Compensation ${this.disableFrameLossCompensation ? "disabled" : "applied"}.`,
           },
         })
 
-        if (!this.disableEnvInFix) {
+        if (!this.disableFrameLossCompensation) {
           const silentSamples = Math.round((addTime * sampleRate) / 1000)
           const silentChannel = new Float32Array(silentSamples)
           const silentPlanar = Array.from(

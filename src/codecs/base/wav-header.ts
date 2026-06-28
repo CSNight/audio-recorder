@@ -2,6 +2,10 @@ import type { AudioChannelCount } from "@/types"
 
 const WAV_HEADER_BYTES = 44
 
+/**
+ * 生成标准 44 字节 WAV 文件头（PCM / RIFF 格式）。
+ * 布局：RIFF→WAVE→fmt（16字节 PCM）→data，全部小端序。
+ */
 export function createWavHeader(options: {
   dataBytes: number
   sampleRate: number

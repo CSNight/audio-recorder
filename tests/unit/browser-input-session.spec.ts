@@ -35,7 +35,7 @@ function createSession(options: {
   onIssue?: ReturnType<typeof vi.fn>
   requestedChannelCount?: AudioChannelCount
   ownsStream?: boolean
-  disableEnvInFix?: boolean
+  disableFrameLossCompensation?: boolean
   backend?: InputBackend
 }) {
   const onFrame = options.onFrame ?? vi.fn()
@@ -51,7 +51,7 @@ function createSession(options: {
     },
     requestedChannelCount: options.requestedChannelCount ?? 1,
     ownsStream: options.ownsStream ?? false,
-    disableEnvInFix: options.disableEnvInFix ?? false,
+    disableFrameLossCompensation: options.disableFrameLossCompensation ?? false,
   })
   session.attachBackend(backend)
   return { session, onFrame, onIssue, backend }
@@ -124,9 +124,9 @@ describe("BrowserInputSession", () => {
     expect(onFrame.mock.calls.length).toBeGreaterThan(6)
   })
 
-  it("reports FrameLossDetected warning but skips silent frame when disableEnvInFix is true", async () => {
+  it("reports FrameLossDetected warning but skips silent frame when disableFrameLossCompensation is true", async () => {
     const { session, onFrame, onIssue } = createSession({
-      disableEnvInFix: true,
+      disableFrameLossCompensation: true,
     })
     await session.start()
 

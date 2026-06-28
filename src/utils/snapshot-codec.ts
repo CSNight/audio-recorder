@@ -2,6 +2,18 @@ import type { PcmBufferSnapshot } from "@/buffer/types"
 
 const SNAPSHOT_VERSION = 1
 
+/**
+ * 将 PCM 快照序列化为二进制 ArrayBuffer，便于持久化存储或跨线程传输。
+ *
+ * 二进制布局：
+ * - 4 字节 版本号（uint32）
+ * - 4 字节 采样率（uint32）
+ * - 1 字节 声道数（uint8）
+ * - 4 字节 帧数（uint32）
+ * - 8 字节 时长 ms（float64）
+ * - 每声道 4 字节长度（uint32）
+ * - 各声道 PCM 数据（Int16Array 原始字节）
+ */
 export function serializePcmSnapshot(snapshot: PcmBufferSnapshot): ArrayBuffer {
   const channelLengths = snapshot.planar.map((channel) => channel.length)
   const headerBytes = 4 + 4 + 1 + 4 + 8 + snapshot.channels * 4

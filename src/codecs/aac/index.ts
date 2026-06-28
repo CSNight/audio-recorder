@@ -1,3 +1,8 @@
+/**
+ * AAC 编解码模块的 Vite 入口：通过 `?worker&inline` 注册内联 Worker 构造器，
+ * 供 chunked encoder 在主线程降级前优先使用 Worker 编码。
+ * WASM 模块预加载请参考 `src/index.ts`。
+ */
 import InlineAacWorker from "./aac-worker.ts?worker&inline"
 import { aacChunkedEncoderDefinition } from "./aac-chunked-encoder"
 ;(

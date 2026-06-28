@@ -68,8 +68,11 @@ export interface RecorderInputOptions {
   autoGainControl?: boolean // 默认 true
   /** 指定麦克风设备 ID，对应 enumerateDevices 返回的 deviceId */
   deviceId?: string
-  /** 默认 false（开启丢帧补偿）；传 true 禁用静音填补，但检测和 warning 仍会触发 */
-  frameLossCompensation?: boolean
+  /**
+   * 默认 false（开启丢帧补偿）；传 true 禁用静音填补，但检测和 warning 仍会触发。
+   * 命名语义：true = 禁用补偿，false = 启用补偿（默认）。
+   */
+  disableFrameLossCompensation?: boolean
   /**
    * 采集链路选择。默认 "auto"：优先 MediaRecorder，按兼容性降级到
    * AudioWorklet / ScriptProcessor。也可显式指定某一种；该模式不可用时

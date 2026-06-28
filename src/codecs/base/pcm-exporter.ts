@@ -13,6 +13,7 @@ function normalizeBitRate(bitRate: PcmExportOptions["bitRate"]): 8 | 16 {
   return bitRate
 }
 
+/** 将 PCM 快照导出为交织（interleaved）字节流，支持重采样与位深转换 */
 export function exportPcmSnapshot(
   snapshot: PcmBufferSnapshot,
   options: PcmExportOptions = {}
