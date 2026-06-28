@@ -5,10 +5,18 @@ import type {
   RecorderPersistenceSessionOptions,
 } from "@/storage/types"
 
+/** IndexedDB 数据库名，全局唯一，避免与其他库冲突。 */
 const DATABASE_NAME = "audio-recorder"
+/** ObjectStore 名称，所有录音 chunk 均存储于此。 */
 const STORE_NAME = "sessions"
+/** chunk key 格式："{sessionId}::chunk::{index}"，分隔符用于解析 sessionId 和 chunk 序号。 */
 const CHUNK_KEY_SEPARATOR = "::chunk::"
 
+/**
+ * 创建基于 IndexedDB 的持久化插件。
+ * 每个录音 session 的 PCM 数据以 chunk 为单位分块写入 ObjectStore，
+ * key 格式为 "{sessionId}::chunk::{8位序号}"，保证写入顺序和幂等读取。
+ */
 export function createIndexedDbPersistencePlugin(): RecorderPersistencePlugin {
   return {
     backend: "indexeddb",

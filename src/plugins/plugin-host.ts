@@ -18,14 +18,29 @@ import type {
   RecorderSessionSummary,
 } from "@/types"
 
+/** PluginHost 的构造选项，由 RecorderController 注入。 */
 interface PluginHostOptions {
+  /** 录音控制器实例，透传给每个插件的 context。 */
   recorder: RecorderController
+  /** 向外发布录音异常（插件 setup/hook/dispose 抛出时使用）。 */
   emitIssue: (issue: RecorderIssue) => void
+  /** 获取当前录音运行时信息（时长、采样率等）。 */
   getRuntimeInfo: () => RecorderRuntimeInfo
+  /** 获取最近一次录音导出摘要，供插件事件上下文使用。 */
   getLatestSummary: () => RecorderSessionSummary
+  /** 每次插件 emit 时调用，生成注入事件对象的上下文快照。 */
   createEventContext: () => PluginEventBusContext
 }
 
+/**
+ * 插件宿主，管理所有已注册插件的生命周期与钩子分发。
+ *
+ * 职责：
+ * - 维护插件列表，保证名称唯一；
+ * - 在 setup/dispose 失败时捕获错误并转为 RecorderIssue；
+ * - 将录音生命周期事件（onStart/onFrame/onPause/onResume/onStop）广播给所有插件；
+ * - 为每个插件创建隔离的 PluginEventBus，防止事件名冲突。
+ */
 export class PluginHost {
   private readonly plugins: RecorderPlugin[] = []
   private readonly pluginEventBus = new EventBus<PluginEventMap>()

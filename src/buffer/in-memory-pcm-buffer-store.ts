@@ -14,6 +14,13 @@ type PlanarSource = {
   planar: readonly (Int16Array | undefined)[]
 }
 
+/**
+ * 纯内存 PCM 缓冲存储。
+ *
+ * 以平面（planar）格式分声道存储 Int16Array 块列表；
+ * 调用 `snapshot()` 时懒合并为单条连续缓冲，并对结果做浅拷贝防止外部篡改。
+ * `drainSnapshot()` 可原子地取出快照并立即清空自身，供 promotion 流程使用。
+ */
 export class InMemoryPcmBufferStore implements PcmBufferStore {
   private layout: PcmLayout | undefined
   private frameCount = 0

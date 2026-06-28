@@ -26,6 +26,19 @@ import {
 } from "@/types"
 import { EventBus } from "@/core/event-bus"
 
+/**
+ * 录音控制器核心类，管理录音会话的完整生命周期。
+ *
+ * 状态机：Idle → Ready → Recording ⇄ Paused → Stopped → Closed → (Idle)
+ * 任意状态均可调用 destroy() 进入 Destroyed 终态。
+ *
+ * 主要职责：
+ * - 通过 RecorderInputAdapter 打开麦克风 / 外部流输入
+ * - 将 PCM 帧写入 RecorderFramePipeline（含缓冲与持久化）
+ * - 驱动 PluginHost 分发生命周期钩子和插件事件
+ * - 提供 exportEncoded() 统一导出接口，支持 PCM / WAV / MP3 等多格式
+ * - 通过 EventBus 向外广播 statechange / frame:async / issue 等事件
+ */
 export class RecorderController {
   private readonly eventBus = new EventBus<RecorderEventMap>()
   private readonly inputAdapter: RecorderInputAdapter

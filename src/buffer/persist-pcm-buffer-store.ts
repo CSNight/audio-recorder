@@ -16,6 +16,11 @@ export interface PersistPcmBufferStoreOptions {
   emitIssue: ((issue: RecorderIssue) => void) | undefined
 }
 
+/**
+ * 持久化 PCM 缓冲存储：将录音帧攒批后写入持久化插件（IndexedDB / OPFS 等），
+ * 避免长时间录音占用过多内存。写入按 `persistenceChunkBytes` 分块，
+ * 内部维护一条串行写队列（`pendingWrite`）保证落盘顺序与录音帧顺序一致。
+ */
 export class PersistPcmBufferStore implements PcmBufferStore {
   private readonly persistenceChunkBytes: number
   private readonly persistencePlugin: RecorderPersistencePlugin | undefined

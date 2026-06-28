@@ -1,10 +1,10 @@
-/** MP3 ????? */
+/** MP3 码率控制模式 */
 export type Mp3RateMode = "cbr" | "abr" | "vbr"
 
-/** MP3 ????? */
+/** MP3 声道模式 */
 export type Mp3ChannelMode = "mono" | "stereo" | "joint-stereo"
 
-/** MP3 ????????? */
+/** MP3 编码器支持的标准采样率 */
 export type Mp3SampleRate =
   | 8000
   | 11025
@@ -16,23 +16,23 @@ export type Mp3SampleRate =
   | 44100
   | 48000
 
-/** MP3 ??????? */
+/** MP3 编码器选项 */
 export interface Mp3EncoderOptions {
-  /** ?????kbps??CBR / ABR ??????? 128? */
+  /** 比特率，单位 kbps；CBR / ABR 模式下生效，默认 128 */
   bitrateKbps?: number
-  /** ??????? cbr? */
+  /** 码率控制模式，默认 cbr */
   mode?: Mp3RateMode
-  /** VBR ?????0 ???9 ???? VBR ??????? 4? */
+  /** VBR 质量，0 到 9，数值越小质量越高、码率越大，默认 4 */
   vbrQuality?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
-  /** ?????????????????? */
+  /** 编码采样率，默认沿用输入 PCM 的采样率 */
   sampleRate?: Mp3SampleRate
-  /** ?????????????? mono?????? stereo? */
+  /** 声道模式，默认按输入声道数自动判断：单声道为 mono，否则为 stereo */
   channelMode?: Mp3ChannelMode
-  /** LAME ???????0 ???9 ????? 2? */
+  /** LAME 编码质量，0 到 9，数值越小质量越高，默认 2 */
   quality?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 }
 
-/** ???????? MP3 ????? */
+/** 解析补全默认值后的完整 MP3 编码选项 */
 export interface ResolvedMp3EncoderOptions {
   bitrateKbps: number
   mode: Mp3RateMode
@@ -42,7 +42,7 @@ export interface ResolvedMp3EncoderOptions {
   quality: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 }
 
-/** MP3 WASM ?????? */
+/** MP3 WASM 编码器实例句柄 */
 export interface Mp3WasmEncoderHandle {
   sampleRate: Mp3SampleRate
   channels: 1 | 2
@@ -51,7 +51,7 @@ export interface Mp3WasmEncoderHandle {
   free(): void
 }
 
-/** MP3 ??????? */
+/** MP3 一次性导出选项 */
 export type Mp3ExportOptions = Mp3EncoderOptions
 
 export interface Mp3ExportResult {
@@ -59,6 +59,6 @@ export interface Mp3ExportResult {
   channels: 1 | 2
   bitrateKbps: number
   durationMs: number
-  /** ?? MP3 ?????? */
+  /** 编码后的 MP3 二进制数据 */
   data: Uint8Array
 }

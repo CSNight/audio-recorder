@@ -1,6 +1,12 @@
 import type { RecorderPlugin } from "@/plugins/types"
 import type { AudioFrame, RecorderLevel, RecorderLevelChannel } from "@/types"
 
+/**
+ * createLevelMeterPlugin：实时电平监测插件。
+ *
+ * 每帧 PCM 同步计算 peak/rms（整体 + 逐声道），通过 "plugin:level" 事件发出，
+ * 供 UI 绘制音量条等场景使用。计算开销很小，无需 Worker。
+ */
 export function createLevelMeterPlugin(): RecorderPlugin {
   let emitLevel: ((level: RecorderLevel) => void) | undefined
   let isActive = false

@@ -5,8 +5,14 @@ import type {
   RecorderPersistenceSessionOptions,
 } from "@/storage/types"
 
+// OPFS 根目录名，所有会话子目录都挂在这一目录下
 const ROOT_DIRECTORY = "audio-recorder"
 
+/**
+ * 基于 Origin Private File System (OPFS) 的持久化插件。
+ * 每个录音 session 对应一个子目录，快照按 chunk 分文件存储，
+ * 避免单文件无限增长，也便于增量写入和清理。
+ */
 export function createOpfsPersistencePlugin(): RecorderPersistencePlugin {
   return {
     backend: "opfs",
@@ -24,6 +30,7 @@ export function createOpfsPersistencePlugin(): RecorderPersistencePlugin {
       const baseDirectory = await root.getDirectoryHandle(ROOT_DIRECTORY, {
         create: true,
       })
+      // 清理上一次未正常关闭遗留的过期会话目录，避免 OPFS 空间无限增长
       await cleanupExpiredSessionDirectories(baseDirectory, options.sessionId)
       const sessionDirectory = await baseDirectory.getDirectoryHandle(
         options.sessionId,

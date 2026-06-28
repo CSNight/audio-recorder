@@ -3,6 +3,13 @@ import type { PcmBufferStore } from "@/buffer/types"
 import type { RecorderFramePipeline } from "@/pipeline/types"
 import type { AudioFrame } from "@/types"
 
+/**
+ * 默认 PCM 帧管线实现。
+ *
+ * 将录音过程中产生的 `AudioFrame` 顺序写入底层 `PcmBufferStore`，
+ * 并通过 `getSnapshot()` 对外暴露完整的 PCM 快照供导出使用。
+ * 默认使用 `InMemoryPcmBufferStore`；传入自定义 store 可切换为持久化存储。
+ */
 export class PcmFramePipeline implements RecorderFramePipeline {
   constructor(
     private readonly bufferStore: PcmBufferStore = new InMemoryPcmBufferStore()

@@ -1,5 +1,6 @@
 import type { AudioFrame } from "@/types"
 
+/** 计算一帧 PCM 数据的总字节数（所有声道字节之和）。 */
 export function getFrameBytes(frame: AudioFrame): number {
   let total = 0
   for (let channelIndex = 0; channelIndex < frame.channels; channelIndex += 1) {

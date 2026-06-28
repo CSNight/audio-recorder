@@ -98,6 +98,7 @@ async function getModule(): Promise<LibMp3Module | undefined> {
   return modulePromise
 }
 
+/** 预热并缓存 MP3 WASM 模块，幂等；createMp3Encoder 调用前应先 await 本函数。 */
 export async function preloadMp3Module(): Promise<void> {
   if (moduleCache) return
   await getModule()

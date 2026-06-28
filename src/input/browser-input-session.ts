@@ -65,14 +65,17 @@ export class BrowserInputSession
     this.disableEnvInFix = options.disableEnvInFix
   }
 
+  /** 实际采样率，由 AudioContext 决定，通常等于系统默认（44100 或 48000）。 */
   get actualSampleRate(): number {
     return this.audioContext.sampleRate
   }
 
+  /** 实际声道数，由第一帧 planar 数组长度推断，可能与请求值不同。 */
   get actualChannelCount(): AudioChannelCount {
     return this.activeChannelCount
   }
 
+  /** 当前生效的输入采集策略（media-recorder / audio-worklet / script-processor）。 */
   get actualInputStrategy(): RecorderInputStrategy {
     if (!this.backend) {
       throw new Error("Input backend has not been attached.")

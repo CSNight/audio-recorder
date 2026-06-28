@@ -2,8 +2,10 @@ export interface RecorderCapabilityReport {
   hasAudioContext: boolean
   hasGetUserMedia: boolean
   hasAudioWorklet: boolean
+  // 浏览器是否支持 MediaRecorder 直接产出未压缩 PCM 的 WebM 容器（最优路径，省去重采样/解码）
   hasMediaRecorderWebMPcm: boolean
   hasScriptProcessor: boolean
+  // 预测的输入采集策略，按 media-recorder > audio-worklet > script-processor 优先级降级
   expectedInputStrategy:
     | "media-recorder"
     | "audio-worklet"

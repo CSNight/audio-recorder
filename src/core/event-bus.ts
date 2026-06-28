@@ -1,6 +1,11 @@
 type EventMap = object
 type Listener<T> = (payload: T) => void
 
+/**
+ * 轻量级类型安全事件总线。
+ * 泛型参数 `TEvents` 为事件名到载荷类型的映射对象。
+ * 支持 on / once / off / emit / clear 操作，内部用 Map<key, Set<listener>> 管理订阅。
+ */
 export class EventBus<TEvents extends EventMap> {
   private readonly listeners = new Map<
     keyof TEvents,

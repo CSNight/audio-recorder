@@ -5,6 +5,7 @@ import type {
   RecorderWarning,
 } from "@/types"
 
+/** 输入层向上层传递的问题事件（警告或错误） */
 export type InputIssue =
   | {
       kind: "warning"

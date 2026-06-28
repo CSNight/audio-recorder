@@ -5,15 +5,30 @@ import type { PcmBufferSnapshot, PcmBufferStore } from "@/buffer/types"
 import type { RecorderStorageOptions } from "@/storage/types"
 import type { AudioFrame, RecorderIssue } from "@/types"
 
+/** `ComplexPcmBufferStore` 的构造参数 */
 export interface ComplexPcmBufferStoreOptions {
+  /** 录音会话 ID */
   sessionId: string
+  /** 录音开始时间戳（ms） */
   startedAt: number
+  /** 持久化存储配置；undefined 表示纯内存模式 */
   storage: RecorderStorageOptions | undefined
+  /** 发出非致命问题的回调 */
   emitIssue: ((issue: RecorderIssue) => void) | undefined
 }
 
+/** 当前缓冲阶段：纯内存 / 迁移中 / 持久化 */
 type ComplexStage = "memory" | "promoting" | "persist"
 
+/**
+ * 混合 PCM 缓冲区，支持内存 → 持久化自动晋升。
+ *
+ * - 录音初期所有帧写入内存缓冲（`InMemoryPcmBufferStore`）。
+ * - 当内存占用超过 `storage.memoryThresholdBytes` 后，异步发起 **promotion**：
+ *   将历史快照迁移至持久化存储（`PersistPcmBufferStore`），
+ *   迁移期间新帧暂存于过渡缓冲（`promotionStore`），迁移完成后合并写入。
+ * - 若持久化初始化失败则回退到内存模式，数据不丢失。
+ */
 export class ComplexPcmBufferStore implements PcmBufferStore {
   private readonly memoryThresholdBytes: number
   private readonly memoryStore = new InMemoryPcmBufferStore()
