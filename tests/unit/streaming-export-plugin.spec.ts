@@ -76,6 +76,12 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+async function flushMicrotasks(times = 3): Promise<void> {
+  for (let index = 0; index < times; index++) {
+    await Promise.resolve()
+  }
+}
+
 function isStreamingChunkEvent(
   event: unknown
 ): event is RecorderPluginEventContext<StreamingChunkPayload> {
@@ -153,9 +159,9 @@ describe("createStreamingExportPlugin", () => {
     await recorder.open()
     await recorder.start()
     adapter.session?.emitFrame([0, 0.5, -0.5, 0.25])
-    await Promise.resolve()
+    await flushMicrotasks()
     await recorder.stop()
-    await Promise.resolve()
+    await flushMicrotasks()
 
     expect(events).toHaveLength(2)
     expect(events[0]).toEqual({
@@ -171,7 +177,7 @@ describe("createStreamingExportPlugin", () => {
     expect(events[1]?.pluginName).toBe("streaming-export:test")
   })
 
-  it("does not leak worker chunks from a closed session after reopen", async () => {
+  it("reuses the same worker across reopen and ignores stale session chunks", async () => {
     vi.stubGlobal("Worker", class {})
 
     const adapter = new FakeStreamingInputAdapter()
@@ -179,16 +185,12 @@ describe("createStreamingExportPlugin", () => {
       inputAdapter: adapter,
       storageOptions: undefined,
     })
-    const workers: FakeWorker[] = []
+    const worker = new FakeWorker()
     const emitted: number[][] = []
 
     const definition: ChunkedEncoderDefinition = {
       format: "test",
-      workerFactory: () => {
-        const worker = new FakeWorker()
-        workers.push(worker)
-        return worker as unknown as Worker
-      },
+      workerFactory: () => worker as unknown as Worker,
       create: () => ({
         feedFrame: () => new Uint8Array([99]),
         flush: () => null,
@@ -201,8 +203,7 @@ describe("createStreamingExportPlugin", () => {
         throw new Error("Expected streaming chunk plugin event.")
       }
 
-      const { payload } = event
-      emitted.push(Array.from(payload.chunk))
+      emitted.push(Array.from(event.payload.chunk))
     })
 
     await recorder.use(
@@ -210,30 +211,54 @@ describe("createStreamingExportPlugin", () => {
     )
     await recorder.open()
     await recorder.start()
+    worker.emitMessage({ type: "ready" })
     adapter.session?.emitFrame()
+    await flushMicrotasks()
     await recorder.stop()
     await recorder.close()
+
     await recorder.open()
     await recorder.start()
+    worker.emitMessage({ type: "ready" })
     adapter.session?.emitFrame([0.25, -0.25])
+    await flushMicrotasks()
 
-    expect(workers).toHaveLength(2)
-    workers[1]?.emitMessage({
+    expect(worker.messages).toEqual([
+      { type: "init", format: "test", options: undefined },
+      { type: "reset", options: undefined },
+      {
+        type: "feedFrame",
+        planar: [new Int16Array([0, 16384, -16384])],
+        channels: 1,
+        sampleRate: 16000,
+        seqId: 0,
+      },
+      { type: "flush", seqId: 1 },
+      { type: "reset", options: undefined },
+      {
+        type: "feedFrame",
+        planar: [new Int16Array([8192, -8192])],
+        channels: 1,
+        sampleRate: 16000,
+        seqId: 2,
+      },
+    ])
+
+    worker.emitMessage({
       type: "result",
       result: new Uint8Array([2]),
-      seqId: 0,
+      seqId: 2,
     })
-    await Promise.resolve()
+    await flushMicrotasks()
 
-    workers[0]?.emitMessage({
+    worker.emitMessage({
       type: "result",
       result: new Uint8Array([1]),
       seqId: 0,
     })
-    await Promise.resolve()
+    await flushMicrotasks()
 
     expect(emitted).toEqual([[2]])
-    expect(workers[0]?.terminated).toBe(true)
   })
 
   it("stops emitting after dispose even if an in-flight worker encode resolves later", async () => {
@@ -262,8 +287,7 @@ describe("createStreamingExportPlugin", () => {
         throw new Error("Expected streaming chunk plugin event.")
       }
 
-      const { payload } = event
-      emitted.push(Array.from(payload.chunk))
+      emitted.push(Array.from(event.payload.chunk))
     })
 
     await recorder.use(
@@ -271,7 +295,9 @@ describe("createStreamingExportPlugin", () => {
     )
     await recorder.open()
     await recorder.start()
+    worker.emitMessage({ type: "ready" })
     adapter.session?.emitFrame()
+    await flushMicrotasks()
     await recorder.destroy()
 
     worker.emitMessage({
@@ -279,7 +305,7 @@ describe("createStreamingExportPlugin", () => {
       result: new Uint8Array([9]),
       seqId: 0,
     })
-    await Promise.resolve()
+    await flushMicrotasks()
 
     expect(emitted).toEqual([])
     expect(worker.terminated).toBe(true)
@@ -307,10 +333,9 @@ describe("createStreamingExportPlugin", () => {
         throw new Error("Expected streaming chunk plugin event.")
       }
 
-      const { payload } = event
       events.push({
-        isFinal: payload.isFinal,
-        chunk: Array.from(payload.chunk),
+        isFinal: event.payload.isFinal,
+        chunk: Array.from(event.payload.chunk),
       })
     })
 
@@ -323,9 +348,9 @@ describe("createStreamingExportPlugin", () => {
     adapter.session?.emitFrame()
     await recorder.resume()
     adapter.session?.emitFrame()
-    await Promise.resolve()
+    await flushMicrotasks()
     await recorder.stop()
-    await Promise.resolve()
+    await flushMicrotasks()
 
     expect(events).toEqual([{ isFinal: false, chunk: [1] }])
   })
@@ -362,10 +387,12 @@ describe("createStreamingExportPlugin", () => {
     )
     await recorder.open()
     await recorder.start()
+    worker.emitMessage({ type: "ready" })
     adapter.session?.emitFrame()
+    await flushMicrotasks()
 
     worker.emitMessage({ type: "error", message: "worker failed", seqId: 0 })
-    await Promise.resolve()
+    await flushMicrotasks()
 
     expect(issues).toEqual([])
   })

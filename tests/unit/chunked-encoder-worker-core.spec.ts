@@ -17,10 +17,10 @@ afterEach(() => {
 
 function buildHandler(
   resolveDefinition: (format: string) => ChunkedEncoderDefinition
-): (data: unknown) => void {
+): (data: unknown) => Promise<void> {
   const handler = createWorkerMessageHandler(resolveDefinition)
-  return (data: unknown) => {
-    handler({ data } as MessageEvent<any>)
+  return async (data: unknown) => {
+    await handler({ data } as MessageEvent<any>)
   }
 }
 
@@ -29,14 +29,14 @@ function definitionFor(create: (options?: unknown) => ChunkedEncoder) {
 }
 
 describe("createWorkerMessageHandler", () => {
-  it("reports an init error when the encoder definition cannot be resolved", () => {
+  it("reports an init error when the encoder definition cannot be resolved", async () => {
     vi.stubGlobal("self", { postMessage })
 
     const dispatch = buildHandler(() => {
       throw "missing encoder"
     })
 
-    dispatch({ type: "init", format: "missing" })
+    await dispatch({ type: "init", format: "missing" })
 
     expect(postMessage).toHaveBeenCalledWith({
       type: "error",
@@ -45,7 +45,7 @@ describe("createWorkerMessageHandler", () => {
     })
   })
 
-  it("returns an error when feedFrame arrives before init", () => {
+  it("returns an error when feedFrame arrives before init", async () => {
     vi.stubGlobal("self", { postMessage })
 
     const dispatch = buildHandler(() =>
@@ -54,7 +54,7 @@ describe("createWorkerMessageHandler", () => {
       })
     )
 
-    dispatch({
+    await dispatch({
       type: "feedFrame",
       planar: [new Int16Array([1])],
       channels: 1,
@@ -69,7 +69,7 @@ describe("createWorkerMessageHandler", () => {
     })
   })
 
-  it("initializes the encoder and posts copied frame results with transferables", () => {
+  it("initializes the encoder and posts copied frame results with transferables", async () => {
     vi.stubGlobal("self", { postMessage })
 
     const frameResult = new Uint8Array([1, 2, 3])
@@ -83,8 +83,8 @@ describe("createWorkerMessageHandler", () => {
 
     const dispatch = buildHandler(resolveDefinition)
 
-    dispatch({ type: "init", format: "pcm", options: { bitsPerSample: 8 } })
-    dispatch({
+    await dispatch({ type: "init", format: "pcm", options: { bitsPerSample: 8 } })
+    await dispatch({
       type: "feedFrame",
       planar: [new Int16Array([9, 10])],
       channels: 1,
@@ -97,6 +97,7 @@ describe("createWorkerMessageHandler", () => {
     expect(encoder.feedFrame).toHaveBeenCalledWith(1, 22050, [
       new Int16Array([9, 10]),
     ])
+    expect(postMessage).toHaveBeenNthCalledWith(1, { type: "ready" })
 
     const [message, transfer] = postMessage.mock.calls.at(-1)!
     expect(message).toEqual({
@@ -108,7 +109,7 @@ describe("createWorkerMessageHandler", () => {
     expect(transfer).toEqual([message.result.buffer])
   })
 
-  it("returns null frame results without a transfer list", () => {
+  it("returns null frame results without a transfer list", async () => {
     vi.stubGlobal("self", { postMessage })
 
     const encoder: ChunkedEncoder = {
@@ -119,8 +120,8 @@ describe("createWorkerMessageHandler", () => {
 
     const dispatch = buildHandler(() => definitionFor(() => encoder))
 
-    dispatch({ type: "init", format: "pcm" })
-    dispatch({
+    await dispatch({ type: "init", format: "pcm" })
+    await dispatch({
       type: "feedFrame",
       planar: [new Int16Array([1])],
       channels: 1,
@@ -135,7 +136,7 @@ describe("createWorkerMessageHandler", () => {
     })
   })
 
-  it("returns encoder errors from feedFrame and flush", () => {
+  it("returns encoder errors from feedFrame and flush", async () => {
     vi.stubGlobal("self", { postMessage })
 
     const encoder: ChunkedEncoder = {
@@ -150,29 +151,29 @@ describe("createWorkerMessageHandler", () => {
 
     const dispatch = buildHandler(() => definitionFor(() => encoder))
 
-    dispatch({ type: "init", format: "pcm" })
-    dispatch({
+    await dispatch({ type: "init", format: "pcm" })
+    await dispatch({
       type: "feedFrame",
       planar: [new Int16Array([1])],
       channels: 1,
       sampleRate: 16000,
       seqId: 11,
     })
-    dispatch({ type: "flush", seqId: 12 })
+    await dispatch({ type: "flush", seqId: 12 })
 
-    expect(postMessage).toHaveBeenNthCalledWith(1, {
+    expect(postMessage).toHaveBeenNthCalledWith(2, {
       type: "error",
       message: "feed failed",
       seqId: 11,
     })
-    expect(postMessage).toHaveBeenNthCalledWith(2, {
+    expect(postMessage).toHaveBeenNthCalledWith(3, {
       type: "error",
       message: "flush failed",
       seqId: 12,
     })
   })
 
-  it("stringifies non-Error failures from init, feedFrame and flush", () => {
+  it("stringifies non-Error failures from init, feedFrame and flush", async () => {
     vi.stubGlobal("self", { postMessage })
 
     const encoder: ChunkedEncoder = {
@@ -193,35 +194,35 @@ describe("createWorkerMessageHandler", () => {
       return definitionFor(() => encoder)
     })
 
-    dispatch({ type: "init", format: "broken-init" })
-    dispatch({ type: "init", format: "pcm" })
-    dispatch({
+    await dispatch({ type: "init", format: "broken-init" })
+    await dispatch({ type: "init", format: "pcm" })
+    await dispatch({
       type: "feedFrame",
       planar: [new Int16Array([1])],
       channels: 1,
       sampleRate: 16000,
       seqId: 41,
     })
-    dispatch({ type: "flush", seqId: 42 })
+    await dispatch({ type: "flush", seqId: 42 })
 
     expect(postMessage).toHaveBeenNthCalledWith(1, {
       type: "error",
       message: "init string failure",
       seqId: -1,
     })
-    expect(postMessage).toHaveBeenNthCalledWith(2, {
+    expect(postMessage).toHaveBeenNthCalledWith(3, {
       type: "error",
       message: "feed string failure",
       seqId: 41,
     })
-    expect(postMessage).toHaveBeenNthCalledWith(3, {
+    expect(postMessage).toHaveBeenNthCalledWith(4, {
       type: "error",
       message: "flush string failure",
       seqId: 42,
     })
   })
 
-  it("flushes copied buffers and resets the encoder on dispose", () => {
+  it("flushes copied buffers and resets the encoder on dispose", async () => {
     vi.stubGlobal("self", { postMessage })
 
     const flushResult = new Uint8Array([4, 5])
@@ -233,8 +234,8 @@ describe("createWorkerMessageHandler", () => {
 
     const dispatch = buildHandler(() => definitionFor(() => encoder))
 
-    dispatch({ type: "init", format: "wav" })
-    dispatch({ type: "flush", seqId: 21 })
+    await dispatch({ type: "init", format: "wav" })
+    await dispatch({ type: "flush", seqId: 21 })
 
     const [message, transfer] = postMessage.mock.calls.at(-1)!
     expect(message).toEqual({
@@ -245,11 +246,11 @@ describe("createWorkerMessageHandler", () => {
     expect(message.result).not.toBe(flushResult)
     expect(transfer).toEqual([message.result.buffer])
 
-    dispatch({ type: "dispose" })
+    await dispatch({ type: "dispose" })
     expect(encoder.dispose).toHaveBeenCalledTimes(1)
 
     postMessage.mockClear()
-    dispatch({ type: "flush", seqId: 22 })
+    await dispatch({ type: "flush", seqId: 22 })
     expect(postMessage).toHaveBeenCalledWith({
       type: "error",
       message: "ChunkedEncoder not initialized.",
@@ -257,7 +258,50 @@ describe("createWorkerMessageHandler", () => {
     })
   })
 
-  it("ignores dispose before initialization and still reports later flush errors", () => {
+  it("recreates the encoder on reset with the same definition", async () => {
+    vi.stubGlobal("self", { postMessage })
+
+    const firstEncoder: ChunkedEncoder = {
+      feedFrame: vi.fn(() => null),
+      flush: vi.fn(() => null),
+      dispose: vi.fn(),
+    }
+    const secondEncoder: ChunkedEncoder = {
+      feedFrame: vi.fn(() => new Uint8Array([6])),
+      flush: vi.fn(() => null),
+      dispose: vi.fn(),
+    }
+    const create = vi
+      .fn<(options?: unknown) => ChunkedEncoder>()
+      .mockReturnValueOnce(firstEncoder)
+      .mockReturnValueOnce(secondEncoder)
+    const dispatch = buildHandler(() => definitionFor(create))
+
+    await dispatch({ type: "init", format: "pcm", options: { quality: 1 } })
+    await dispatch({ type: "reset", options: { quality: 2 } })
+    await dispatch({
+      type: "feedFrame",
+      planar: [new Int16Array([5])],
+      channels: 1,
+      sampleRate: 16000,
+      seqId: 99,
+    })
+
+    expect(firstEncoder.dispose).toHaveBeenCalledTimes(1)
+    expect(create).toHaveBeenNthCalledWith(1, { quality: 1 })
+    expect(create).toHaveBeenNthCalledWith(2, { quality: 2 })
+    expect(postMessage).toHaveBeenNthCalledWith(2, { type: "ready" })
+    expect(postMessage).toHaveBeenLastCalledWith(
+      {
+        type: "result",
+        result: new Uint8Array([6]),
+        seqId: 99,
+      },
+      [postMessage.mock.calls.at(-1)![0].result.buffer]
+    )
+  })
+
+  it("ignores dispose before initialization and still reports later flush errors", async () => {
     vi.stubGlobal("self", { postMessage })
 
     const dispatch = buildHandler(() =>
@@ -268,10 +312,10 @@ describe("createWorkerMessageHandler", () => {
       }))
     )
 
-    dispatch({ type: "dispose" })
+    await dispatch({ type: "dispose" })
     expect(postMessage).not.toHaveBeenCalled()
 
-    dispatch({ type: "flush", seqId: 30 })
+    await dispatch({ type: "flush", seqId: 30 })
     expect(postMessage).toHaveBeenCalledWith({
       type: "error",
       message: "ChunkedEncoder not initialized.",
@@ -279,7 +323,7 @@ describe("createWorkerMessageHandler", () => {
     })
   })
 
-  it("ignores unknown worker messages", () => {
+  it("ignores unknown worker messages", async () => {
     vi.stubGlobal("self", { postMessage })
 
     const dispatch = buildHandler(() =>
@@ -290,7 +334,7 @@ describe("createWorkerMessageHandler", () => {
       }))
     )
 
-    dispatch({ type: "unknown" } as { type: string })
+    await dispatch({ type: "unknown" } as { type: string })
 
     expect(postMessage).not.toHaveBeenCalled()
   })

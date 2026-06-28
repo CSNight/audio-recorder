@@ -85,4 +85,32 @@ describe("exportPcmSnapshot", () => {
     // 单声道升混到双声道：复用第一声道
     expect(Array.from(result.data)).toEqual([1000, 1000, -1000, -1000])
   })
+  it("supports generic multi-channel interleaving and fills missing channels with silence", () => {
+    const snapshot: PcmBufferSnapshot = {
+      sampleRate: 16_000,
+      channels: 3,
+      frameCount: 1,
+      durationMs: 0.25,
+      planar: [new Int16Array([100, 200]), new Int16Array([-100, -200])],
+    }
+
+    const result = exportPcmSnapshot(snapshot)
+
+    expect(Array.from(result.data)).toEqual([100, -100, 0, 200, -200, 0])
+  })
+
+  it("supports 8-bit multi-channel export and fills missing channels with silence", () => {
+    const snapshot: PcmBufferSnapshot = {
+      sampleRate: 16_000,
+      channels: 3,
+      frameCount: 1,
+      durationMs: 0.25,
+      planar: [new Int16Array([32767]), new Int16Array([-32768])],
+    }
+
+    const result = exportPcmSnapshot(snapshot, { bitRate: 8 })
+
+    expect(result.data).toBeInstanceOf(Int8Array)
+    expect(Array.from(result.data)).toEqual([127, -128, 0])
+  })
 })

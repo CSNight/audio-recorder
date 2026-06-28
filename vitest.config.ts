@@ -13,7 +13,11 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],
-      exclude: ["dist/**"],
+      exclude: [
+        "dist/**",
+        "src/codecs/**/*.wasm.mjs",
+        "src/codecs/mp3/vendor/lame.all.js",
+      ],
     },
   },
 })

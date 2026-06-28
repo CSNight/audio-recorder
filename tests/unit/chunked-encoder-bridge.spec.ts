@@ -3,12 +3,6 @@ import { ChunkedEncoderBridge } from "@/workers/chunked-encoder-bridge"
 import { pcmChunkedEncoderDefinition } from "@/codecs/base/pcm-chunked-encoder"
 import { wavChunkedEncoderDefinition } from "@/codecs/base/wav-chunked-encoder"
 
-/**
- * vitest 在 Node.js 下 typeof Worker === 'undefined'，
- * 所以 ChunkedEncoderBridge 自动回退到主线程同步模式。
- * 这些测试覆盖主线程 fallback 路径。
- */
-
 function mono(samples: number[]): Int16Array[] {
   return [new Int16Array(samples)]
 }
@@ -40,8 +34,8 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe("ChunkedEncoderBridge (main-thread fallback)", () => {
-  it("feedFrame returns PCM chunk synchronously via Promise", async () => {
+describe("ChunkedEncoderBridge", () => {
+  it("feeds PCM chunks synchronously via the main-thread fallback", async () => {
     const bridge = new ChunkedEncoderBridge({
       format: "pcm",
       definition: pcmChunkedEncoderDefinition,
@@ -49,19 +43,20 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
 
     const result = await bridge.feedFrame(1, 16000, mono([100, 200]))
     expect(result).not.toBeNull()
-    expect(result!.byteLength).toBe(4) // 2 samples × 2 bytes
+    expect(result!.byteLength).toBe(4)
 
     bridge.dispose()
   })
 
-  it("flush returns null for PCM encoder (no buffer)", async () => {
+  it("flush returns null for the PCM encoder", async () => {
     const bridge = new ChunkedEncoderBridge({
       format: "pcm",
       definition: pcmChunkedEncoderDefinition,
     })
+
     await bridge.feedFrame(1, 16000, mono([1, 2]))
-    const result = await bridge.flush()
-    expect(result).toBeNull()
+    await expect(bridge.flush()).resolves.toBeNull()
+
     bridge.dispose()
   })
 
@@ -72,14 +67,11 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
       definition: wavChunkedEncoderDefinition,
     })
 
-    // 不够 10 帧，feedFrame 应返回 null
-    const mid = await bridge.feedFrame(1, 16000, mono([1, 2, 3]))
-    expect(mid).toBeNull()
+    expect(await bridge.feedFrame(1, 16000, mono([1, 2, 3]))).toBeNull()
 
-    // flush 返回剩余数据
     const final = await bridge.flush()
     expect(final).not.toBeNull()
-    expect(final!.byteLength).toBeGreaterThan(44) // header + data
+    expect(final!.byteLength).toBeGreaterThan(44)
 
     bridge.dispose()
   })
@@ -97,8 +89,7 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
     await expect(bridge.flush()).rejects.toThrow("disposed")
   })
 
-  it("throws when allowMainThreadFallback is false and Worker is unavailable", () => {
-    // vitest 运行在 Node 下，typeof Worker === 'undefined'，模拟 Worker 不可用
+  it("throws when Worker is unavailable and main-thread fallback is disabled", () => {
     expect(
       () =>
         new ChunkedEncoderBridge({
@@ -109,11 +100,10 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
     ).toThrow("allowMainThreadFallback")
   })
 
-  it("uses the worker path when a worker factory is available", async () => {
+  it("uses the worker path after the worker reports ready", async () => {
     vi.stubGlobal("Worker", class {})
 
     const worker = new FakeWorker()
-
     const bridge = new ChunkedEncoderBridge({
       format: "custom",
       encoderOptions: { bitrate: 128 },
@@ -132,9 +122,10 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
       options: { bitrate: 128 },
     })
 
-    worker.emitMessage({ type: "result", result: null, seqId: 999 })
+    worker.emitMessage({ type: "ready" })
 
     const feedPromise = bridge.feedFrame(1, 16000, mono([1, 2]))
+    await Promise.resolve()
     expect(worker.messages[1]).toEqual({
       type: "feedFrame",
       planar: mono([1, 2]),
@@ -148,12 +139,12 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
     await expect(feedPromise).resolves.toEqual(chunk)
 
     const flushPromise = bridge.flush()
+    await Promise.resolve()
     expect(worker.messages[2]).toEqual({ type: "flush", seqId: 1 })
     worker.emitMessage({ type: "result", result: null, seqId: 1 })
     await expect(flushPromise).resolves.toBeNull()
 
     bridge.dispose()
-
     expect(worker.messages[3]).toEqual({ type: "dispose" })
     expect(worker.terminated).toBe(true)
   })
@@ -162,7 +153,6 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
     vi.stubGlobal("Worker", class {})
 
     const worker = new FakeWorker()
-
     const bridge = new ChunkedEncoderBridge({
       format: "custom",
       definition: {
@@ -176,8 +166,11 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
       },
     })
 
+    worker.emitMessage({ type: "ready" })
+
     const feedPromise = bridge.feedFrame(1, 16000, mono([1]))
     const flushPromise = bridge.flush()
+    await Promise.resolve()
 
     worker.emitError("worker blew up")
 
@@ -185,11 +178,10 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
     await expect(flushPromise).rejects.toThrow("worker blew up")
   })
 
-  it("rejects pending worker operations when disposed and ignores repeated dispose", async () => {
+  it("rejects pending worker operations when disposed", async () => {
     vi.stubGlobal("Worker", class {})
 
     const worker = new FakeWorker()
-
     const bridge = new ChunkedEncoderBridge({
       format: "custom",
       definition: {
@@ -202,7 +194,11 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
         }),
       },
     })
+
+    worker.emitMessage({ type: "ready" })
+
     const feedPromise = bridge.feedFrame(1, 16000, mono([9]))
+    await Promise.resolve()
 
     bridge.dispose()
     bridge.dispose()
@@ -241,9 +237,10 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
         }),
       },
     })
-    const result = await bridge.feedFrame(1, 16000, mono([5, 6]))
 
-    expect(result).toEqual(new Uint8Array([5, 0, 6, 0]))
+    await expect(bridge.feedFrame(1, 16000, mono([5, 6]))).resolves.toEqual(
+      new Uint8Array([5, 0, 6, 0])
+    )
   })
 
   it("converts main-thread encoder errors into rejected promises", async () => {
@@ -280,6 +277,44 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
     await expect(flushBridge.flush()).rejects.toThrow("flush failed")
   })
 
+  it("recreates the main-thread encoder on reset", async () => {
+    const firstDispose = vi.fn()
+    const secondDispose = vi.fn()
+    const create = vi
+      .fn()
+      .mockReturnValueOnce({
+        feedFrame: () => new Uint8Array([1]),
+        flush: () => null,
+        dispose: firstDispose,
+      })
+      .mockReturnValueOnce({
+        feedFrame: () => new Uint8Array([2]),
+        flush: () => null,
+        dispose: secondDispose,
+      })
+
+    const bridge = new ChunkedEncoderBridge({
+      format: "resettable",
+      encoderOptions: { mode: "first" },
+      definition: {
+        format: "resettable",
+        create,
+      },
+    })
+
+    bridge.reset({ mode: "second" })
+
+    await expect(bridge.feedFrame(1, 16000, mono([1]))).resolves.toEqual(
+      new Uint8Array([2])
+    )
+    expect(firstDispose).toHaveBeenCalledTimes(1)
+    expect(create).toHaveBeenNthCalledWith(1, { mode: "first" })
+    expect(create).toHaveBeenNthCalledWith(2, { mode: "second" })
+
+    bridge.dispose()
+    expect(secondDispose).toHaveBeenCalledTimes(1)
+  })
+
   it("falls back to the main thread when definition has no workerFactory", async () => {
     const bridge = new ChunkedEncoderBridge({
       format: "no-worker",
@@ -293,8 +328,9 @@ describe("ChunkedEncoderBridge (main-thread fallback)", () => {
       },
     })
 
-    const result = await bridge.feedFrame(1, 16000, mono([1]))
-    expect(result).toEqual(new Uint8Array([42]))
+    await expect(bridge.feedFrame(1, 16000, mono([1]))).resolves.toEqual(
+      new Uint8Array([42])
+    )
     bridge.dispose()
   })
 })

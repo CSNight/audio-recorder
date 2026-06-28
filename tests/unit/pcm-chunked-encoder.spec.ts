@@ -66,6 +66,34 @@ describe("PCM ChunkedEncoder", () => {
     expect(Array.from(result!)).toEqual([255, 255, 0, 0])
   })
 
+  it("supports 3-channel 16-bit interleaving and fills missing channels with silence", () => {
+    const enc = pcmChunkedEncoderDefinition.create()
+    const result = enc.feedFrame(3, 16000, [
+      new Int16Array([100, 200]),
+      new Int16Array([-100, -200]),
+    ])
+
+    expect(result).not.toBeNull()
+    const view = new DataView(result!.buffer)
+    expect(view.getInt16(0, true)).toBe(100)
+    expect(view.getInt16(2, true)).toBe(-100)
+    expect(view.getInt16(4, true)).toBe(0)
+    expect(view.getInt16(6, true)).toBe(200)
+    expect(view.getInt16(8, true)).toBe(-200)
+    expect(view.getInt16(10, true)).toBe(0)
+  })
+
+  it("supports 3-channel 8-bit interleaving and fills missing channels with silence", () => {
+    const enc = pcmChunkedEncoderDefinition.create({ bitsPerSample: 8 })
+    const result = enc.feedFrame(3, 16000, [
+      new Int16Array([32767]),
+      new Int16Array([-32768]),
+    ])
+
+    expect(result).not.toBeNull()
+    expect(Array.from(result!)).toEqual([255, 0, 128])
+  })
+
   it("returns null for empty frame", () => {
     const enc = pcmChunkedEncoderDefinition.create()
     expect(enc.feedFrame(1, 16000, [new Int16Array(0)])).toBeNull()

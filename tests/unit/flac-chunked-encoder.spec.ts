@@ -1,7 +1,17 @@
-import { describe, expect, it } from "vitest"
-import { flacChunkedEncoderDefinition } from "@/codecs/flac/flac-chunked-encoder"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+import type { FlacEncoderHandle } from "@/codecs/flac/types"
 
-// ---- helpers ---------------------------------------------------------------
+const createFlacEncoder = vi.fn<(options: unknown) => FlacEncoderHandle>()
+const preloadFlacModule = vi.fn()
+
+vi.mock("@/codecs/flac/flac-wasm-api", () => ({
+  createFlacEncoder,
+  preloadFlacModule,
+}))
+
+const { flacChunkedEncoderDefinition } = await import(
+  "@/codecs/flac/flac-chunked-encoder"
+)
 
 function mono(samples: number[]): Int16Array[] {
   return [new Int16Array(samples)]
@@ -11,112 +21,108 @@ function stereo(left: number[], right: number[]): Int16Array[] {
   return [new Int16Array(left), new Int16Array(right)]
 }
 
-// ---- definition shape ------------------------------------------------------
-
 describe("flacChunkedEncoderDefinition", () => {
-  it("has format = 'flac'", () => {
+  const encode = vi.fn()
+  const flush = vi.fn()
+  const free = vi.fn()
+
+  beforeEach(() => {
+    encode.mockReset()
+    flush.mockReset()
+    free.mockReset()
+    createFlacEncoder.mockReset()
+    preloadFlacModule.mockReset()
+
+    createFlacEncoder.mockImplementation(
+      (options) =>
+        ({
+          sampleRate: (options as { sampleRate: number }).sampleRate,
+          channels: (options as { channels: number }).channels,
+          bitsPerSample: (options as { bitsPerSample: number }).bitsPerSample,
+          encode,
+          flush,
+          free,
+        }) as unknown as FlacEncoderHandle
+    )
+  })
+
+  it("exposes format and preload", () => {
     expect(flacChunkedEncoderDefinition.format).toBe("flac")
+    expect(flacChunkedEncoderDefinition.preload).toBe(preloadFlacModule)
   })
 
-  it("create() returns an object with feedFrame, flush, dispose", () => {
-    const enc = flacChunkedEncoderDefinition.create()
-    expect(typeof enc.feedFrame).toBe("function")
-    expect(typeof enc.flush).toBe("function")
-    expect(typeof enc.dispose).toBe("function")
+  it("creates the FLAC encoder eagerly with default options", () => {
+    const encoder = flacChunkedEncoderDefinition.create()
+
+    expect(createFlacEncoder).toHaveBeenCalledWith({
+      sampleRate: 48000,
+      channels: 1,
+      bitsPerSample: 16,
+      compressionLevel: 5,
+    })
+    expect(typeof encoder.feedFrame).toBe("function")
+    expect(typeof encoder.flush).toBe("function")
+    expect(typeof encoder.dispose).toBe("function")
   })
 
-  it("accepts options without throwing", () => {
-    expect(() =>
-      flacChunkedEncoderDefinition.create({
-        bitsPerSample: 16,
-        compressionLevel: 5,
-      })
-    ).not.toThrow()
-  })
-})
+  it("passes custom bitsPerSample and compressionLevel into createFlacEncoder", () => {
+    flacChunkedEncoderDefinition.create({
+      bitsPerSample: 24,
+      compressionLevel: 8,
+    })
 
-// ---- feedFrame — pre-init behavior -----------------------------------------
-
-describe("flacChunkedEncoder — feedFrame before WASM init", () => {
-  it("returns null on first frame (encoder not yet ready)", () => {
-    const enc = flacChunkedEncoderDefinition.create()
-    // WASM init is async; first frame always returns null
-    const result = enc.feedFrame(1, 48000, mono([100, 200, 300]))
-    expect(result).toBeNull()
+    expect(createFlacEncoder).toHaveBeenCalledWith({
+      sampleRate: 48000,
+      channels: 1,
+      bitsPerSample: 24,
+      compressionLevel: 8,
+    })
   })
 
-  it("returns null for empty frame regardless of init state", () => {
-    const enc = flacChunkedEncoderDefinition.create()
-    expect(enc.feedFrame(1, 48000, mono([]))).toBeNull()
+  it("returns null for empty frames without calling encode", () => {
+    const encoder = flacChunkedEncoderDefinition.create()
+
+    expect(encoder.feedFrame(1, 48000, mono([]))).toBeNull()
+    expect(encode).not.toHaveBeenCalled()
   })
 
-  it("returns null for stereo first frame (async init pending)", () => {
-    const enc = flacChunkedEncoderDefinition.create()
-    const result = enc.feedFrame(2, 44100, stereo([1, 2], [3, 4]))
-    expect(result).toBeNull()
-  })
-})
+  it("interleaves stereo PCM and returns the encoded bytes", () => {
+    encode.mockReturnValueOnce(new Uint8Array([9, 8, 7]))
+    const encoder = flacChunkedEncoderDefinition.create()
 
-// ---- flush — pre-init behavior ---------------------------------------------
+    const result = encoder.feedFrame(2, 44100, stereo([1, 2], [3, 4]))
 
-describe("flacChunkedEncoder — flush before WASM init", () => {
-  it("returns null when encoder was never initialized (no feedFrame)", () => {
-    const enc = flacChunkedEncoderDefinition.create()
-    expect(enc.flush()).toBeNull()
-  })
-})
-
-// ---- dispose ---------------------------------------------------------------
-
-describe("flacChunkedEncoder — dispose", () => {
-  it("dispose() does not throw before any frames are fed", () => {
-    const enc = flacChunkedEncoderDefinition.create()
-    expect(() => enc.dispose()).not.toThrow()
+    expect(encode).toHaveBeenCalledWith(new Int16Array([1, 3, 2, 4]), 2)
+    expect(result).toEqual(new Uint8Array([9, 8, 7]))
   })
 
-  it("dispose() does not throw after feeding frames", () => {
-    const enc = flacChunkedEncoderDefinition.create()
-    enc.feedFrame(1, 48000, mono([1, 2, 3]))
-    expect(() => enc.dispose()).not.toThrow()
+  it("returns null when encode yields no bytes", () => {
+    encode.mockReturnValueOnce(new Uint8Array(0))
+    const encoder = flacChunkedEncoderDefinition.create()
+
+    expect(encoder.feedFrame(1, 48000, mono([1, 2, 3]))).toBeNull()
   })
 
-  it("dispose() can be called multiple times without throwing", () => {
-    const enc = flacChunkedEncoderDefinition.create()
-    expect(() => {
-      enc.dispose()
-      enc.dispose()
-    }).not.toThrow()
+  it("returns null when flush yields no bytes", () => {
+    flush.mockReturnValueOnce(new Uint8Array(0))
+    const encoder = flacChunkedEncoderDefinition.create()
+
+    expect(encoder.flush()).toBeNull()
   })
 
-  it("flush() returns null after dispose()", () => {
-    const enc = flacChunkedEncoderDefinition.create()
-    enc.dispose()
-    expect(enc.flush()).toBeNull()
-  })
-})
+  it("returns the final FLAC bytes from flush", () => {
+    flush.mockReturnValueOnce(new Uint8Array([5, 4, 3]))
+    const encoder = flacChunkedEncoderDefinition.create()
 
-// ---- options variants ------------------------------------------------------
-
-describe("flacChunkedEncoder — options", () => {
-  it("creates encoder with bitsPerSample 24", () => {
-    expect(() =>
-      flacChunkedEncoderDefinition.create({ bitsPerSample: 24 })
-    ).not.toThrow()
+    expect(encoder.flush()).toEqual(new Uint8Array([5, 4, 3]))
   })
 
-  it("creates encoder with compressionLevel 0 (fastest)", () => {
-    expect(() =>
-      flacChunkedEncoderDefinition.create({ compressionLevel: 0 })
-    ).not.toThrow()
-  })
+  it("disposes the underlying encoder", () => {
+    const encoder = flacChunkedEncoderDefinition.create()
 
-  it("creates encoder with compressionLevel 8 (best)", () => {
-    expect(() =>
-      flacChunkedEncoderDefinition.create({ compressionLevel: 8 })
-    ).not.toThrow()
-  })
+    encoder.dispose()
+    encoder.dispose()
 
-  it("creates encoder with no options (defaults)", () => {
-    expect(() => flacChunkedEncoderDefinition.create({})).not.toThrow()
+    expect(free).toHaveBeenCalledTimes(2)
   })
 })
