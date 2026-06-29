@@ -3,38 +3,8 @@ import type { PcmBufferSnapshot } from "@/buffer/types"
 import { wavDecoderDefinition } from "@/codecs/base"
 import { exportWavSnapshot } from "@/codecs/base/wav-exporter"
 
-class FakeAudioBuffer {
-  private readonly channels: Float32Array[]
-
-  constructor(
-    public readonly numberOfChannels: number,
-    public readonly length: number,
-    public readonly sampleRate: number
-  ) {
-    this.channels = Array.from(
-      { length: numberOfChannels },
-      () => new Float32Array(length)
-    )
-  }
-
-  getChannelData(channel: number): Float32Array {
-    return this.channels[channel]!
-  }
-}
-
-function createAudioContextStub() {
-  return {
-    createBuffer: (channels: number, length: number, sampleRate: number) =>
-      new FakeAudioBuffer(
-        channels,
-        length,
-        sampleRate
-      ) as unknown as AudioBuffer,
-  } as AudioContext
-}
-
 describe("wavDecoderDefinition", () => {
-  it("decodes mono 16-bit WAV payload into audio buffer data", async () => {
+  it("decodes mono 16-bit WAV payload into planar float32 data", async () => {
     const snapshot: PcmBufferSnapshot = {
       sampleRate: 16000,
       channels: 1,
@@ -44,19 +14,22 @@ describe("wavDecoderDefinition", () => {
     }
 
     const wav = exportWavSnapshot(snapshot)
-    const decoded = (await wavDecoderDefinition.decode(
-      createAudioContextStub(),
-      {
-        chunk: new Uint8Array(wav.arrayBuffer),
-      }
-    )) as unknown as FakeAudioBuffer
+    const decoded = await wavDecoderDefinition.decode({
+      chunk: new Uint8Array(wav.arrayBuffer),
+      format: "wav",
+      timestampMs: 0,
+      sequenceIndex: 0,
+      sampleRate: 16000,
+      channels: 1,
+      isFinal: false,
+    })
 
     expect(decoded.sampleRate).toBe(16000)
-    expect(decoded.numberOfChannels).toBe(1)
-    expect(Array.from(decoded.getChannelData(0))).toEqual([0, 0.5, -0.5, 0.25])
+    expect(decoded.channels).toBe(1)
+    expect(Array.from(decoded.planar[0] ?? [])).toEqual([0, 0.5, -0.5, 0.25])
   })
 
-  it("decodes stereo 8-bit WAV payload into per-channel audio data", async () => {
+  it("decodes stereo 8-bit WAV payload into per-channel planar data", async () => {
     const snapshot: PcmBufferSnapshot = {
       sampleRate: 8000,
       channels: 2,
@@ -66,20 +39,23 @@ describe("wavDecoderDefinition", () => {
     }
 
     const wav = exportWavSnapshot(snapshot, { bitRate: 8 })
-    const decoded = (await wavDecoderDefinition.decode(
-      createAudioContextStub(),
-      {
-        chunk: new Uint8Array(wav.arrayBuffer),
-      }
-    )) as unknown as FakeAudioBuffer
+    const decoded = await wavDecoderDefinition.decode({
+      chunk: new Uint8Array(wav.arrayBuffer),
+      format: "wav",
+      timestampMs: 0,
+      sequenceIndex: 0,
+      sampleRate: 8000,
+      channels: 2,
+      isFinal: false,
+    })
 
     expect(decoded.sampleRate).toBe(8000)
-    expect(decoded.numberOfChannels).toBe(2)
-    expect(Array.from(decoded.getChannelData(0))).toEqual([-1, 0])
-    expect(Array.from(decoded.getChannelData(1))).toEqual([127 / 128, 1 / 128])
+    expect(decoded.channels).toBe(2)
+    expect(Array.from(decoded.planar[0] ?? [])).toEqual([-1, 0])
+    expect(Array.from(decoded.planar[1] ?? [])).toEqual([127 / 128, 1 / 128])
   })
 
-  it("decodes stereo 16-bit WAV payload into per-channel audio data", async () => {
+  it("decodes stereo 16-bit WAV payload into per-channel planar data", async () => {
     const snapshot: PcmBufferSnapshot = {
       sampleRate: 48000,
       channels: 2,
@@ -89,17 +65,20 @@ describe("wavDecoderDefinition", () => {
     }
 
     const wav = exportWavSnapshot(snapshot)
-    const decoded = (await wavDecoderDefinition.decode(
-      createAudioContextStub(),
-      {
-        chunk: new Uint8Array(wav.arrayBuffer),
-      }
-    )) as unknown as FakeAudioBuffer
+    const decoded = await wavDecoderDefinition.decode({
+      chunk: new Uint8Array(wav.arrayBuffer),
+      format: "wav",
+      timestampMs: 0,
+      sequenceIndex: 0,
+      sampleRate: 48000,
+      channels: 2,
+      isFinal: false,
+    })
 
     expect(decoded.sampleRate).toBe(48000)
-    expect(decoded.numberOfChannels).toBe(2)
-    expect(Array.from(decoded.getChannelData(0))).toEqual([0, 0.25])
-    expect(Array.from(decoded.getChannelData(1))).toEqual([-0.5, 0.5])
+    expect(decoded.channels).toBe(2)
+    expect(Array.from(decoded.planar[0] ?? [])).toEqual([0, 0.25])
+    expect(Array.from(decoded.planar[1] ?? [])).toEqual([-0.5, 0.5])
   })
 
   it("throws for invalid RIFF/WAVE headers", async () => {
@@ -107,8 +86,14 @@ describe("wavDecoderDefinition", () => {
     invalid.set([0x4e, 0x4f, 0x50, 0x45], 0)
 
     await expect(() =>
-      wavDecoderDefinition.decode(createAudioContextStub(), {
+      wavDecoderDefinition.decode({
         chunk: invalid,
+        format: "wav",
+        timestampMs: 0,
+        sequenceIndex: 0,
+        sampleRate: 16000,
+        channels: 1,
+        isFinal: false,
       })
     ).rejects.toThrow("Invalid WAV header.")
   })

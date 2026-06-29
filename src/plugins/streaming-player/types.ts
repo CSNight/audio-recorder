@@ -1,11 +1,14 @@
 import type { StreamingChunkPayload } from "@/plugins/streaming-export/types"
 
+export interface DecodedAudioChunk {
+  sampleRate: number
+  channels: number
+  planar: Float32Array[]
+}
+
 export interface StreamingPlayerEncoderDefinition {
   format: string
-  decode(
-    audioContext: AudioContext,
-    payload: StreamingChunkPayload
-  ): Promise<AudioBuffer>
+  decode(payload: StreamingChunkPayload): Promise<DecodedAudioChunk>
 }
 
 export interface StreamingPlayerPluginOptions {

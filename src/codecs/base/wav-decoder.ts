@@ -1,3 +1,6 @@
+import type { StreamingChunkPayload } from "@/plugins/streaming-export/types"
+import type { DecodedAudioChunk } from "@/plugins/streaming-player/types"
+
 export interface DecodedWavPcm {
   sampleRate: number
   channels: number
@@ -115,20 +118,12 @@ function readAscii(view: DataView, offset: number, length: number): string {
 
 export const wavDecoderDefinition = {
   format: "wav",
-  async decode(audioContext: AudioContext, payload: { chunk: Uint8Array }) {
+  async decode(payload: StreamingChunkPayload): Promise<DecodedAudioChunk> {
     const decoded = decodeWavToFloat32(payload.chunk.slice().buffer)
-    const frameLength = decoded.planar[0]?.length ?? 0
-    const buffer = audioContext.createBuffer(
-      decoded.channels,
-      frameLength,
-      decoded.sampleRate
-    )
-
-    for (let channel = 0; channel < decoded.channels; channel += 1) {
-      const output = buffer.getChannelData(channel)
-      output.set(decoded.planar[channel] ?? new Float32Array(frameLength))
+    return {
+      sampleRate: decoded.sampleRate,
+      channels: decoded.channels,
+      planar: decoded.planar,
     }
-
-    return buffer
   },
 }

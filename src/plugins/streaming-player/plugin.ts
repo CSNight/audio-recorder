@@ -3,6 +3,7 @@ import type { RecorderPlugin } from "@/plugins/types"
 import type { RecorderPluginEventContext } from "@/plugins/types"
 import type { StreamingChunkPayload } from "@/plugins/streaming-export/types"
 import type {
+  DecodedAudioChunk,
   StreamingPlayerEncoderDefinition,
   StreamingPlayerPluginOptions,
 } from "@/plugins/streaming-player/types"
@@ -83,6 +84,30 @@ export function createStreamingPlayerPlugin(
     scheduleBuffer(buffer)
   }
 
+  const scheduleDecodedChunk = (decoded: DecodedAudioChunk) => {
+    if (!audioContext) {
+      return
+    }
+
+    const frameLength = decoded.planar[0]?.length ?? 0
+    if (frameLength === 0) {
+      return
+    }
+
+    const buffer = audioContext.createBuffer(
+      decoded.channels,
+      frameLength,
+      decoded.sampleRate
+    )
+
+    for (let channel = 0; channel < decoded.channels; channel += 1) {
+      const output = buffer.getChannelData(channel)
+      output.set(decoded.planar[channel] ?? new Float32Array(frameLength))
+    }
+
+    scheduleBuffer(buffer)
+  }
+
   const playEncodedChunk = async (
     event: RecorderPluginEventContext<StreamingChunkPayload>
   ) => {
@@ -98,8 +123,8 @@ export function createStreamingPlayerPlugin(
       return
     }
 
-    const audioBuffer = await sourceEncoder!.decode(audioContext, event.payload)
-    scheduleBuffer(audioBuffer)
+    const decoded = await sourceEncoder!.decode(event.payload)
+    scheduleDecodedChunk(decoded)
   }
 
   return {
