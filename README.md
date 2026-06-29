@@ -7,6 +7,7 @@ Browser audio recorder library for modern web apps. Supports input fallback, PCM
 ## Contents
 
 - [Overview](#overview)
+- [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Features](#features)
 - [API](#api)
@@ -37,6 +38,19 @@ Browser audio recorder library for modern web apps. Supports input fallback, PCM
 - OPFS / IndexedDB persistence
 
 Build target: `es2022`.
+
+## Installation
+
+```bash
+npm install @csnight/audio-recorder
+```
+
+You can also use:
+
+```bash
+pnpm add @csnight/audio-recorder
+yarn add @csnight/audio-recorder
+```
 
 ## Quick Start
 

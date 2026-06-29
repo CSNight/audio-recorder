@@ -38,6 +38,19 @@
 
 构建目标：`es2022`。
 
+## 安装
+
+```bash
+npm install @csnight/audio-recorder
+```
+
+也可以使用：
+
+```bash
+pnpm add @csnight/audio-recorder
+yarn add @csnight/audio-recorder
+```
+
 ## 快速开始
 
 ```ts
