@@ -1,6 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest"
 import type { PcmBufferSnapshot } from "@/buffer/types"
-import { amrChunkedEncoderDefinition } from "@/codecs/amr/amr-chunked-encoder"
 import {
   amrSnapshotEncoderDefinition,
   exportAmrSnapshot,
@@ -72,29 +71,5 @@ describe("amrSnapshotEncoderDefinition", () => {
 
     expect(result.channels).toBe(1)
     expect(result.data.byteLength).toBeGreaterThan(6)
-  })
-})
-
-describe("amrChunkedEncoderDefinition", () => {
-  beforeAll(async () => {
-    await preloadAmrModules()
-  })
-
-  it("emits NB header by default", () => {
-    const encoder = amrChunkedEncoderDefinition.create()
-    const chunk = encoder.feedFrame(1, 16000, [sine(320, 440, 16000)])
-    encoder.dispose()
-
-    expect(chunk).not.toBeNull()
-    expect(new TextDecoder().decode(chunk!.subarray(0, 6))).toBe("#!AMR\n")
-  })
-
-  it("emits WB header when bandMode='wb'", () => {
-    const encoder = amrChunkedEncoderDefinition.create({ bandMode: "wb" })
-    const chunk = encoder.feedFrame(1, 32000, [sine(640, 440, 32000)])
-    encoder.dispose()
-
-    expect(chunk).not.toBeNull()
-    expect(new TextDecoder().decode(chunk!.subarray(0, 9))).toBe("#!AMR-WB\n")
   })
 })

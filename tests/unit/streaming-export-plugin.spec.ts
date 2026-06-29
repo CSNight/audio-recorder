@@ -3,6 +3,7 @@ import { RecorderController } from "@/core/recorder-controller"
 import { createStreamingExportPlugin } from "@/plugins/streaming-export/plugin"
 import type {
   ChunkedEncoderDefinition,
+  StreamingExportFormat,
   StreamingChunkPayload,
 } from "@/plugins/streaming-export/types"
 import type { RecorderPluginEventContext } from "@/plugins/types"
@@ -105,13 +106,22 @@ function isStreamingChunkEvent(
 }
 
 describe("createStreamingExportPlugin", () => {
-  it("throws when no encoder definition matches the requested format", () => {
+  it("throws when format is outside pcm/wav", () => {
     expect(() =>
-      createStreamingExportPlugin({ format: "test", encoders: [] })
-    ).toThrow(/ChunkedEncoder for format "test" not found/)
+      createStreamingExportPlugin({
+        format: "test" as unknown as StreamingExportFormat,
+        encoders: [],
+      })
+    ).toThrow(/only supports "pcm" and "wav"/)
   })
 
-  it("emits encoded chunks through the recorder plugin event channel", async () => {
+  it("throws when no encoder definition matches the requested supported format", () => {
+    expect(() =>
+      createStreamingExportPlugin({ format: "pcm", encoders: [] })
+    ).toThrow(/ChunkedEncoder for format "pcm" not found/)
+  })
+
+  it("emits PCM encoded chunks through the recorder plugin event channel", async () => {
     const adapter = new FakeStreamingInputAdapter()
     const recorder = new RecorderController({
       inputAdapter: adapter,
@@ -126,7 +136,7 @@ describe("createStreamingExportPlugin", () => {
     }> = []
 
     const definition: ChunkedEncoderDefinition = {
-      format: "test",
+      format: "pcm",
       create: () => ({
         feedFrame: (_channels, _sampleRate, planar) =>
           new Uint8Array([
@@ -154,7 +164,7 @@ describe("createStreamingExportPlugin", () => {
     })
 
     await recorder.use(
-      createStreamingExportPlugin({ format: "test", encoders: [definition] })
+      createStreamingExportPlugin({ format: "pcm", encoders: [definition] })
     )
     await recorder.open()
     await recorder.start()
@@ -169,15 +179,15 @@ describe("createStreamingExportPlugin", () => {
       isFinal: false,
       chunk: [4, 0],
       timestampMs: 10,
-      pluginName: "streaming-export:test",
+      pluginName: "streaming-export:pcm",
     })
     expect(events[1]?.sequenceIndex).toBe(1)
     expect(events[1]?.isFinal).toBe(true)
     expect(events[1]?.chunk).toEqual([255])
-    expect(events[1]?.pluginName).toBe("streaming-export:test")
+    expect(events[1]?.pluginName).toBe("streaming-export:pcm")
   })
 
-  it("reuses the same worker across reopen and ignores stale session chunks", async () => {
+  it("reuses the same worker across reopen and ignores stale PCM session chunks", async () => {
     vi.stubGlobal("Worker", class {})
 
     const adapter = new FakeStreamingInputAdapter()
@@ -189,7 +199,7 @@ describe("createStreamingExportPlugin", () => {
     const emitted: number[][] = []
 
     const definition: ChunkedEncoderDefinition = {
-      format: "test",
+      format: "pcm",
       workerFactory: () => worker as unknown as Worker,
       create: () => ({
         feedFrame: () => new Uint8Array([99]),
@@ -207,7 +217,7 @@ describe("createStreamingExportPlugin", () => {
     })
 
     await recorder.use(
-      createStreamingExportPlugin({ format: "test", encoders: [definition] })
+      createStreamingExportPlugin({ format: "pcm", encoders: [definition] })
     )
     await recorder.open()
     await recorder.start()
@@ -224,7 +234,7 @@ describe("createStreamingExportPlugin", () => {
     await flushMicrotasks()
 
     expect(worker.messages).toEqual([
-      { type: "init", format: "test", options: undefined },
+      { type: "init", format: "pcm", options: undefined },
       { type: "reset", options: undefined },
       {
         type: "feedFrame",
@@ -261,7 +271,7 @@ describe("createStreamingExportPlugin", () => {
     expect(emitted).toEqual([[2]])
   })
 
-  it("stops emitting after dispose even if an in-flight worker encode resolves later", async () => {
+  it("stops emitting after dispose even if an in-flight WAV worker encode resolves later", async () => {
     vi.stubGlobal("Worker", class {})
 
     const adapter = new FakeStreamingInputAdapter()
@@ -273,7 +283,7 @@ describe("createStreamingExportPlugin", () => {
     const worker = new FakeWorker()
 
     const definition: ChunkedEncoderDefinition = {
-      format: "test",
+      format: "wav",
       workerFactory: () => worker as unknown as Worker,
       create: () => ({
         feedFrame: () => new Uint8Array([7]),
@@ -291,7 +301,7 @@ describe("createStreamingExportPlugin", () => {
     })
 
     await recorder.use(
-      createStreamingExportPlugin({ format: "test", encoders: [definition] })
+      createStreamingExportPlugin({ format: "wav", encoders: [definition] })
     )
     await recorder.open()
     await recorder.start()
@@ -320,7 +330,7 @@ describe("createStreamingExportPlugin", () => {
     const events: Array<{ isFinal: boolean; chunk: number[] }> = []
 
     const definition: ChunkedEncoderDefinition = {
-      format: "test",
+      format: "wav",
       create: () => ({
         feedFrame: () => new Uint8Array([1]),
         flush: () => null,
@@ -340,7 +350,7 @@ describe("createStreamingExportPlugin", () => {
     })
 
     await recorder.use(
-      createStreamingExportPlugin({ format: "test", encoders: [definition] })
+      createStreamingExportPlugin({ format: "wav", encoders: [definition] })
     )
     await recorder.open()
     await recorder.start()
@@ -367,7 +377,7 @@ describe("createStreamingExportPlugin", () => {
     const worker = new FakeWorker()
 
     const definition: ChunkedEncoderDefinition = {
-      format: "test",
+      format: "pcm",
       workerFactory: () => worker as unknown as Worker,
       create: () => ({
         feedFrame: () => new Uint8Array([7]),
@@ -383,7 +393,7 @@ describe("createStreamingExportPlugin", () => {
     })
 
     await recorder.use(
-      createStreamingExportPlugin({ format: "test", encoders: [definition] })
+      createStreamingExportPlugin({ format: "pcm", encoders: [definition] })
     )
     await recorder.open()
     await recorder.start()

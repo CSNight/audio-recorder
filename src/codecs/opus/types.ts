@@ -78,6 +78,7 @@ export interface OpusEncoderHandle {
   /**
    * Encode Int16 PCM data
    * @param pcm - Int16Array with frameSize * channels samples
+   * @param opts
    * @returns Encoded Opus packet
    */
   encode(pcm: Int16Array, opts?: { frameSize?: number }): Uint8Array
@@ -85,6 +86,7 @@ export interface OpusEncoderHandle {
   /**
    * Encode Float32 PCM data
    * @param pcm - Float32Array with frameSize * channels samples (range: -1.0 to 1.0)
+   * @param opts
    * @returns Encoded Opus packet
    */
   encodeFloat(pcm: Float32Array, opts?: { frameSize?: number }): Uint8Array

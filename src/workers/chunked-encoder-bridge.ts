@@ -6,7 +6,7 @@
  * feedFrame / flush 均返回 Promise，由 plugin.ts 以 fire-and-forget 方式调用。
  *
  * Worker 来源：
- * - definition.workerFactory()  — 编解码器自带专属 Worker（如 mp3-worker.ts、pcm-worker.ts、wav-worker.ts）
+ * - definition.workerFactory()  — 编解码器自带专属 Worker（当前主要用于 pcm-worker.ts、wav-worker.ts）
  * - 若 definition 无 workerFactory，则降级到主线程同步执行
  *
  * 使用 `?worker&inline` 将各 codec Worker 内联为 base64 blob，避免额外的网络请求。
