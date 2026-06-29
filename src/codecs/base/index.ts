@@ -21,6 +21,7 @@ pcmChunkedEncoderDefinition.workerFactory = () => new PcmWorker()
 
 export { pcmChunkedEncoderDefinition }
 export { pcmSnapshotEncoderDefinition } from "./pcm-snapshot-encoder"
+export { pcmDecoderDefinition } from "./pcm-decoder"
 export type { PcmChunkedEncoderOptions } from "./pcm-chunked-encoder"
 ;(
   wavChunkedEncoderDefinition as typeof wavChunkedEncoderDefinition & {
@@ -31,4 +32,5 @@ export type { PcmChunkedEncoderOptions } from "./pcm-chunked-encoder"
 export { wavChunkedEncoderDefinition }
 
 export { wavSnapshotEncoderDefinition } from "./wav-snapshot-encoder"
+export { wavDecoderDefinition } from "./wav-decoder"
 export type { WavChunkedEncoderOptions } from "./wav-chunked-encoder"

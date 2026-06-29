@@ -4,7 +4,7 @@
  * 与 pcm-exporter.ts / wav-exporter.ts 同构：
  * 接收完整 PcmBufferSnapshot，一次性编码为 Uint8Array 形式的 MP3 数据。
  *
- * 与流式分片编码器（mp3-chunked-encoder.ts）不同，此路径不经过 Worker，snapshot 已驻留
+ * 与实时流式导出路径不同，此路径不经过 Worker，snapshot 已驻留
  * 在调用线程内存中，直接同步编码即可。
  */
 import type { PcmBufferSnapshot } from "@/buffer/types"
