@@ -41,7 +41,7 @@ vi.mock("@/codecs/mp3/mp3-wasm-api", () => ({
   }),
 }))
 
-const { exportMp3Snapshot, mp3SnapshotEncoderDefinition } =
+const { exportMp3Snapshot, mp3ExportEncoder } =
   await import("@/codecs/mp3/mp3-snapshot-exporter")
 
 function sine(length: number, freq = 440, sampleRate = 44100): Int16Array {
@@ -87,11 +87,11 @@ beforeEach(() => {
   )
 })
 
-describe("mp3SnapshotEncoderDefinition", () => {
+describe("mp3ExportEncoder", () => {
   it("has type 'mp3' and exposes preload", async () => {
-    expect(mp3SnapshotEncoderDefinition.type).toBe("mp3")
-    expect(mp3SnapshotEncoderDefinition.preload).toBe(preloadMp3Module)
-    await mp3SnapshotEncoderDefinition.preload?.()
+    expect(mp3ExportEncoder.type).toBe("mp3")
+    expect(mp3ExportEncoder.preload).toBe(preloadMp3Module)
+    await mp3ExportEncoder.preload?.()
     expect(preloadMp3Module).toHaveBeenCalledTimes(1)
   })
 })

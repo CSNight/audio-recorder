@@ -1,6 +1,6 @@
 export {
-  oggSnapshotEncoderDefinition,
-  webmSnapshotEncoderDefinition,
+  oggExportEncoder,
+  webmExportEncoder,
 } from "./opus-snapshot-exporter"
 export type {
   OpusEncoderOptions,

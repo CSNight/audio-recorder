@@ -17,21 +17,21 @@ import { createStreamingExportPlugin } from "/dist/plugins/streaming-export/inde
 import { createAsrExportPlugin } from "/dist/plugins/asr-export/index.js"
 import { createStreamingPlayerPlugin } from "/dist/plugins/streaming-player/index.js"
 import {
-  pcmChunkedEncoderDefinition,
-  pcmSnapshotEncoderDefinition,
+  pcmStreamEncoder,
+  pcmExportEncoder,
   wavDecoderDefinition,
-  wavChunkedEncoderDefinition,
-  wavSnapshotEncoderDefinition,
+  wavStreamEncoder,
+  wavExportEncoder,
 } from "/dist/codecs/base/index.js"
-import { mp3SnapshotEncoderDefinition } from "/dist/codecs/mp3/index.js"
-import { g711SnapshotEncoderDefinition } from "/dist/codecs/g711/index.js"
+import { mp3ExportEncoder } from "/dist/codecs/mp3/index.js"
+import { g711ExportEncoder } from "/dist/codecs/g711/index.js"
 import {
-  oggSnapshotEncoderDefinition,
-  webmSnapshotEncoderDefinition,
+  oggExportEncoder,
+  webmExportEncoder,
 } from "/dist/codecs/opus/index.js"
-import { flacSnapshotEncoderDefinition } from "/dist/codecs/flac/index.js"
-import { aacSnapshotEncoderDefinition } from "/dist/codecs/aac/index.js"
-import { amrSnapshotEncoderDefinition } from "/dist/codecs/amr/index.js"
+import { flacExportEncoder } from "/dist/codecs/flac/index.js"
+import { aacExportEncoder } from "/dist/codecs/aac/index.js"
+import { amrExportEncoder } from "/dist/codecs/amr/index.js"
 
 const PLAYGROUND_SOURCE_MODE = {
   microphone: RecorderInputSource.Microphone,
@@ -234,15 +234,15 @@ createApp({
       await recorder.use(
         createStreamingExportPlugin({
           format: "wav",
-          encoders: [wavChunkedEncoderDefinition, pcmChunkedEncoderDefinition],
-          encoderOptions: { framesPerChunk: 2048 },
+          encoders: [wavStreamEncoder, pcmStreamEncoder],
+          encoderOptions: { framesPerChunk: 4 },
           allowMainThreadFallback: true,
         })
       )
       await recorder.use(
         createAsrExportPlugin({
           format: "pcm",
-          encoders: [pcmSnapshotEncoderDefinition],
+          encoders: [pcmExportEncoder],
           sampleRate: 16000,
           chunkDurationMs: 40,
         })
@@ -326,9 +326,9 @@ createApp({
                   sourceStream: currentSource.stream,
                   channelCount: state.requestedChannelCount,
                   inputStrategy: state.inputStrategy,
-                  echoCancellation: false,
-                  noiseSuppression: false,
-                  autoGainControl: false,
+                  echoCancellation: true,
+                  noiseSuppression: true,
+                  autoGainControl: true,
                   ...(currentSource.sampleRate !== undefined && {
                     sampleRate: currentSource.sampleRate,
                   }),
@@ -336,9 +336,9 @@ createApp({
               : {
                   channelCount: state.requestedChannelCount,
                   inputStrategy: state.inputStrategy,
-                  echoCancellation: false,
-                  noiseSuppression: false,
-                  autoGainControl: false,
+                  echoCancellation: true,
+                  noiseSuppression: true,
+                  autoGainControl: true,
                   ...(state.selectedDeviceId !== "" && {
                     deviceId: state.selectedDeviceId,
                   }),
@@ -679,6 +679,7 @@ function bindRecorderEvents(recorder, state, appendLog) {
   const offStream = recorder.on("plugin:encoded-chunk", (e) => {
     state.realtimeChunkCount += 1
     state.realtimeChunkBytes += e.payload.chunk.byteLength
+    console.log(e)
   })
   const offAsr = recorder.on("plugin:asr:chunk", ({ payload }) => {
     state.asrChunkCount += 1
@@ -723,15 +724,15 @@ function createPlaygroundRecorder(
       persistencePluginFactory
     ),
     encoders: [
-      pcmSnapshotEncoderDefinition,
-      wavSnapshotEncoderDefinition,
-      mp3SnapshotEncoderDefinition,
-      g711SnapshotEncoderDefinition,
-      aacSnapshotEncoderDefinition,
-      amrSnapshotEncoderDefinition,
-      oggSnapshotEncoderDefinition,
-      webmSnapshotEncoderDefinition,
-      flacSnapshotEncoderDefinition,
+      pcmExportEncoder,
+      wavExportEncoder,
+      mp3ExportEncoder,
+      g711ExportEncoder,
+      aacExportEncoder,
+      amrExportEncoder,
+      oggExportEncoder,
+      webmExportEncoder,
+      flacExportEncoder,
     ],
   })
 }

@@ -8,7 +8,7 @@
  * 在调用线程内存中，直接同步编码即可。
  */
 import type { PcmBufferSnapshot } from "@/buffer/types"
-import type { SnapshotEncoderDefinition } from "@/types"
+import type { ExportEncoderDefinition } from "@/types"
 import { resample } from "audio-recorder"
 import {
   createMp3Encoder,
@@ -154,7 +154,7 @@ export function exportMp3Snapshot(
   }
 }
 
-export const mp3SnapshotEncoderDefinition: SnapshotEncoderDefinition<
+export const mp3ExportEncoder: ExportEncoderDefinition<
   "mp3",
   Mp3ExportOptions,
   Mp3ExportResult

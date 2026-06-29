@@ -39,18 +39,18 @@ npm run dev
 ```ts
 import { createRecorder } from "audio-recorder"
 import {
-  pcmSnapshotEncoderDefinition,
-  wavSnapshotEncoderDefinition,
+  pcmExportEncoder,
+  wavExportEncoder,
 } from "audio-recorder/codecs/base"
-import { mp3SnapshotEncoderDefinition } from "audio-recorder/codecs/mp3"
+import { mp3ExportEncoder } from "audio-recorder/codecs/mp3"
 
 const recorder = createRecorder({
   channelCount: 1,
   inputStrategy: "auto",
   encoders: [
-    pcmSnapshotEncoderDefinition,
-    wavSnapshotEncoderDefinition,
-    mp3SnapshotEncoderDefinition,
+    pcmExportEncoder,
+    wavExportEncoder,
+    mp3ExportEncoder,
   ],
 })
 
@@ -79,14 +79,14 @@ console.log(summary.durationMs, wav.arrayBuffer.byteLength)
 ```ts
 import { createRecorder } from "audio-recorder"
 import { createStreamingExportPlugin } from "audio-recorder/plugins/streaming-export"
-import { wavChunkedEncoderDefinition } from "audio-recorder/codecs/base"
+import { wavStreamEncoder } from "audio-recorder/codecs/base"
 
 const recorder = createRecorder()
 
 await recorder.use(
   createStreamingExportPlugin({
     format: "wav",
-    encoders: [wavChunkedEncoderDefinition],
+    encoders: [wavStreamEncoder],
   })
 )
 
@@ -197,7 +197,7 @@ vendor/               上游 Recorder 参考实现
 
 ## 当前边界
 
-- 根入口不会自动注册任何编码器；调用 `exportEncoded()` 前需要显式传入或注册对应 `SnapshotEncoderDefinition`
+- 根入口不会自动注册任何编码器；调用 `exportEncoded()` 前需要显式传入或注册对应 `ExportEncoderDefinition`
 - MP3 作为可选子路径存在，避免把 MP3 WASM 编码器依赖注入主包
 - `script-processor` 仅作为兼容性兜底，不建议作为默认录音方案
 - Phase 5、Phase 6 中规划的更多编解码器和插件扩展目前尚未开发
@@ -214,13 +214,13 @@ vendor/               上游 Recorder 参考实现
 - 单声道输入
 - 目标音频长度 `15 s`
 - 每项 `5` 轮正式测试，`1` 轮预热
-- `streaming` 场景统一按 `20 ms` PCM 帧喂入 `ChunkedEncoderDefinition`
+- `streaming` 场景统一按 `20 ms` PCM 帧喂入 `StreamEncoderDefinition`
 
 说明：
 
 - 所有编码器都同时覆盖两种场景：
-  - `snapshot`：直接对完整 `15 s` PCM 快照调用 `SnapshotEncoderDefinition.export()`
-  - `streaming`：把同样长度的 PCM 切成 `20 ms` 帧，逐帧喂给 `ChunkedEncoderDefinition.feedFrame()`，最后调用 `flush()`
+  - `snapshot`：直接对完整 `15 s` PCM 快照调用 `ExportEncoderDefinition.export()`
+  - `streaming`：把同样长度的 PCM 切成 `20 ms` 帧，逐帧喂给 `StreamEncoderDefinition.feedFrame()`，最后调用 `flush()`
 - `opus` 拆成两类容器分别测试：`ogg` 和 `webm`
 - `amr` 拆成两类带宽分别测试：`nb` 和 `wb`
 - `pcm`、`wav`、`mp3` 不依赖 WASM SIMD；`flac`、`opus`、`aac`、`amr` 支持 `SIMD 关闭 / 开启` 对比

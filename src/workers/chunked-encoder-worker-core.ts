@@ -3,7 +3,7 @@
  *
  * 导出 createWorkerMessageHandler(resolveDefinition) 工厂函数，
  * 各 Worker 入口文件调用此函数并将结果赋值给 self.onmessage，
- * 静态绑定自己的 ChunkedEncoderDefinition，无需任何注册表。
+ * 静态绑定自己的 StreamEncoderDefinition，无需任何注册表。
  *
  * 消息协议：
  *   { type: "init",      format: string,    options?: unknown }
@@ -18,8 +18,8 @@
  *   { type: "error",     message: string,            seqId: number }
  */
 import type {
-  ChunkedEncoder,
-  ChunkedEncoderDefinition,
+  StreamEncoder,
+  StreamEncoderDefinition,
 } from "@/plugins/streaming-export/types"
 
 type WorkerIncomingMessage =
@@ -51,15 +51,15 @@ function postMsg(msg: WorkerOutgoingMessage, transfer?: Transferable[]) {
 /**
  * 创建 Worker 消息处理函数。
  *
- * @param resolveDefinition 根据 format 返回 ChunkedEncoderDefinition 的函数。
+ * @param resolveDefinition 根据 format 返回 StreamEncoderDefinition 的函数。
  *   各 Worker 入口文件静态绑定自己的 definition，直接忽略 format 参数并返回：
- *   `() => myChunkedEncoderDefinition`
+ *   `() => myStreamEncoder`
  */
 export function createWorkerMessageHandler(
-  resolveDefinition: (format: string) => ChunkedEncoderDefinition
+  resolveDefinition: (format: string) => StreamEncoderDefinition
 ): (event: MessageEvent<WorkerIncomingMessage>) => void {
-  let definition: ChunkedEncoderDefinition | null = null
-  let encoder: ChunkedEncoder | null = null
+  let definition: StreamEncoderDefinition | null = null
+  let encoder: StreamEncoder | null = null
 
   return async (event: MessageEvent<WorkerIncomingMessage>) => {
     const msg = event.data

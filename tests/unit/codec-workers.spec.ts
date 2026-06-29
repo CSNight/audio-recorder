@@ -30,13 +30,13 @@ describe("codec worker entrypoints", () => {
       {
         entry: "@/codecs/base/pcm-worker",
         module: "@/codecs/base/pcm-chunked-encoder",
-        exportName: "pcmChunkedEncoderDefinition",
+        exportName: "pcmStreamEncoder",
         format: "pcm",
       },
       {
         entry: "@/codecs/base/wav-worker",
         module: "@/codecs/base/wav-chunked-encoder",
-        exportName: "wavChunkedEncoderDefinition",
+        exportName: "wavStreamEncoder",
         format: "wav",
       },
     ] as const

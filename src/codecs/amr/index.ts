@@ -1,4 +1,4 @@
-export { amrSnapshotEncoderDefinition } from "./amr-snapshot-exporter"
+export { amrExportEncoder } from "./amr-snapshot-exporter"
 export type {
   AmrBandMode,
   AmrEncoderHandle,

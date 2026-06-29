@@ -1,4 +1,4 @@
-export { mp3SnapshotEncoderDefinition } from "./mp3-snapshot-exporter"
+export { mp3ExportEncoder } from "./mp3-snapshot-exporter"
 export type {
   Mp3ChannelMode,
   Mp3EncoderOptions,

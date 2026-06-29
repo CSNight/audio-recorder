@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { RecorderController } from "@/core/recorder-controller"
 import { createStreamingExportPlugin } from "@/plugins/streaming-export/plugin"
 import type {
-  ChunkedEncoderDefinition,
+  StreamEncoderDefinition,
   StreamingExportFormat,
   StreamingChunkPayload,
 } from "@/plugins/streaming-export/types"
@@ -135,7 +135,7 @@ describe("createStreamingExportPlugin", () => {
       pluginName: string
     }> = []
 
-    const definition: ChunkedEncoderDefinition = {
+    const definition: StreamEncoderDefinition = {
       format: "pcm",
       create: () => ({
         feedFrame: (_channels, _sampleRate, planar) =>
@@ -198,7 +198,7 @@ describe("createStreamingExportPlugin", () => {
     const worker = new FakeWorker()
     const emitted: number[][] = []
 
-    const definition: ChunkedEncoderDefinition = {
+    const definition: StreamEncoderDefinition = {
       format: "pcm",
       workerFactory: () => worker as unknown as Worker,
       create: () => ({
@@ -282,7 +282,7 @@ describe("createStreamingExportPlugin", () => {
     const emitted: number[][] = []
     const worker = new FakeWorker()
 
-    const definition: ChunkedEncoderDefinition = {
+    const definition: StreamEncoderDefinition = {
       format: "wav",
       workerFactory: () => worker as unknown as Worker,
       create: () => ({
@@ -329,7 +329,7 @@ describe("createStreamingExportPlugin", () => {
     })
     const events: Array<{ isFinal: boolean; chunk: number[] }> = []
 
-    const definition: ChunkedEncoderDefinition = {
+    const definition: StreamEncoderDefinition = {
       format: "wav",
       create: () => ({
         feedFrame: () => new Uint8Array([1]),
@@ -376,7 +376,7 @@ describe("createStreamingExportPlugin", () => {
     const issues: string[] = []
     const worker = new FakeWorker()
 
-    const definition: ChunkedEncoderDefinition = {
+    const definition: StreamEncoderDefinition = {
       format: "pcm",
       workerFactory: () => worker as unknown as Worker,
       create: () => ({

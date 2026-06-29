@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { pcmChunkedEncoderDefinition } from "@/codecs/base/pcm-chunked-encoder"
+import { pcmStreamEncoder } from "@/codecs/base/pcm-chunked-encoder"
 
 /** 构造 planar Int16Array 数组 */
 function mono(samples: number[]): Int16Array[] {
@@ -12,7 +12,7 @@ function stereo(left: number[], right: number[]): Int16Array[] {
 
 describe("PCM ChunkedEncoder", () => {
   it("outputs interleaved 16-bit mono PCM immediately", () => {
-    const enc = pcmChunkedEncoderDefinition.create()
+    const enc = pcmStreamEncoder.create()
     const result = enc.feedFrame(1, 16000, mono([0, 1000, -1000]))
 
     expect(result).not.toBeNull()
@@ -23,7 +23,7 @@ describe("PCM ChunkedEncoder", () => {
   })
 
   it("outputs interleaved 16-bit stereo PCM (L0, R0, L1, R1, ...)", () => {
-    const enc = pcmChunkedEncoderDefinition.create()
+    const enc = pcmStreamEncoder.create()
     const result = enc.feedFrame(2, 16000, stereo([100, 200], [300, 400]))
 
     expect(result).not.toBeNull()
@@ -35,7 +35,7 @@ describe("PCM ChunkedEncoder", () => {
   })
 
   it("outputs 8-bit unsigned PCM when bitsPerSample is 8", () => {
-    const enc = pcmChunkedEncoderDefinition.create({ bitsPerSample: 8 })
+    const enc = pcmStreamEncoder.create({ bitsPerSample: 8 })
     // Int16 32767 >> 8 = 127, + 128 = 255
     const result = enc.feedFrame(1, 16000, mono([32767, 0, -32768]))
 
@@ -47,7 +47,7 @@ describe("PCM ChunkedEncoder", () => {
   })
 
   it("reuses the left channel when stereo input omits the right channel in 16-bit mode", () => {
-    const enc = pcmChunkedEncoderDefinition.create()
+    const enc = pcmStreamEncoder.create()
     const result = enc.feedFrame(2, 16000, [new Int16Array([100, -200])])
 
     expect(result).not.toBeNull()
@@ -59,7 +59,7 @@ describe("PCM ChunkedEncoder", () => {
   })
 
   it("outputs 8-bit stereo PCM and falls back to the left channel when the right channel is missing", () => {
-    const enc = pcmChunkedEncoderDefinition.create({ bitsPerSample: 8 })
+    const enc = pcmStreamEncoder.create({ bitsPerSample: 8 })
     const result = enc.feedFrame(2, 16000, [new Int16Array([32767, -32768])])
 
     expect(result).not.toBeNull()
@@ -67,7 +67,7 @@ describe("PCM ChunkedEncoder", () => {
   })
 
   it("supports 3-channel 16-bit interleaving and fills missing channels with silence", () => {
-    const enc = pcmChunkedEncoderDefinition.create()
+    const enc = pcmStreamEncoder.create()
     const result = enc.feedFrame(3, 16000, [
       new Int16Array([100, 200]),
       new Int16Array([-100, -200]),
@@ -84,7 +84,7 @@ describe("PCM ChunkedEncoder", () => {
   })
 
   it("supports 3-channel 8-bit interleaving and fills missing channels with silence", () => {
-    const enc = pcmChunkedEncoderDefinition.create({ bitsPerSample: 8 })
+    const enc = pcmStreamEncoder.create({ bitsPerSample: 8 })
     const result = enc.feedFrame(3, 16000, [
       new Int16Array([32767]),
       new Int16Array([-32768]),
@@ -95,13 +95,13 @@ describe("PCM ChunkedEncoder", () => {
   })
 
   it("returns null for empty frame", () => {
-    const enc = pcmChunkedEncoderDefinition.create()
+    const enc = pcmStreamEncoder.create()
     expect(enc.feedFrame(1, 16000, [new Int16Array(0)])).toBeNull()
     expect(enc.feedFrame(1, 16000, [])).toBeNull()
   })
 
   it("flush always returns null (no internal buffer)", () => {
-    const enc = pcmChunkedEncoderDefinition.create()
+    const enc = pcmStreamEncoder.create()
     enc.feedFrame(1, 16000, mono([1, 2, 3]))
     expect(enc.flush()).toBeNull()
   })

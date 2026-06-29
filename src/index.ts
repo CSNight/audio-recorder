@@ -17,7 +17,7 @@ export {
 } from "@/input/capability-check"
 
 export { RecorderController } from "@/core/recorder-controller"
-export type { SnapshotEncoderDefinition, EncoderMap } from "@/types"
+export type { ExportEncoderDefinition, EncoderMap } from "@/types"
 
 export type {
   RecorderPersistencePlugin,

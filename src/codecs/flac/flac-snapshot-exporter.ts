@@ -8,7 +8,7 @@
  */
 
 import type { PcmBufferSnapshot } from "@/buffer/types"
-import type { SnapshotEncoderDefinition } from "@/types"
+import type { ExportEncoderDefinition } from "@/types"
 import { createFlacEncoder, preloadFlacModule } from "./flac-wasm-api"
 import type {
   FlacEncoderOptions,
@@ -100,7 +100,7 @@ export function exportFlacSnapshot(
   }
 }
 
-export const flacSnapshotEncoderDefinition: SnapshotEncoderDefinition<
+export const flacExportEncoder: ExportEncoderDefinition<
   "flac",
   FlacExportOptions,
   FlacExportResult

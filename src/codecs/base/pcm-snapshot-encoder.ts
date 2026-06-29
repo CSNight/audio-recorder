@@ -1,9 +1,9 @@
 import { exportPcmSnapshot } from "./pcm-exporter"
 import type { PcmExportOptions, PcmExportResult } from "./pcm-types"
-import type { SnapshotEncoderDefinition } from "@/types"
+import type { ExportEncoderDefinition } from "@/types"
 
-/** PCM 快照编码器定义：注册到 SnapshotEncoder 体系，直接复用 exportPcmSnapshot */
-export const pcmSnapshotEncoderDefinition: SnapshotEncoderDefinition<
+/** PCM 导出编码器：注册到 SnapshotEncoder 体系，直接复用 exportPcmSnapshot */
+export const pcmExportEncoder: ExportEncoderDefinition<
   "pcm",
   PcmExportOptions,
   PcmExportResult

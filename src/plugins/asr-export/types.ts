@@ -1,4 +1,4 @@
-import type { SnapshotEncoderDefinition } from "@/types"
+import type { ExportEncoderDefinition } from "@/types"
 
 export type AsrExportFormat = "pcm" | "wav"
 
@@ -15,7 +15,7 @@ export interface AsrChunkPayload {
 
 export interface AsrExportPluginOptions {
   format?: AsrExportFormat
-  encoders: SnapshotEncoderDefinition[]
+  encoders: ExportEncoderDefinition[]
   sampleRate?: 8000 | 16000 | 24000 | 32000 | 48000
   channels?: 1
   chunkDurationMs?: number

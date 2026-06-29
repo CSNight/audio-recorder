@@ -195,15 +195,15 @@ export type RecorderOpenOptions = RecorderInputOptions
  */
 export interface CreateRecorderOptions extends RecorderInputOptions {
   storage?: RecorderStorageOptions
-  encoders?: SnapshotEncoderDefinition[]
+  encoders?: ExportEncoderDefinition[]
 }
 
 /**
- * 快照编码器定义。每种格式（pcm / wav / mp3 / 未来扩展）通过实现该接口，
+ * 导出编码器定义。每种格式（pcm / wav / mp3 / 未来扩展）通过实现该接口，
  * 以依赖注入的方式传给 createRecorder({ encoders: [...] }) 或
  * recorder.registerEncoder(...)，而非内置在库中隐式注册。
  */
-export interface SnapshotEncoderDefinition<
+export interface ExportEncoderDefinition<
   TType extends string = string,
   TOptions = unknown,
   TResult = unknown,

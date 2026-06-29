@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type {
-  ChunkedEncoder,
-  ChunkedEncoderDefinition,
+  StreamEncoder,
+  StreamEncoderDefinition,
 } from "@/plugins/streaming-export/types"
 import { createWorkerMessageHandler } from "@/workers/chunked-encoder-worker-core"
 
@@ -16,7 +16,7 @@ afterEach(() => {
 })
 
 function buildHandler(
-  resolveDefinition: (format: string) => ChunkedEncoderDefinition
+  resolveDefinition: (format: string) => StreamEncoderDefinition
 ): (data: unknown) => Promise<void> {
   const handler = createWorkerMessageHandler(resolveDefinition)
   return async (data: unknown) => {
@@ -24,8 +24,8 @@ function buildHandler(
   }
 }
 
-function definitionFor(create: (options?: unknown) => ChunkedEncoder) {
-  return { format: "pcm", create } as ChunkedEncoderDefinition
+function definitionFor(create: (options?: unknown) => StreamEncoder) {
+  return { format: "pcm", create } as StreamEncoderDefinition
 }
 
 describe("createWorkerMessageHandler", () => {
@@ -73,7 +73,7 @@ describe("createWorkerMessageHandler", () => {
     vi.stubGlobal("self", { postMessage })
 
     const frameResult = new Uint8Array([1, 2, 3])
-    const encoder: ChunkedEncoder = {
+    const encoder: StreamEncoder = {
       feedFrame: vi.fn(() => frameResult),
       flush: vi.fn(() => null),
       dispose: vi.fn(),
@@ -116,7 +116,7 @@ describe("createWorkerMessageHandler", () => {
   it("returns null frame results without a transfer list", async () => {
     vi.stubGlobal("self", { postMessage })
 
-    const encoder: ChunkedEncoder = {
+    const encoder: StreamEncoder = {
       feedFrame: vi.fn(() => null),
       flush: vi.fn(() => null),
       dispose: vi.fn(),
@@ -143,7 +143,7 @@ describe("createWorkerMessageHandler", () => {
   it("returns encoder errors from feedFrame and flush", async () => {
     vi.stubGlobal("self", { postMessage })
 
-    const encoder: ChunkedEncoder = {
+    const encoder: StreamEncoder = {
       feedFrame: () => {
         throw new Error("feed failed")
       },
@@ -180,7 +180,7 @@ describe("createWorkerMessageHandler", () => {
   it("stringifies non-Error failures from init, feedFrame and flush", async () => {
     vi.stubGlobal("self", { postMessage })
 
-    const encoder: ChunkedEncoder = {
+    const encoder: StreamEncoder = {
       feedFrame: () => {
         throw "feed string failure"
       },
@@ -230,7 +230,7 @@ describe("createWorkerMessageHandler", () => {
     vi.stubGlobal("self", { postMessage })
 
     const flushResult = new Uint8Array([4, 5])
-    const encoder: ChunkedEncoder = {
+    const encoder: StreamEncoder = {
       feedFrame: vi.fn(() => null),
       flush: vi.fn(() => flushResult),
       dispose: vi.fn(),
@@ -265,18 +265,18 @@ describe("createWorkerMessageHandler", () => {
   it("recreates the encoder on reset with the same definition", async () => {
     vi.stubGlobal("self", { postMessage })
 
-    const firstEncoder: ChunkedEncoder = {
+    const firstEncoder: StreamEncoder = {
       feedFrame: vi.fn(() => null),
       flush: vi.fn(() => null),
       dispose: vi.fn(),
     }
-    const secondEncoder: ChunkedEncoder = {
+    const secondEncoder: StreamEncoder = {
       feedFrame: vi.fn(() => new Uint8Array([6])),
       flush: vi.fn(() => null),
       dispose: vi.fn(),
     }
     const create = vi
-      .fn<(options?: unknown) => ChunkedEncoder>()
+      .fn<(options?: unknown) => StreamEncoder>()
       .mockReturnValueOnce(firstEncoder)
       .mockReturnValueOnce(secondEncoder)
     const dispatch = buildHandler(() => definitionFor(create))

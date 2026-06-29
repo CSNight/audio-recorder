@@ -13,7 +13,7 @@ import type {
   RecorderRuntimeInfo,
   RecorderSessionSummary,
   RecorderStateChangeEvent,
-  SnapshotEncoderDefinition,
+  ExportEncoderDefinition,
 } from "@/types"
 import {
   RecorderInputSource,
@@ -43,7 +43,7 @@ import { EventBus } from "@/core/event-bus"
 export class RecorderController {
   private readonly eventBus = new EventBus<RecorderEventMap>()
   private readonly inputAdapter: RecorderInputAdapter
-  private readonly encoders = new Map<string, SnapshotEncoderDefinition>()
+  private readonly encoders = new Map<string, ExportEncoderDefinition>()
   private readonly pluginHost = new PluginHost({
     recorder: this,
     emitIssue: (issue) => this.handleIssue(issue),
@@ -74,7 +74,7 @@ export class RecorderController {
     storageOptions: RecorderStorageOptions | undefined
     defaultInput?: RecorderInputOptions
     framePipeline?: RecorderFramePipeline
-    encoders?: SnapshotEncoderDefinition[]
+    encoders?: ExportEncoderDefinition[]
   }) {
     this.inputAdapter = options.inputAdapter
     options.encoders?.forEach((e) => this.encoders.set(e.type, e))
@@ -141,7 +141,7 @@ export class RecorderController {
   }
 
   registerEncoder<TType extends string, TOptions, TResult>(
-    definition: SnapshotEncoderDefinition<TType, TOptions, TResult>
+    definition: ExportEncoderDefinition<TType, TOptions, TResult>
   ): void {
     if (this.recorderState === RecorderState.Destroyed) {
       throw new Error(
@@ -154,7 +154,7 @@ export class RecorderController {
         `Recorder encoder "${definition.type}" is already registered.`
       )
     }
-    this.encoders.set(definition.type, definition as SnapshotEncoderDefinition)
+    this.encoders.set(definition.type, definition as ExportEncoderDefinition)
   }
 
   /**

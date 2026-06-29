@@ -7,8 +7,8 @@ import type {
 } from "@/input/types"
 import { RecorderController } from "@/core/recorder-controller"
 import {
-  pcmSnapshotEncoderDefinition,
-  wavSnapshotEncoderDefinition,
+  pcmExportEncoder,
+  wavExportEncoder,
 } from "@/codecs/base"
 import { createAsrExportPlugin } from "@/plugins/asr-export"
 import type { AsrChunkPayload } from "@/plugins/asr-export/types"
@@ -77,7 +77,7 @@ describe("createAsrExportPlugin", () => {
     await recorder.use(
       createAsrExportPlugin({
         format: "pcm",
-        encoders: [pcmSnapshotEncoderDefinition],
+        encoders: [pcmExportEncoder],
         sampleRate: 16000,
         chunkDurationMs: 20,
       })
@@ -119,7 +119,7 @@ describe("createAsrExportPlugin", () => {
     await recorder.use(
       createAsrExportPlugin({
         format: "wav",
-        encoders: [wavSnapshotEncoderDefinition],
+        encoders: [wavExportEncoder],
         sampleRate: 16000,
         chunkDurationMs: 10,
       })
@@ -158,7 +158,7 @@ describe("createAsrExportPlugin", () => {
     await recorder.use(
       createAsrExportPlugin({
         format: "pcm",
-        encoders: [pcmSnapshotEncoderDefinition],
+        encoders: [pcmExportEncoder],
         sampleRate: 16000,
         chunkDurationMs: 20,
       })

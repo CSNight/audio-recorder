@@ -13,14 +13,14 @@
  */
 
 import type {
-  ChunkedEncoder,
-  ChunkedEncoderDefinition,
+  StreamEncoder,
+  StreamEncoderDefinition,
 } from "@/plugins/streaming-export/types"
 
 export interface ChunkedEncoderBridgeOptions {
   format: string
   encoderOptions?: unknown
-  definition: ChunkedEncoderDefinition
+  definition: StreamEncoderDefinition
   /**
    * Worker 编码不可用时是否允许降级到主线程同步编码。
    * 默认 true。设为 false 时若 Worker 不可用则抛出错误。
@@ -38,12 +38,12 @@ type PendingReject = (reason: Error) => void
 
 export class ChunkedEncoderBridge {
   private worker: Worker | null = null
-  private encoder: ChunkedEncoder | null = null
+  private encoder: StreamEncoder | null = null
   private disposed = false
   private workerError: Error | null = null
 
   // 保存 definition，供 reset() 主线程模式调用 definition.create()
-  private readonly definition: ChunkedEncoderDefinition
+  private readonly definition: StreamEncoderDefinition
 
   // Worker 模式下挂起的 Promise 回调，按 seqId 查找
   private readonly pending = new Map<

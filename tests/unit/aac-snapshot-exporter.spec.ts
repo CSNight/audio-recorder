@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest"
 import type { PcmBufferSnapshot } from "@/buffer/types"
 import {
-  aacSnapshotEncoderDefinition,
+  aacExportEncoder,
   exportAacSnapshot,
 } from "@/codecs/aac/aac-snapshot-exporter"
 import { preloadAacModule } from "@/codecs/aac/aac-wasm-api"
@@ -33,13 +33,13 @@ function makeSnapshot(
   }
 }
 
-describe("aacSnapshotEncoderDefinition", () => {
+describe("aacExportEncoder", () => {
   beforeAll(async () => {
     await preloadAacModule()
   })
 
   it("has type 'aac'", () => {
-    expect(aacSnapshotEncoderDefinition.type).toBe("aac")
+    expect(aacExportEncoder.type).toBe("aac")
   })
 
   it("exports ADTS AAC data with default metadata", () => {

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { ChunkedEncoderBridge } from "@/workers/chunked-encoder-bridge"
-import { pcmChunkedEncoderDefinition } from "@/codecs/base/pcm-chunked-encoder"
-import { wavChunkedEncoderDefinition } from "@/codecs/base/wav-chunked-encoder"
+import { pcmStreamEncoder } from "@/codecs/base/pcm-chunked-encoder"
+import { wavStreamEncoder } from "@/codecs/base/wav-chunked-encoder"
 
 function mono(samples: number[]): Int16Array[] {
   return [new Int16Array(samples)]
@@ -38,7 +38,7 @@ describe("ChunkedEncoderBridge", () => {
   it("feeds PCM chunks synchronously via the main-thread fallback", async () => {
     const bridge = new ChunkedEncoderBridge({
       format: "pcm",
-      definition: pcmChunkedEncoderDefinition,
+      definition: pcmStreamEncoder,
     })
 
     const result = await bridge.feedFrame(1, 16000, mono([100, 200]))
@@ -51,7 +51,7 @@ describe("ChunkedEncoderBridge", () => {
   it("flush returns null for the PCM encoder", async () => {
     const bridge = new ChunkedEncoderBridge({
       format: "pcm",
-      definition: pcmChunkedEncoderDefinition,
+      definition: pcmStreamEncoder,
     })
 
     await bridge.feedFrame(1, 16000, mono([1, 2]))
@@ -64,7 +64,7 @@ describe("ChunkedEncoderBridge", () => {
     const bridge = new ChunkedEncoderBridge({
       format: "wav",
       encoderOptions: { framesPerChunk: 10 },
-      definition: wavChunkedEncoderDefinition,
+      definition: wavStreamEncoder,
     })
 
     expect(await bridge.feedFrame(1, 16000, mono([1, 2, 3]))).toBeNull()
@@ -79,7 +79,7 @@ describe("ChunkedEncoderBridge", () => {
   it("rejects feedFrame and flush after dispose", async () => {
     const bridge = new ChunkedEncoderBridge({
       format: "pcm",
-      definition: pcmChunkedEncoderDefinition,
+      definition: pcmStreamEncoder,
     })
     bridge.dispose()
 
@@ -94,7 +94,7 @@ describe("ChunkedEncoderBridge", () => {
       () =>
         new ChunkedEncoderBridge({
           format: "pcm",
-          definition: pcmChunkedEncoderDefinition,
+          definition: pcmStreamEncoder,
           allowMainThreadFallback: false,
         })
     ).toThrow("allowMainThreadFallback")

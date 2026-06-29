@@ -1,5 +1,5 @@
 import type { PcmBufferSnapshot } from "@/buffer/types"
-import type { SnapshotEncoderDefinition } from "@/types"
+import type { ExportEncoderDefinition } from "@/types"
 import { resample } from "audio-recorder"
 import {
   createAmrEncoder,
@@ -59,7 +59,7 @@ export function exportAmrSnapshot(
   }
 }
 
-export const amrSnapshotEncoderDefinition: SnapshotEncoderDefinition<
+export const amrExportEncoder: ExportEncoderDefinition<
   "amr",
   AmrExportOptions,
   AmrExportResult

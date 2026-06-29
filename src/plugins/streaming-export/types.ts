@@ -1,7 +1,7 @@
 /**
  * StreamingExportPlugin 相关类型定义。
  *
- * ChunkedEncoder 是编码分片逻辑的纯函数单元：
+ * StreamEncoder 是编码分片逻辑的纯函数单元：
  * - 不持有任何浏览器 API 引用
  * - 可在 Worker 和主线程中直接实例化，使用同一份代码
  */
@@ -21,10 +21,10 @@ export interface StreamingChunkPayload {
 export type StreamingExportFormat = "pcm" | "wav"
 
 /**
- * ChunkedEncoder：编码分片逻辑的统一封装，只写一次，Worker 和主线程共用。
+ * StreamEncoder：编码分片逻辑的统一封装，只写一次，Worker 和主线程共用。
  * 不持有任何浏览器 API 引用，可安全在 Worker 上下文中执行。
  */
-export interface ChunkedEncoder {
+export interface StreamEncoder {
   /** 接收一帧 PCM 数据，返回当前可产出的编码块（无产出时返回 null） */
   feedFrame(
     channels: number,
@@ -37,8 +37,8 @@ export interface ChunkedEncoder {
   dispose(): void
 }
 
-/** ChunkedEncoder 工厂定义 */
-export interface ChunkedEncoderDefinition<TOptions = unknown> {
+/** StreamEncoder 工厂定义 */
+export interface StreamEncoderDefinition<TOptions = unknown> {
   format: string
   /**
    * 可选：为本编码器创建专属 Worker 实例的工厂函数。
@@ -57,10 +57,10 @@ export interface ChunkedEncoderDefinition<TOptions = unknown> {
   preload?(): Promise<void>
 
   /**
-   * 同步创建 ChunkedEncoder 实例，可接收格式相关选项（bitrate、framesPerChunk 等）。
+   * 同步创建 StreamEncoder 实例，可接收格式相关选项（bitrate、framesPerChunk 等）。
    * 对于有 WASM 依赖的编码器，调用前必须已执行 preload()。
    */
-  create(options?: TOptions): ChunkedEncoder
+  create(options?: TOptions): StreamEncoder
 }
 
 /** createStreamingExportPlugin 的选项 */
@@ -69,11 +69,11 @@ export interface StreamingExportPluginOptions {
   encoderOptions?: unknown
   /**
    * 要使用的编码器定义列表。
-   * 用户必须显式传入对应格式的 ChunkedEncoderDefinition，例如：
-   *   import { pcmChunkedEncoderDefinition } from "audio-recorder/codecs/pcm"
-   *   createStreamingExportPlugin({ format: "pcm", encoders: [pcmChunkedEncoderDefinition] })
+   * 用户必须显式传入对应格式的 StreamEncoderDefinition，例如：
+   *   import { pcmStreamEncoder } from "audio-recorder/codecs/pcm"
+   *   createStreamingExportPlugin({ format: "pcm", encoders: [pcmStreamEncoder] })
    */
-  encoders: ChunkedEncoderDefinition[]
+  encoders: StreamEncoderDefinition[]
   /** Worker 编码不可用时是否允许降级到主线程同步编码，默认 true */
   allowMainThreadFallback?: boolean
 }

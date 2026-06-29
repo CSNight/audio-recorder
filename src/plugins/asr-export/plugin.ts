@@ -1,5 +1,5 @@
 import type { PcmBufferSnapshot } from "@/buffer/types"
-import type { SnapshotEncoderDefinition } from "@/types"
+import type { ExportEncoderDefinition } from "@/types"
 import type { RecorderPlugin } from "@/plugins/types"
 import { resample } from "audio-recorder"
 import type {
@@ -184,7 +184,7 @@ function normalizeFrameToMono(
 }
 
 function createChunkPayload(
-  encoderDefinition: SnapshotEncoderDefinition,
+  encoderDefinition: ExportEncoderDefinition,
   mono: Int16Array,
   sampleRate: number,
   bitsPerSample: 16,
@@ -225,8 +225,8 @@ function toUint8Array(data: Int8Array | Int16Array): Uint8Array {
 
 function resolveAsrEncoder(
   format: AsrExportFormat,
-  encoders: SnapshotEncoderDefinition[]
-): SnapshotEncoderDefinition {
+  encoders: ExportEncoderDefinition[]
+): ExportEncoderDefinition {
   for (const encoder of encoders) {
     if (encoder.type === format) {
       return encoder
@@ -235,6 +235,6 @@ function resolveAsrEncoder(
 
   throw new Error(
     `ASR export encoder for format "${format}" not found. ` +
-      `Please pass the corresponding SnapshotEncoderDefinition via options.encoders.`
+      `Please pass the corresponding ExportEncoderDefinition via options.encoders.`
   )
 }

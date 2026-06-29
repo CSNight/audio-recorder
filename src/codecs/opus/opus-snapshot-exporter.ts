@@ -12,7 +12,7 @@
  */
 
 import type { PcmBufferSnapshot } from "@/buffer/types"
-import type { SnapshotEncoderDefinition } from "@/types"
+import type { ExportEncoderDefinition } from "@/types"
 import { createOpusEncoder, preloadOpusModule } from "./opus-wasm-api"
 import { OggMuxer } from "./muxers/ogg"
 import { WebmMuxer } from "./muxers/webm"
@@ -239,7 +239,7 @@ export function exportOpusSnapshot(
   }
 }
 
-export const oggSnapshotEncoderDefinition: SnapshotEncoderDefinition<
+export const oggExportEncoder: ExportEncoderDefinition<
   "ogg",
   OpusExportOptions,
   OpusExportResult
@@ -250,7 +250,7 @@ export const oggSnapshotEncoderDefinition: SnapshotEncoderDefinition<
     exportOpusSnapshot(snapshot, { ...options, container: "ogg" }),
 }
 
-export const webmSnapshotEncoderDefinition: SnapshotEncoderDefinition<
+export const webmExportEncoder: ExportEncoderDefinition<
   "webm",
   OpusExportOptions,
   OpusExportResult

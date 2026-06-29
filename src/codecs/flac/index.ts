@@ -1,4 +1,4 @@
-export { flacSnapshotEncoderDefinition } from "./flac-snapshot-exporter"
+export { flacExportEncoder } from "./flac-snapshot-exporter"
 export type {
   FlacEncoderOptions,
   FlacExportOptions,

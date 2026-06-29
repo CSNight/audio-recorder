@@ -1,10 +1,10 @@
 import type {
-  ChunkedEncoder,
-  ChunkedEncoderDefinition,
+  StreamEncoder,
+  StreamEncoderDefinition,
 } from "@/plugins/streaming-export/types"
 import { createWavHeader } from "./wav-header"
 
-/** WAV ChunkedEncoder 选项 */
+/** WAV StreamEncoder 选项 */
 export interface WavChunkedEncoderOptions {
   /** 积累多少帧后输出一个带完整 WAV header 的分片，默认 100 帧 */
   framesPerChunk?: number
@@ -13,7 +13,7 @@ export interface WavChunkedEncoderOptions {
 }
 
 /**
- * WAV ChunkedEncoder（方案 A）：
+ * WAV StreamEncoder（方案 A）：
  * 每积累 framesPerChunk 帧 PCM，输出一个包含完整 WAV header 的小文件分片。
  * flush() 时若有剩余帧，输出最后一个分片。
  *
@@ -21,7 +21,7 @@ export interface WavChunkedEncoderOptions {
  */
 function createWavChunkedEncoder(
   options?: WavChunkedEncoderOptions
-): ChunkedEncoder {
+): StreamEncoder {
   const framesPerChunk = options?.framesPerChunk ?? 100
   const bitsPerSample = options?.bitsPerSample ?? 16
   const bytesPerSample = bitsPerSample / 8
@@ -123,7 +123,7 @@ function createWavChunkedEncoder(
   }
 }
 
-export const wavChunkedEncoderDefinition: ChunkedEncoderDefinition<WavChunkedEncoderOptions> =
+export const wavStreamEncoder: StreamEncoderDefinition<WavChunkedEncoderOptions> =
   {
     format: "wav",
     create: createWavChunkedEncoder,

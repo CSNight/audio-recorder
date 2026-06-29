@@ -1,6 +1,6 @@
 import type { RecorderPlugin } from "@/plugins/types"
 import type {
-  ChunkedEncoderDefinition,
+  StreamEncoderDefinition,
   StreamingExportFormat,
   StreamingChunkPayload,
   StreamingExportPluginOptions,
@@ -10,16 +10,16 @@ import { ChunkedEncoderBridge } from "@/workers/chunked-encoder-bridge"
 /**
  * createStreamingExportPlugin：实时分片编码插件。
  *
- * 每帧 PCM 喂给指定格式的 ChunkedEncoder（经 ChunkedEncoderBridge），
+ * 每帧 PCM 喂给指定格式的 StreamEncoder（经 ChunkedEncoderBridge），
  * 有产出时通过 "plugin:encoded-chunk" 事件发出。
  * Bridge 在 Worker 可用时将编码移入 Worker 线程，否则主线程同步降级。
  *
  * 用法：
  * ```ts
- * import { pcmChunkedEncoderDefinition } from "audio-recorder/codecs/pcm"
+ * import { pcmStreamEncoder } from "audio-recorder/codecs/pcm"
  * const plugin = createStreamingExportPlugin({
  *   format: "pcm",
- *   encoders: [pcmChunkedEncoderDefinition],
+ *   encoders: [pcmStreamEncoder],
  * })
  * recorder.use(plugin)
  * recorder.on("plugin:encoded-chunk", ({ payload }) => {
@@ -34,9 +34,9 @@ export function createStreamingExportPlugin(
   assertSupportedFormat(format)
 
   // 构建局部查表，不依赖任何全局注册表
-  const encoderMap: Record<StreamingExportFormat, ChunkedEncoderDefinition> = {
-    pcm: undefined as unknown as ChunkedEncoderDefinition,
-    wav: undefined as unknown as ChunkedEncoderDefinition,
+  const encoderMap: Record<StreamingExportFormat, StreamEncoderDefinition> = {
+    pcm: undefined as unknown as StreamEncoderDefinition,
+    wav: undefined as unknown as StreamEncoderDefinition,
   }
   for (const def of encoders) {
     if (def.format === "pcm" || def.format === "wav") {
@@ -48,7 +48,7 @@ export function createStreamingExportPlugin(
   if (!definition) {
     throw new Error(
       `ChunkedEncoder for format "${format}" not found. ` +
-        `Please pass the corresponding ChunkedEncoderDefinition via options.encoders. ` +
+        `Please pass the corresponding StreamEncoderDefinition via options.encoders. ` +
         `Available formats: ${Object.keys(encoderMap).join(", ") || "(none)"}`
     )
   }

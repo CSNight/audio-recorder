@@ -1,16 +1,16 @@
 import type {
-  ChunkedEncoder,
-  ChunkedEncoderDefinition,
+  StreamEncoder,
+  StreamEncoderDefinition,
 } from "@/plugins/streaming-export/types"
 
-/** PCM ChunkedEncoder 选项 */
+/** PCM StreamEncoder 选项 */
 export interface PcmChunkedEncoderOptions {
   /** 位深，默认 16 */
   bitsPerSample?: 8 | 16
 }
 
 /**
- * PCM ChunkedEncoder：每帧直接输出 interleaved PCM，无缓冲累积。
+ * PCM StreamEncoder：每帧直接输出 interleaved PCM，无缓冲累积。
  *
  * 支持任意声道数：
  * - 单声道：直接输出 channel[0] 的样本
@@ -19,7 +19,7 @@ export interface PcmChunkedEncoderOptions {
  */
 function createPcmChunkedEncoder(
   options?: PcmChunkedEncoderOptions
-): ChunkedEncoder {
+): StreamEncoder {
   const bitsPerSample = options?.bitsPerSample ?? 16
   const bytesPerSample = bitsPerSample / 8
 
@@ -98,7 +98,7 @@ function createPcmChunkedEncoder(
   }
 }
 
-export const pcmChunkedEncoderDefinition: ChunkedEncoderDefinition<PcmChunkedEncoderOptions> =
+export const pcmStreamEncoder: StreamEncoderDefinition<PcmChunkedEncoderOptions> =
   {
     format: "pcm",
     create: createPcmChunkedEncoder,

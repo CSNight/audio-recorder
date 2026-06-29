@@ -304,7 +304,7 @@ async function run() {
         encoderConfig: { bitRate: 16 },
         runRoundFactory(snapshot) {
           return {
-            outputBytes: base.pcmSnapshotEncoderDefinition.export(snapshot, {
+            outputBytes: base.pcmExportEncoder.export(snapshot, {
               bitRate: 16,
             }).data.byteLength,
           }
@@ -322,7 +322,7 @@ async function run() {
         inputDescriptor: `${streamingFrameMs} ms PCM frames`,
         encoderConfig: { bitsPerSample: 16 },
         runRoundFactory(snapshot) {
-          return runChunkedEncoder(base.pcmChunkedEncoderDefinition, snapshot, {
+          return runChunkedEncoder(base.pcmStreamEncoder, snapshot, {
             bitsPerSample: 16,
           })
         },
@@ -342,7 +342,7 @@ async function run() {
         encoderConfig: { bitRate: 16 },
         runRoundFactory(snapshot) {
           return {
-            outputBytes: base.wavSnapshotEncoderDefinition.export(snapshot, {
+            outputBytes: base.wavExportEncoder.export(snapshot, {
               bitRate: 16,
             }).arrayBuffer.byteLength,
           }
@@ -360,7 +360,7 @@ async function run() {
         inputDescriptor: `${streamingFrameMs} ms PCM frames`,
         encoderConfig: { bitsPerSample: 16, framesPerChunk: 100 },
         runRoundFactory(snapshot) {
-          return runChunkedEncoder(base.wavChunkedEncoderDefinition, snapshot, {
+          return runChunkedEncoder(base.wavStreamEncoder, snapshot, {
             bitsPerSample: 16,
             framesPerChunk: 100,
           })
@@ -372,8 +372,8 @@ async function run() {
   if (codecs.includes("mp3")) {
     const mp3 = await import("../dist/codecs/mp3/index.js")
     await preloadDefinitions([
-      mp3.mp3SnapshotEncoderDefinition,
-      mp3.mp3ChunkedEncoderDefinition,
+      mp3.mp3ExportEncoder,
+      mp3.mp3StreamEncoder,
     ])
 
     await benchmarkMaterialSet({
@@ -388,7 +388,7 @@ async function run() {
       encoderConfig: { bitrateKbps: 128 },
       runRoundFactory(snapshot) {
         return {
-          outputBytes: mp3.mp3SnapshotEncoderDefinition.export(snapshot, {
+          outputBytes: mp3.mp3ExportEncoder.export(snapshot, {
             bitrateKbps: 128,
           }).data.byteLength,
         }
@@ -406,7 +406,7 @@ async function run() {
       inputDescriptor: `${streamingFrameMs} ms PCM frames`,
       encoderConfig: { bitrateKbps: 128 },
       runRoundFactory(snapshot) {
-        return runChunkedEncoder(mp3.mp3ChunkedEncoderDefinition, snapshot, {
+        return runChunkedEncoder(mp3.mp3StreamEncoder, snapshot, {
           bitrateKbps: 128,
         })
       },
@@ -416,8 +416,8 @@ async function run() {
   if (codecs.includes("flac")) {
     const flac = await import("../dist/codecs/flac/index.js")
     await preloadDefinitions([
-      flac.flacSnapshotEncoderDefinition,
-      flac.flacChunkedEncoderDefinition,
+      flac.flacExportEncoder,
+      flac.flacStreamEncoder,
     ])
 
     await benchmarkMaterialSet({
@@ -432,7 +432,7 @@ async function run() {
       encoderConfig: { compressionLevel: 5, bitsPerSample: 16 },
       runRoundFactory(snapshot) {
         return {
-          outputBytes: flac.flacSnapshotEncoderDefinition.export(snapshot, {
+          outputBytes: flac.flacExportEncoder.export(snapshot, {
             compressionLevel: 5,
             bitsPerSample: 16,
           }).data.byteLength,
@@ -456,7 +456,7 @@ async function run() {
         bitsPerSample: 16,
       },
       runRoundFactory(snapshot) {
-        return runChunkedEncoder(flac.flacChunkedEncoderDefinition, snapshot, {
+        return runChunkedEncoder(flac.flacStreamEncoder, snapshot, {
           sampleRate: snapshot.sampleRate,
           channels: snapshot.channels,
           compressionLevel: 5,
@@ -469,22 +469,22 @@ async function run() {
   if (codecs.includes("opus")) {
     const opus = await import("../dist/codecs/opus/index.js")
     await preloadDefinitions([
-      opus.oggSnapshotEncoderDefinition,
-      opus.webmSnapshotEncoderDefinition,
-      opus.oggChunkedEncoderDefinition,
-      opus.webmChunkedEncoderDefinition,
+      opus.oggExportEncoder,
+      opus.webmExportEncoder,
+      opus.oggStreamEncoder,
+      opus.webmStreamEncoder,
     ])
 
     const opusVariants = [
       {
         variant: "ogg",
-        snapshotDefinition: opus.oggSnapshotEncoderDefinition,
-        chunkedDefinition: opus.oggChunkedEncoderDefinition,
+        snapshotDefinition: opus.oggExportEncoder,
+        chunkedDefinition: opus.oggStreamEncoder,
       },
       {
         variant: "webm",
-        snapshotDefinition: opus.webmSnapshotEncoderDefinition,
-        chunkedDefinition: opus.webmChunkedEncoderDefinition,
+        snapshotDefinition: opus.webmExportEncoder,
+        chunkedDefinition: opus.webmStreamEncoder,
       },
     ]
 
@@ -549,8 +549,8 @@ async function run() {
   if (codecs.includes("aac")) {
     const aac = await import("../dist/codecs/aac/index.js")
     await preloadDefinitions([
-      aac.aacSnapshotEncoderDefinition,
-      aac.aacChunkedEncoderDefinition,
+      aac.aacExportEncoder,
+      aac.aacStreamEncoder,
     ])
 
     await benchmarkMaterialSet({
@@ -565,7 +565,7 @@ async function run() {
       encoderConfig: { bitrate: 128000 },
       runRoundFactory(snapshot) {
         return {
-          outputBytes: aac.aacSnapshotEncoderDefinition.export(snapshot, {
+          outputBytes: aac.aacExportEncoder.export(snapshot, {
             bitrate: 128000,
           }).data.byteLength,
         }
@@ -583,7 +583,7 @@ async function run() {
       inputDescriptor: `${streamingFrameMs} ms PCM frames`,
       encoderConfig: { bitrate: 128000 },
       runRoundFactory(snapshot) {
-        return runChunkedEncoder(aac.aacChunkedEncoderDefinition, snapshot, {
+        return runChunkedEncoder(aac.aacStreamEncoder, snapshot, {
           bitrate: 128000,
         })
       },
@@ -593,8 +593,8 @@ async function run() {
   if (codecs.includes("amr")) {
     const amr = await import("../dist/codecs/amr/index.js")
     await preloadDefinitions([
-      amr.amrSnapshotEncoderDefinition,
-      amr.amrChunkedEncoderDefinition,
+      amr.amrExportEncoder,
+      amr.amrStreamEncoder,
     ])
 
     for (const bandMode of ["nb", "wb"]) {
@@ -613,7 +613,7 @@ async function run() {
         encoderConfig: { bandMode },
         runRoundFactory(snapshot) {
           return {
-            outputBytes: amr.amrSnapshotEncoderDefinition.export(snapshot, {
+            outputBytes: amr.amrExportEncoder.export(snapshot, {
               bandMode,
             }).data.byteLength,
           }
@@ -632,7 +632,7 @@ async function run() {
         inputDescriptor: `${streamingFrameMs} ms PCM frames`,
         encoderConfig: { bandMode },
         runRoundFactory(snapshot) {
-          return runChunkedEncoder(amr.amrChunkedEncoderDefinition, snapshot, {
+          return runChunkedEncoder(amr.amrStreamEncoder, snapshot, {
             bandMode,
           })
         },

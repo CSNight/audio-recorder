@@ -6,8 +6,8 @@
  */
 export { createStreamingExportPlugin } from "@/plugins/streaming-export/plugin"
 export type {
-  ChunkedEncoder,
-  ChunkedEncoderDefinition,
+  StreamEncoder,
+  StreamEncoderDefinition,
   StreamingExportFormat,
   StreamingChunkPayload,
   StreamingExportPluginOptions,

@@ -10,7 +10,7 @@ import { RecorderController } from "@/core/recorder-controller"
 import { createStreamingPlayerPlugin } from "@/plugins/streaming-player"
 import { createStreamingExportPlugin } from "@/plugins/streaming-export"
 import { createAudioFrame } from "@/utils/audio-frame"
-import type { ChunkedEncoderDefinition } from "@/plugins/streaming-export/types"
+import type { StreamEncoderDefinition } from "@/plugins/streaming-export/types"
 
 class FakePlayerInputSession implements RecorderInputSession {
   constructor(
@@ -151,7 +151,7 @@ describe("createStreamingPlayerPlugin", () => {
       vi.fn(() => audio.context)
     )
 
-    const definition: ChunkedEncoderDefinition = {
+    const definition: StreamEncoderDefinition = {
       format: "wav",
       create: () => ({
         feedFrame: () =>

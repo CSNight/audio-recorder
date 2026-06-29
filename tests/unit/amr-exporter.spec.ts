@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest"
 import type { PcmBufferSnapshot } from "@/buffer/types"
 import {
-  amrSnapshotEncoderDefinition,
+  amrExportEncoder,
   exportAmrSnapshot,
 } from "@/codecs/amr/amr-snapshot-exporter"
 import { preloadAmrModules } from "@/codecs/amr/amr-wasm-api"
@@ -33,13 +33,13 @@ function makeSnapshot(
   }
 }
 
-describe("amrSnapshotEncoderDefinition", () => {
+describe("amrExportEncoder", () => {
   beforeAll(async () => {
     await preloadAmrModules()
   })
 
   it("has type 'amr'", () => {
-    expect(amrSnapshotEncoderDefinition.type).toBe("amr")
+    expect(amrExportEncoder.type).toBe("amr")
   })
 
   it("defaults to AMR-NB and resamples to 8000Hz", () => {

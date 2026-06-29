@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { wavChunkedEncoderDefinition } from "@/codecs/base/wav-chunked-encoder"
+import { wavStreamEncoder } from "@/codecs/base/wav-chunked-encoder"
 
 function mono(samples: number[]): Int16Array[] {
   return [new Int16Array(samples)]
@@ -32,13 +32,13 @@ function verifyWavHeader(
 
 describe("WAV ChunkedEncoder", () => {
   it("returns null while buffer is below framesPerChunk threshold", () => {
-    const enc = wavChunkedEncoderDefinition.create({ framesPerChunk: 3 })
+    const enc = wavStreamEncoder.create({ framesPerChunk: 3 })
     expect(enc.feedFrame(1, 16000, mono([1, 2, 3]))).toBeNull()
     expect(enc.feedFrame(1, 16000, mono([4, 5, 6]))).toBeNull()
   })
 
   it("emits a complete WAV chunk once framesPerChunk is reached", () => {
-    const enc = wavChunkedEncoderDefinition.create({ framesPerChunk: 2 })
+    const enc = wavStreamEncoder.create({ framesPerChunk: 2 })
     expect(enc.feedFrame(1, 16000, mono([1, 2]))).toBeNull()
 
     const result = enc.feedFrame(1, 16000, mono([3, 4]))
@@ -49,7 +49,7 @@ describe("WAV ChunkedEncoder", () => {
   })
 
   it("flush emits remaining buffered frames as final chunk", () => {
-    const enc = wavChunkedEncoderDefinition.create({ framesPerChunk: 10 })
+    const enc = wavStreamEncoder.create({ framesPerChunk: 10 })
     enc.feedFrame(1, 16000, mono([100, 200]))
     enc.feedFrame(1, 16000, mono([300]))
 
@@ -61,7 +61,7 @@ describe("WAV ChunkedEncoder", () => {
   })
 
   it("flush returns null when buffer is empty", () => {
-    const enc = wavChunkedEncoderDefinition.create({ framesPerChunk: 2 })
+    const enc = wavStreamEncoder.create({ framesPerChunk: 2 })
     enc.feedFrame(1, 16000, mono([1]))
     enc.feedFrame(1, 16000, mono([2])) // triggers chunk emit
     // buffer now empty
@@ -69,7 +69,7 @@ describe("WAV ChunkedEncoder", () => {
   })
 
   it("handles stereo interleaving correctly in WAV output", () => {
-    const enc = wavChunkedEncoderDefinition.create({ framesPerChunk: 1 })
+    const enc = wavStreamEncoder.create({ framesPerChunk: 1 })
     const result = enc.feedFrame(2, 44100, stereo([100], [200]))
 
     expect(result).not.toBeNull()
@@ -81,7 +81,7 @@ describe("WAV ChunkedEncoder", () => {
   })
 
   it("reuses the left channel when stereo input omits the right channel", () => {
-    const enc = wavChunkedEncoderDefinition.create({ framesPerChunk: 1 })
+    const enc = wavStreamEncoder.create({ framesPerChunk: 1 })
     const result = enc.feedFrame(2, 44100, [new Int16Array([100, -200])])
 
     expect(result).not.toBeNull()
@@ -93,7 +93,7 @@ describe("WAV ChunkedEncoder", () => {
   })
 
   it("supports multi-channel audio (3+ channels)", () => {
-    const enc = wavChunkedEncoderDefinition.create({ framesPerChunk: 1 })
+    const enc = wavStreamEncoder.create({ framesPerChunk: 1 })
 
     const result = enc.feedFrame(3, 16000, [
       new Int16Array([100]),
@@ -112,7 +112,7 @@ describe("WAV ChunkedEncoder", () => {
   })
 
   it("dispose clears buffer so flush returns null", () => {
-    const enc = wavChunkedEncoderDefinition.create({ framesPerChunk: 5 })
+    const enc = wavStreamEncoder.create({ framesPerChunk: 5 })
     enc.feedFrame(1, 16000, mono([1, 2, 3]))
     enc.dispose()
     expect(enc.flush()).toBeNull()

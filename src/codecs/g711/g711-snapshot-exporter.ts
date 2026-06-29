@@ -8,7 +8,7 @@
  * 可通过 options.sampleRate 指定重采样目标（通常为 8000Hz）。
  */
 import type { PcmBufferSnapshot } from "@/buffer/types"
-import type { SnapshotEncoderDefinition } from "@/types"
+import type { ExportEncoderDefinition } from "@/types"
 import { resample } from "audio-recorder"
 import { encodeAlaw, encodeUlaw } from "./g711-encoder"
 import type { G711ExportOptions, G711ExportResult } from "./types"
@@ -38,7 +38,7 @@ export function exportG711Snapshot(
   }
 }
 
-export const g711SnapshotEncoderDefinition: SnapshotEncoderDefinition<
+export const g711ExportEncoder: ExportEncoderDefinition<
   "g711",
   G711ExportOptions,
   G711ExportResult

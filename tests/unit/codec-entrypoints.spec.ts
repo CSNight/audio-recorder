@@ -24,22 +24,22 @@ describe("codec entrypoints", () => {
       default: wavWorker,
     }))
     vi.doMock("@/codecs/base/pcm-chunked-encoder", () => ({
-      pcmChunkedEncoderDefinition: pcmDefinition,
+      pcmStreamEncoder: pcmDefinition,
     }))
     vi.doMock("@/codecs/base/wav-chunked-encoder", () => ({
-      wavChunkedEncoderDefinition: wavDefinition,
+      wavStreamEncoder: wavDefinition,
     }))
     vi.doMock("@/codecs/base/pcm-snapshot-encoder", () => ({
-      pcmSnapshotEncoderDefinition: { type: "pcm" },
+      pcmExportEncoder: { type: "pcm" },
     }))
     vi.doMock("@/codecs/base/wav-snapshot-encoder", () => ({
-      wavSnapshotEncoderDefinition: { type: "wav" },
+      wavExportEncoder: { type: "wav" },
     }))
 
     const mod = await import("@/codecs/base")
 
-    expect(mod.pcmChunkedEncoderDefinition).toBe(pcmDefinition)
-    expect(mod.wavChunkedEncoderDefinition).toBe(wavDefinition)
+    expect(mod.pcmStreamEncoder).toBe(pcmDefinition)
+    expect(mod.wavStreamEncoder).toBe(wavDefinition)
     expect(pcmDefinition.workerFactory().tag).toBe("pcm")
     expect(wavDefinition.workerFactory().tag).toBe("wav")
     expect(pcmWorker).toHaveBeenCalledTimes(1)

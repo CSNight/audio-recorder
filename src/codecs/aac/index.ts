@@ -1,4 +1,4 @@
-export { aacSnapshotEncoderDefinition } from "./aac-snapshot-exporter"
+export { aacExportEncoder } from "./aac-snapshot-exporter"
 export type {
   AacEncoderHandle,
   AacEncoderOptions,

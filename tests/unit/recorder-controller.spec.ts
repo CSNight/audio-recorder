@@ -15,8 +15,8 @@ import {
 import type { RecorderPlugin } from "@/plugins/types"
 import type { RecorderPersistencePlugin } from "@/storage/types"
 import { createAudioFrame } from "@/utils/audio-frame"
-import { pcmSnapshotEncoderDefinition } from "@/codecs/base/pcm-snapshot-encoder"
-import { wavSnapshotEncoderDefinition } from "@/codecs/base/wav-snapshot-encoder"
+import { pcmExportEncoder } from "@/codecs/base/pcm-snapshot-encoder"
+import { wavExportEncoder } from "@/codecs/base/wav-snapshot-encoder"
 
 class FakeInputSession implements RecorderInputSession {
   closeCalls = 0
@@ -282,7 +282,7 @@ describe("RecorderController", () => {
     const recorder = new RecorderController({
       inputAdapter: adapter,
       storageOptions: undefined,
-      encoders: [pcmSnapshotEncoderDefinition, wavSnapshotEncoderDefinition],
+      encoders: [pcmExportEncoder, wavExportEncoder],
     })
 
     await recorder.open({ sampleRate: 16_000 })
@@ -380,7 +380,7 @@ describe("RecorderController", () => {
         memoryThresholdBytes: 1,
         persistencePlugin: failingPlugin,
       },
-      encoders: [pcmSnapshotEncoderDefinition],
+      encoders: [pcmExportEncoder],
     })
     const issues: string[] = []
 
