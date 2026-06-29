@@ -359,11 +359,11 @@ describe("webmExtract", () => {
         element([0x83], uint8(1)),
         element([0x86], asciiBytes("V_FAKE"))
       )
-      const tracks = element(
+
+      const segmentPayload = element(
         [0x16, 0x54, 0xae, 0x6b],
         element([0xae], trackEntry)
       )
-      const segmentPayload = tracks
       const segmentId = new Uint8Array([0x18, 0x53, 0x80, 0x67])
       const segmentLen = new Uint8Array([
         0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,

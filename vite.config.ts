@@ -21,11 +21,17 @@ export default defineConfig({
         "plugins/streaming-export/index": fileURLToPath(
           new URL("./src/plugins/streaming-export/index.ts", import.meta.url)
         ),
-        "codecs/mp3/index": fileURLToPath(
-          new URL("./src/codecs/mp3/index.ts", import.meta.url)
+        "plugins/asr-export/index": fileURLToPath(
+          new URL("./src/plugins/asr-export/index.ts", import.meta.url)
+        ),
+        "plugins/streaming-player/index": fileURLToPath(
+          new URL("./src/plugins/streaming-player/index.ts", import.meta.url)
         ),
         "codecs/base/index": fileURLToPath(
           new URL("./src/codecs/base/index.ts", import.meta.url)
+        ),
+        "codecs/mp3/index": fileURLToPath(
+          new URL("./src/codecs/mp3/index.ts", import.meta.url)
         ),
         "codecs/g711/index": fileURLToPath(
           new URL("./src/codecs/g711/index.ts", import.meta.url)

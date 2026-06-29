@@ -9,12 +9,16 @@
 /** 实时编码块的事件 payload，通过 "encoded-chunk" 事件发出 */
 export interface StreamingChunkPayload {
   chunk: Uint8Array
-  format: string
+  format: StreamingExportFormat
   timestampMs: number
   sequenceIndex: number
+  sampleRate: number
+  channels: number
   /** true 表示本次 session 的最后一个 chunk（flush 产物） */
   isFinal: boolean
 }
+
+export type StreamingExportFormat = "pcm" | "wav"
 
 /**
  * ChunkedEncoder：编码分片逻辑的统一封装，只写一次，Worker 和主线程共用。
@@ -61,7 +65,7 @@ export interface ChunkedEncoderDefinition<TOptions = unknown> {
 
 /** createStreamingExportPlugin 的选项 */
 export interface StreamingExportPluginOptions {
-  format: string
+  format: StreamingExportFormat
   encoderOptions?: unknown
   /**
    * 要使用的编码器定义列表。

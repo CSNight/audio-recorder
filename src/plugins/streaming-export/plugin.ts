@@ -1,6 +1,7 @@
 import type { RecorderPlugin } from "@/plugins/types"
 import type {
   ChunkedEncoderDefinition,
+  StreamingExportFormat,
   StreamingChunkPayload,
   StreamingExportPluginOptions,
 } from "@/plugins/streaming-export/types"
@@ -30,11 +31,17 @@ export function createStreamingExportPlugin(
   options: StreamingExportPluginOptions
 ): RecorderPlugin {
   const { format, encoderOptions, allowMainThreadFallback, encoders } = options
+  assertSupportedFormat(format)
 
   // 构建局部查表，不依赖任何全局注册表
-  const encoderMap: Record<string, ChunkedEncoderDefinition> = {}
+  const encoderMap: Record<StreamingExportFormat, ChunkedEncoderDefinition> = {
+    pcm: undefined as unknown as ChunkedEncoderDefinition,
+    wav: undefined as unknown as ChunkedEncoderDefinition,
+  }
   for (const def of encoders) {
-    encoderMap[def.format] = def
+    if (def.format === "pcm" || def.format === "wav") {
+      encoderMap[def.format] = def
+    }
   }
 
   const definition = encoderMap[format]
@@ -102,6 +109,8 @@ export function createStreamingExportPlugin(
               format,
               timestampMs: frame.timestamp,
               sequenceIndex: capturedSeq,
+              sampleRate: frame.sampleRate,
+              channels: frame.channels,
               isFinal: false,
             })
           }
@@ -138,6 +147,8 @@ export function createStreamingExportPlugin(
               format,
               timestampMs: performance.now(),
               sequenceIndex: capturedSeq,
+              sampleRate: 0,
+              channels: 0,
               isFinal: true,
             })
           }
@@ -155,4 +166,16 @@ export function createStreamingExportPlugin(
       emitChunk = undefined
     },
   }
+}
+
+function assertSupportedFormat(
+  format: string
+): asserts format is StreamingExportFormat {
+  if (format === "pcm" || format === "wav") {
+    return
+  }
+
+  throw new Error(
+    `Streaming export only supports "pcm" and "wav". Received "${format}".`
+  )
 }

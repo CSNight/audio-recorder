@@ -255,6 +255,14 @@
                             </p>
                         </article>
                         <article class="stat">
+                            <p class="stat-label">实时播放 Chunk</p>
+                            <p class="stat-value">{{ state.realtimeChunkCount }} / {{ state.realtimeChunkBytes }} byte</p>
+                        </article>
+                        <article class="stat">
+                            <p class="stat-label">ASR Chunk</p>
+                            <p class="stat-value">{{ state.asrChunkCount }} / {{ state.asrChunkBytes }} byte</p>
+                        </article>
+                        <article class="stat">
                             <p class="stat-label">处理状态</p>
                             <p class="stat-value" data-testid="pending-action-value">
                                 {{ state.pendingActionLabel || "-" }}
@@ -287,7 +295,7 @@
                 <section class="panel">
                     <h2>导出与下载</h2>
                     <p class="supporting" style="margin-bottom: 0.75rem">
-                        停止录音后可下载 PCM 原始数据、WAV 以及各编码格式文件。
+                        实时链路已收敛为 PCM/WAV：`streaming-export` 输出 WAV 供播放器消费，`asr-export` 输出 PCM 供识别链路消费。停止录音后仍可下载全部 snapshot 编码结果。
                     </p>
                     <div class="control-row" style="margin-bottom: 0.75rem">
                         <label>
@@ -473,6 +481,7 @@
                             当前页面直接 import
                             <code>/dist/index.js</code>，用于验证打包产物对外行为。
                         </li>
+                        <li>实时导出、实时播放、ASR 输出当前仅演示 PCM/WAV 路径，其他编码仅保留 snapshot 导出。</li>
                         <li>Vue 通过 CDN 版 ESM 引入，不在仓库里再建一套 Vue 工程。</li>
                         <li>
                             建议先使用“外部音调流”，这样不依赖麦克风权限也能完整走一遍主链路。

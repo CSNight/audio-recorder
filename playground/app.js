@@ -14,27 +14,22 @@ import { createLevelMeterPlugin } from "/dist/plugins/level-meter/index.js"
 import { createIndexedDbPersistencePlugin } from "/dist/storage/indexeddb/index.js"
 import { createOpfsPersistencePlugin } from "/dist/storage/opfs/index.js"
 import { createStreamingExportPlugin } from "/dist/plugins/streaming-export/index.js"
+import { createAsrExportPlugin } from "/dist/plugins/asr-export/index.js"
+import { createStreamingPlayerPlugin } from "/dist/plugins/streaming-player/index.js"
 import {
   pcmChunkedEncoderDefinition,
   pcmSnapshotEncoderDefinition,
+  wavDecoderDefinition,
   wavChunkedEncoderDefinition,
   wavSnapshotEncoderDefinition,
 } from "/dist/codecs/base/index.js"
-import {
-  mp3ChunkedEncoderDefinition,
-  mp3SnapshotEncoderDefinition,
-} from "/dist/codecs/mp3/index.js"
+import { mp3SnapshotEncoderDefinition } from "/dist/codecs/mp3/index.js"
 import { g711SnapshotEncoderDefinition } from "/dist/codecs/g711/index.js"
 import {
-  oggChunkedEncoderDefinition,
   oggSnapshotEncoderDefinition,
-  webmChunkedEncoderDefinition,
   webmSnapshotEncoderDefinition,
 } from "/dist/codecs/opus/index.js"
-import {
-  flacChunkedEncoderDefinition,
-  flacSnapshotEncoderDefinition,
-} from "/dist/codecs/flac/index.js"
+import { flacSnapshotEncoderDefinition } from "/dist/codecs/flac/index.js"
 import { aacSnapshotEncoderDefinition } from "/dist/codecs/aac/index.js"
 import { amrSnapshotEncoderDefinition } from "/dist/codecs/amr/index.js"
 
@@ -80,6 +75,10 @@ createApp({
       logs: [],
       storageDiagnostics: null,
       exportedBytes: null,
+      realtimeChunkCount: 0,
+      realtimeChunkBytes: 0,
+      asrChunkCount: 0,
+      asrChunkBytes: 0,
       activePersistenceBackend: null,
       lastExportResult: null, // { pcm, wav } — 上次导出结果，用于下载
       microphoneDevices: [], // MediaDeviceInfo[] — 已枚举的麦克风列表
@@ -221,6 +220,10 @@ createApp({
       state.lastFrameDurationMs = 0
       state.levelPercent = 0
       state.exportedBytes = null
+      state.realtimeChunkCount = 0
+      state.realtimeChunkBytes = 0
+      state.asrChunkCount = 0
+      state.asrChunkBytes = 0
       state.activePersistenceBackend = null
       state.storageDiagnostics = null
       state.lastExportResult = null
@@ -230,17 +233,28 @@ createApp({
       await recorder.use(createLevelMeterPlugin())
       await recorder.use(
         createStreamingExportPlugin({
-          format: "mp3",
-          encoders: [
-            mp3ChunkedEncoderDefinition,
-            pcmChunkedEncoderDefinition,
-            wavChunkedEncoderDefinition,
-            oggChunkedEncoderDefinition,
-            webmChunkedEncoderDefinition,
-            flacChunkedEncoderDefinition,
-          ],
-          encoderOptions: { bitRate: 32 },
+          format: "wav",
+          encoders: [wavChunkedEncoderDefinition, pcmChunkedEncoderDefinition],
+          encoderOptions: { framesPerChunk: 2048 },
           allowMainThreadFallback: true,
+        })
+      )
+      await recorder.use(
+        createAsrExportPlugin({
+          format: "pcm",
+          encoders: [pcmSnapshotEncoderDefinition],
+          sampleRate: 16000,
+          chunkDurationMs: 40,
+        })
+      )
+      await recorder.use(
+        createStreamingPlayerPlugin({
+          source: {
+            type: "plugin-event",
+            event: "plugin:encoded-chunk",
+            format: "wav",
+            encoders: [wavDecoderDefinition],
+          },
         })
       )
       recorderDisposers = bindRecorderEvents(recorder, state, appendLog)
@@ -663,7 +677,12 @@ function bindRecorderEvents(recorder, state, appendLog) {
   })
 
   const offStream = recorder.on("plugin:encoded-chunk", (e) => {
-    console.log(e)
+    state.realtimeChunkCount += 1
+    state.realtimeChunkBytes += e.payload.chunk.byteLength
+  })
+  const offAsr = recorder.on("plugin:asr:chunk", ({ payload }) => {
+    state.asrChunkCount += 1
+    state.asrChunkBytes += payload.chunk.byteLength
   })
   const offFrame = recorder.on(
     "frame:async",
@@ -681,7 +700,7 @@ function bindRecorderEvents(recorder, state, appendLog) {
     )
   })
 
-  return [offStateChange, offIssue, offFrame, offLevel, offStream]
+  return [offStateChange, offIssue, offFrame, offLevel, offStream, offAsr]
 }
 
 function unbindRecorderEvents(disposers) {
