@@ -1,0 +1,30 @@
+audio-recorder License
+======================
+
+The original source code of this project is licensed under the Mozilla Public
+License Version 2.0 (MPL-2.0), except where a file or directory states otherwise.
+
+The full MPL-2.0 text is available at:
+https://www.mozilla.org/MPL/2.0/
+
+This repository also contains generated WebAssembly codec artifacts and build
+scripts that use third-party C/C++ libraries. Those components remain under
+their upstream licenses. See `THIRD_PARTY_NOTICES.md` for the codec dependency
+license summary and source information.
+
+Important notes
+---------------
+
+- `src/codecs/mp3/libmp3.wasm.mjs` is built with LAME and is subject to LAME's
+  LGPL terms.
+- `src/codecs/aac/libaac.wasm.mjs` is built with FFmpeg configured with
+  `--disable-gpl` and is subject to FFmpeg's LGPL terms.
+- `src/codecs/opus/libopus.wasm.mjs`, `src/codecs/flac/libflac.wasm.mjs`,
+  `src/codecs/amr/libamrnb.wasm.mjs`, and `src/codecs/amr/libamrwb.wasm.mjs`
+  include third-party codec libraries under their respective upstream licenses.
+- The build scripts under `scripts/wasm/` document the exact upstream versions,
+  download URLs, and source archive checksums used to build these artifacts.
+
+No trademark, patent, or codec patent pool license is granted by this project
+beyond the rights expressly granted by the applicable open source licenses.
+

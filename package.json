@@ -2,6 +2,7 @@
   "name": "audio-recorder",
   "private": true,
   "version": "0.1.0",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "description": "TypeScript audio recorder library scaffold with Vite, Vitest, and Playwright.",
   "scripts": {

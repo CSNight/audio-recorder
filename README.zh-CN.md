@@ -971,4 +971,14 @@ createRecorder
 
 ## 引用
 
-预留。
+鸣谢：
+
+- [Recorder](https://github.com/xiangyuecn/Recorder)：录音实现参考
+- [Mediabunny](https://github.com/Vanilagy/mediabunny)：编码器与打包参考
+- WASM 编译流程所用上游编码库：
+  - [libopus](https://github.com/xiph/opus)
+  - [LAME](https://sourceforge.net/projects/lame/)
+  - [libFLAC](https://github.com/xiph/flac)
+  - [FFmpeg](https://ffmpeg.org/)
+  - [opencore-amr](https://github.com/mstorsjo/opencore-amr)
+  - [vo-amrwbenc](https://sourceforge.net/projects/opencore-amr/)

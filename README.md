@@ -971,4 +971,14 @@ Detailed chain document:
 
 ## References
 
-Reserved.
+Acknowledgements:
+
+- [Recorder](https://github.com/xiangyuecn/Recorder) for recorder implementation reference
+- [Mediabunny](https://github.com/Vanilagy/mediabunny) for codec and packaging reference
+- upstream codec projects used by the WASM build pipeline:
+  - [libopus](https://github.com/xiph/opus)
+  - [LAME](https://sourceforge.net/projects/lame/)
+  - [libFLAC](https://github.com/xiph/flac)
+  - [FFmpeg](https://ffmpeg.org/)
+  - [opencore-amr](https://github.com/mstorsjo/opencore-amr)
+  - [vo-amrwbenc](https://sourceforge.net/projects/opencore-amr/)
