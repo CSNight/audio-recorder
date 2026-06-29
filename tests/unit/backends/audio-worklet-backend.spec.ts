@@ -112,7 +112,7 @@ describe("createAudioWorkletBackend", () => {
 
     expect(audioContext.audioWorklet.addModule).toHaveBeenCalledTimes(1)
     expect(backend1.strategy).toBe("audio-worklet")
-    expect(created[0]?.name).toBe("audio-recorder-frame-processor")
+    expect(created[0]?.name).toBe("csnight-audio-recorder-frame-processor")
     expect(created[0]?.options).toMatchObject({
       channelCount: 2,
       channelCountMode: "clamped-max",

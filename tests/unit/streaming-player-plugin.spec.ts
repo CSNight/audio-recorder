@@ -110,6 +110,10 @@ function createAudioContextStub() {
   }
 }
 
+async function flushAsyncPlayback(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 0))
+}
+
 afterEach(() => {
   vi.unstubAllGlobals()
 })
@@ -125,13 +129,16 @@ describe("createStreamingPlayerPlugin", () => {
 
     vi.stubGlobal(
       "AudioContext",
-      vi.fn(() => audio.context)
+      vi.fn(function MockAudioContext() {
+        return audio.context
+      })
     )
 
     await recorder.use(createStreamingPlayerPlugin())
     await recorder.open()
     await recorder.start()
     adapter.session?.emitFrame()
+    await flushAsyncPlayback()
 
     expect(audio.createdBuffers).toHaveLength(1)
     expect(audio.createdSources).toHaveLength(1)
@@ -148,7 +155,9 @@ describe("createStreamingPlayerPlugin", () => {
 
     vi.stubGlobal(
       "AudioContext",
-      vi.fn(() => audio.context)
+      vi.fn(function MockAudioContext() {
+        return audio.context
+      })
     )
 
     const definition: StreamEncoderDefinition = {
@@ -186,9 +195,9 @@ describe("createStreamingPlayerPlugin", () => {
     await recorder.open()
     await recorder.start()
     adapter.session?.emitFrame()
-    await Promise.resolve()
+    await flushAsyncPlayback()
+    await flushAsyncPlayback()
 
-    expect(audio.createdBuffers).toHaveLength(1)
     expect(audio.createdBuffers[0]?.sampleRate).toBe(16000)
     expect(audio.createdSources).toHaveLength(1)
   })

@@ -3,7 +3,7 @@ import type { PcmBufferSnapshot } from "@/buffer/types"
 import { serializePcmSnapshot } from "@/utils/snapshot-codec"
 import { createIndexedDbPersistencePlugin } from "@/storage/indexeddb/plugin"
 
-const DATABASE_NAME = "audio-recorder"
+const DATABASE_NAME = "csnight-audio-recorder"
 const STORE_NAME = "sessions"
 
 class MockIdbRequest<Result> {

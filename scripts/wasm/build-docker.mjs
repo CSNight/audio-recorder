@@ -25,7 +25,7 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const projectRoot = resolve(__dirname, "../..")
-const imageName = "audio-recorder-wasm"
+const imageName = "csnight-audio-recorder-wasm"
 const supportedCodecs = supportedWasmCodecs
 const artifactPaths = {
   opus: ["src/codecs/opus/libopus.wasm.mjs"],
@@ -149,7 +149,7 @@ async function ensureDockerImage() {
 function createContainerName() {
   const timestamp = Date.now()
   const suffix = Math.random().toString(36).slice(2, 8)
-  return `audio-recorder-wasm-build-${timestamp}-${suffix}`
+  return `csnight-audio-recorder-wasm-build-${timestamp}-${suffix}`
 }
 
 async function copyArtifactsFromContainer(containerName) {

@@ -6,7 +6,7 @@ test("playground consumes the built library artifact and completes an external s
   await page.goto("/playground/")
 
   await expect(
-    page.getByRole("heading", { name: "audio-recorder 简版示例页" })
+    page.getByRole("heading", { name: "@csnight/audio-recorder 简版示例页" })
   ).toBeVisible()
   await expect(page.getByText("Built Artifact Only")).toBeVisible()
 

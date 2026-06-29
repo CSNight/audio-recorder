@@ -5,7 +5,7 @@ import {
 } from "@/input/backends/types"
 import { resolveChannelCount } from "@/utils/audio-frame"
 
-const RECORDER_WORKLET_PROCESSOR_NAME = "audio-recorder-frame-processor"
+const RECORDER_WORKLET_PROCESSOR_NAME = "csnight-audio-recorder-frame-processor"
 
 type AudioWorkletProcessorMessage =
   | {

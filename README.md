@@ -1,4 +1,4 @@
-# audio-recorder
+# @csnight/audio-recorder
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
@@ -27,7 +27,7 @@ Browser audio recorder library for modern web apps. Supports input fallback, PCM
 
 ## Overview
 
-`audio-recorder` provides a browser recording stack with:
+`@csnight/audio-recorder` provides a browser recording stack with:
 
 - microphone or external `MediaStream` input
 - automatic input backend selection
@@ -41,9 +41,9 @@ Build target: `es2022`.
 ## Quick Start
 
 ```ts
-import { createRecorder } from "audio-recorder"
-import { pcmExportEncoder, wavExportEncoder } from "audio-recorder/codecs/base"
-import { createLevelMeterPlugin } from "audio-recorder/plugins/level-meter"
+import { createRecorder } from "@csnight/audio-recorder"
+import { pcmExportEncoder, wavExportEncoder } from "@csnight/audio-recorder/codecs/base"
+import { createLevelMeterPlugin } from "@csnight/audio-recorder/plugins/level-meter"
 
 const recorder = createRecorder({
   channelCount: 1,
@@ -82,7 +82,7 @@ import {
   listMicrophoneDevices,
   checkRecorderCapability,
   RecorderController,
-} from "audio-recorder"
+} from "@csnight/audio-recorder"
 ```
 
 Exports:
@@ -336,19 +336,19 @@ Returns:
 
 | Package path | Exports |
 |---|---|
-| `audio-recorder/codecs/base` | PCM and WAV encoders / decoders |
-| `audio-recorder/codecs/mp3` | MP3 encoder |
-| `audio-recorder/codecs/flac` | FLAC encoder |
-| `audio-recorder/codecs/opus` | Opus encoder |
-| `audio-recorder/codecs/aac` | AAC encoder |
-| `audio-recorder/codecs/amr` | AMR encoder |
-| `audio-recorder/codecs/g711` | G.711 encoder |
-| `audio-recorder/plugins/level-meter` | `createLevelMeterPlugin()` |
-| `audio-recorder/plugins/streaming-export` | `createStreamingExportPlugin()` |
-| `audio-recorder/plugins/asr-export` | `createAsrExportPlugin()` |
-| `audio-recorder/plugins/streaming-player` | `createStreamingPlayerPlugin()` |
-| `audio-recorder/storage/opfs` | `createOpfsPersistencePlugin()` |
-| `audio-recorder/storage/indexeddb` | `createIndexedDbPersistencePlugin()` |
+| `@csnight/audio-recorder/codecs/base` | PCM and WAV encoders / decoders |
+| `@csnight/audio-recorder/codecs/mp3` | MP3 encoder |
+| `@csnight/audio-recorder/codecs/flac` | FLAC encoder |
+| `@csnight/audio-recorder/codecs/opus` | Opus encoder |
+| `@csnight/audio-recorder/codecs/aac` | AAC encoder |
+| `@csnight/audio-recorder/codecs/amr` | AMR encoder |
+| `@csnight/audio-recorder/codecs/g711` | G.711 encoder |
+| `@csnight/audio-recorder/plugins/level-meter` | `createLevelMeterPlugin()` |
+| `@csnight/audio-recorder/plugins/streaming-export` | `createStreamingExportPlugin()` |
+| `@csnight/audio-recorder/plugins/asr-export` | `createAsrExportPlugin()` |
+| `@csnight/audio-recorder/plugins/streaming-player` | `createStreamingPlayerPlugin()` |
+| `@csnight/audio-recorder/storage/opfs` | `createOpfsPersistencePlugin()` |
+| `@csnight/audio-recorder/storage/indexeddb` | `createIndexedDbPersistencePlugin()` |
 
 ### Events
 
@@ -424,8 +424,8 @@ Event:
 #### Quick Start
 
 ```ts
-import { createRecorder } from "audio-recorder"
-import { createLevelMeterPlugin } from "audio-recorder/plugins/level-meter"
+import { createRecorder } from "@csnight/audio-recorder"
+import { createLevelMeterPlugin } from "@csnight/audio-recorder/plugins/level-meter"
 
 const recorder = createRecorder()
 
@@ -479,9 +479,9 @@ Event:
 #### Quick Start
 
 ```ts
-import { createRecorder } from "audio-recorder"
-import { pcmStreamEncoder } from "audio-recorder/codecs/base"
-import { createStreamingExportPlugin } from "audio-recorder/plugins/streaming-export"
+import { createRecorder } from "@csnight/audio-recorder"
+import { pcmStreamEncoder } from "@csnight/audio-recorder/codecs/base"
+import { createStreamingExportPlugin } from "@csnight/audio-recorder/plugins/streaming-export"
 
 const recorder = createRecorder()
 
@@ -561,9 +561,9 @@ Event:
 #### Quick Start
 
 ```ts
-import { createRecorder } from "audio-recorder"
-import { pcmExportEncoder } from "audio-recorder/codecs/base"
-import { createAsrExportPlugin } from "audio-recorder/plugins/asr-export"
+import { createRecorder } from "@csnight/audio-recorder"
+import { pcmExportEncoder } from "@csnight/audio-recorder/codecs/base"
+import { createAsrExportPlugin } from "@csnight/audio-recorder/plugins/asr-export"
 
 const recorder = createRecorder()
 
@@ -634,8 +634,8 @@ Real-time playback plugin. Can play PCM frames directly or subscribe to `plugin:
 #### Quick Start
 
 ```ts
-import { createRecorder } from "audio-recorder"
-import { createStreamingPlayerPlugin } from "audio-recorder/plugins/streaming-player"
+import { createRecorder } from "@csnight/audio-recorder"
+import { createStreamingPlayerPlugin } from "@csnight/audio-recorder/plugins/streaming-player"
 
 const recorder = createRecorder()
 
@@ -680,8 +680,8 @@ OPFS persistence backend. Stores snapshots as chunk files and is suitable for lo
 #### Quick Start
 
 ```ts
-import { createRecorder } from "audio-recorder"
-import { createOpfsPersistencePlugin } from "audio-recorder/storage/opfs"
+import { createRecorder } from "@csnight/audio-recorder"
+import { createOpfsPersistencePlugin } from "@csnight/audio-recorder/storage/opfs"
 
 const recorder = createRecorder({
   storage: {
@@ -718,8 +718,8 @@ IndexedDB persistence backend. Stores snapshots as chunk entries in an object st
 #### Quick Start
 
 ```ts
-import { createRecorder } from "audio-recorder"
-import { createIndexedDbPersistencePlugin } from "audio-recorder/storage/indexeddb"
+import { createRecorder } from "@csnight/audio-recorder"
+import { createIndexedDbPersistencePlugin } from "@csnight/audio-recorder/storage/indexeddb"
 
 const recorder = createRecorder({
   storage: {

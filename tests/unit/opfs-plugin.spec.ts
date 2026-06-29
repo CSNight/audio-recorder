@@ -165,8 +165,9 @@ describe("createOpfsPersistencePlugin", () => {
     await session.clear()
     await expect(session.readSnapshots()).resolves.toEqual([])
 
-    const baseDirectory =
-      await rootDirectory.getDirectoryHandle("audio-recorder")
+    const baseDirectory = await rootDirectory.getDirectoryHandle(
+      "csnight-audio-recorder"
+    )
     await baseDirectory.getDirectoryHandle("session-opfs-1")
 
     await session.close()
@@ -179,7 +180,7 @@ describe("createOpfsPersistencePlugin", () => {
   it("cleans up stale session directories before creating a new session", async () => {
     const rootDirectory = new MockDirectoryHandle("root")
     const baseDirectory = await rootDirectory.getDirectoryHandle(
-      "audio-recorder",
+      "csnight-audio-recorder",
       {
         create: true,
       }
@@ -218,7 +219,7 @@ describe("createOpfsPersistencePlugin", () => {
   it("resumes chunk indexing for an existing session and ignores empty or non-bin entries", async () => {
     const rootDirectory = new MockDirectoryHandle("root")
     const baseDirectory = await rootDirectory.getDirectoryHandle(
-      "audio-recorder",
+      "csnight-audio-recorder",
       {
         create: true,
       }
@@ -284,8 +285,9 @@ describe("createOpfsPersistencePlugin", () => {
 
     await session.appendSnapshot(createSnapshot([100, 200]))
 
-    const baseDirectory =
-      await rootDirectory.getDirectoryHandle("audio-recorder")
+    const baseDirectory = await rootDirectory.getDirectoryHandle(
+      "csnight-audio-recorder"
+    )
     const sessionDirectory = await baseDirectory.getDirectoryHandle(
       "session-clear-errors"
     )
@@ -325,8 +327,9 @@ describe("createOpfsPersistencePlugin", () => {
       startedAt: 5,
     })
 
-    const baseDirectory =
-      await rootDirectory.getDirectoryHandle("audio-recorder")
+    const baseDirectory = await rootDirectory.getDirectoryHandle(
+      "csnight-audio-recorder"
+    )
     vi.spyOn(baseDirectory, "removeEntry").mockRejectedValue(
       new Error("Simulated OPFS close failure.")
     )

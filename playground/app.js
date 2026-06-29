@@ -867,7 +867,7 @@ async function inspectIndexedDbStorage() {
   }
 
   const database = await new Promise((resolve, reject) => {
-    const request = indexedDB.open("audio-recorder", 1)
+    const request = indexedDB.open("csnight-audio-recorder", 1)
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains("sessions")) {
         request.result.createObjectStore("sessions")
@@ -924,7 +924,7 @@ async function inspectOpfsStorage() {
   const root = await navigator.storage.getDirectory()
   let baseDirectory
   try {
-    baseDirectory = await root.getDirectoryHandle("audio-recorder")
+    baseDirectory = await root.getDirectoryHandle("csnight-audio-recorder")
   } catch {
     return {
       backend: "opfs",

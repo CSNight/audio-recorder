@@ -9,7 +9,7 @@
  */
 import type { PcmBufferSnapshot } from "@/buffer/types"
 import type { ExportEncoderDefinition } from "@/types"
-import { resample } from "audio-recorder"
+import { resample } from "@csnight/audio-recorder"
 import {
   createMp3Encoder,
   preloadMp3Module,

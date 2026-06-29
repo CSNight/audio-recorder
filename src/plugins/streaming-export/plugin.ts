@@ -16,7 +16,7 @@ import { ChunkedEncoderBridge } from "@/workers/chunked-encoder-bridge"
  *
  * 用法：
  * ```ts
- * import { pcmStreamEncoder } from "audio-recorder/codecs/pcm"
+ * import { pcmStreamEncoder } from "@csnight/audio-recorder/codecs/pcm"
  * const plugin = createStreamingExportPlugin({
  *   format: "pcm",
  *   encoders: [pcmStreamEncoder],

@@ -1,4 +1,7 @@
-import { deserializePcmSnapshot, serializePcmSnapshot } from "audio-recorder"
+import {
+  deserializePcmSnapshot,
+  serializePcmSnapshot,
+} from "@csnight/audio-recorder"
 import type {
   RecorderPersistencePlugin,
   RecorderPersistenceSession,
@@ -6,7 +9,7 @@ import type {
 } from "@/storage/types"
 
 // OPFS 根目录名，所有会话子目录都挂在这一目录下
-const ROOT_DIRECTORY = "audio-recorder"
+const ROOT_DIRECTORY = "csnight-audio-recorder"
 
 /**
  * 基于 Origin Private File System (OPFS) 的持久化插件。

@@ -1,10 +1,38 @@
 {
-  "name": "audio-recorder",
-  "private": true,
-  "version": "0.1.0",
+  "name": "@csnight/audio-recorder",
+  "private": false,
+  "version": "1.0.0",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
-  "description": "TypeScript audio recorder library scaffold with Vite, Vitest, and Playwright.",
+  "description": "Browser audio recorder library with PCM pipelines, plugins, persistence, and optional codec exports.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CSNight/audio-recorder.git"
+  },
+  "homepage": "https://github.com/CSNight/audio-recorder#readme",
+  "bugs": {
+    "url": "https://github.com/CSNight/audio-recorder/issues"
+  },
+  "keywords": [
+    "audio",
+    "recorder",
+    "mediarecorder",
+    "webaudio",
+    "typescript",
+    "wasm"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "vite",
     "dev:playground": "npm run build && vite --open /playground/",

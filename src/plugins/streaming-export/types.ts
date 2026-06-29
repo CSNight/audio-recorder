@@ -70,7 +70,7 @@ export interface StreamingExportPluginOptions {
   /**
    * 要使用的编码器定义列表。
    * 用户必须显式传入对应格式的 StreamEncoderDefinition，例如：
-   *   import { pcmStreamEncoder } from "audio-recorder/codecs/pcm"
+   *   import { pcmStreamEncoder } from "@csnight/audio-recorder/codecs/pcm"
    *   createStreamingExportPlugin({ format: "pcm", encoders: [pcmStreamEncoder] })
    */
   encoders: StreamEncoderDefinition[]

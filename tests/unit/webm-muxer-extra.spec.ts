@@ -83,9 +83,9 @@ describe("WebmMuxer — Info element strings", () => {
     expect(found).toBe(true)
   })
 
-  it("embeds 'audio-recorder' string somewhere in the headers", () => {
+  it("embeds '@csnight/audio-recorder' string somewhere in the headers", () => {
     const headers = getHeaderBytes()
-    const needle = new TextEncoder().encode("audio-recorder")
+    const needle = new TextEncoder().encode("@csnight/audio-recorder")
     outer: for (let i = 0; i <= headers.length - needle.length; i++) {
       for (let j = 0; j < needle.length; j++) {
         if (headers[i + j] !== needle[j]) continue outer

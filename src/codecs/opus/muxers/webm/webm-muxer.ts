@@ -229,8 +229,14 @@ export class WebmMuxer {
   private createInfo(): Uint8Array {
     const content = concat(
       writeElement(TimestampScale, writeUint(1000000)), // 1ms precision
-      writeElement(MuxingApp, new TextEncoder().encode("audio-recorder")),
-      writeElement(WritingApp, new TextEncoder().encode("audio-recorder"))
+      writeElement(
+        MuxingApp,
+        new TextEncoder().encode("@csnight/audio-recorder")
+      ),
+      writeElement(
+        WritingApp,
+        new TextEncoder().encode("@csnight/audio-recorder")
+      )
     )
 
     return writeElement(Info, content)

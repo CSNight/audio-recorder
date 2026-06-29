@@ -1,4 +1,7 @@
-import { deserializePcmSnapshot, serializePcmSnapshot } from "audio-recorder"
+import {
+  deserializePcmSnapshot,
+  serializePcmSnapshot,
+} from "@csnight/audio-recorder"
 import type {
   RecorderPersistencePlugin,
   RecorderPersistenceSession,
@@ -6,7 +9,7 @@ import type {
 } from "@/storage/types"
 
 /** IndexedDB 数据库名，全局唯一，避免与其他库冲突。 */
-const DATABASE_NAME = "audio-recorder"
+const DATABASE_NAME = "csnight-audio-recorder"
 /** ObjectStore 名称，所有录音 chunk 均存储于此。 */
 const STORE_NAME = "sessions"
 /** chunk key 格式："{sessionId}::chunk::{index}"，分隔符用于解析 sessionId 和 chunk 序号。 */
