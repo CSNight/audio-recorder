@@ -27,7 +27,10 @@ async function collectDeclarationFiles(directory) {
 function normalizeModuleSpecifier(currentFile, targetFromAlias) {
   const currentDirectory = dirname(currentFile)
   const absoluteTarget = join(distRoot, targetFromAlias)
-  let specifier = relative(currentDirectory, absoluteTarget).replaceAll("\\", "/")
+  let specifier = relative(currentDirectory, absoluteTarget).replaceAll(
+    "\\",
+    "/"
+  )
 
   specifier = posix.normalize(specifier)
 
@@ -40,10 +43,13 @@ function normalizeModuleSpecifier(currentFile, targetFromAlias) {
 
 async function rewriteDeclarationImports(filePath) {
   const original = await readFile(filePath, "utf8")
-  const rewritten = original.replace(specifierPattern, (_match, quote, target) => {
-    const specifier = normalizeModuleSpecifier(filePath, target)
-    return `${quote}${specifier}${quote}`
-  })
+  const rewritten = original.replace(
+    specifierPattern,
+    (_match, quote, target) => {
+      const specifier = normalizeModuleSpecifier(filePath, target)
+      return `${quote}${specifier}${quote}`
+    }
+  )
 
   if (rewritten !== original) {
     await writeFile(filePath, rewritten, "utf8")
