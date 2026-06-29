@@ -1,7 +1,7 @@
 {
   "name": "@csnight/audio-recorder",
   "private": false,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "description": "Browser audio recorder library with PCM pipelines, plugins, persistence, and optional codec exports.",
@@ -36,7 +36,7 @@
   "scripts": {
     "dev": "vite",
     "dev:playground": "npm run build && vite --open /playground/",
-    "build": "vite build && tsc -p tsconfig.build.json",
+    "build": "vite build && tsc -p tsconfig.build.json && npm run fix:dts",
     "preview": "vite preview",
     "prepare": "husky",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -49,9 +49,11 @@
     "test:functional:headed": "playwright test --headed",
     "lint": "eslint . --fix",
     "format": "prettier --write .",
+    "fix:dts": "node ./scripts/fix-dts-imports.mjs",
     "commitlint": "commitlint --edit",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build && npm run verify:exports",
-    "verify:exports": "node ./scripts/verify-exports.mjs"
+    "verify:exports": "node ./scripts/verify-exports.mjs",
+    "publish": "npm publish --access public --registry=https://registry.npmjs.org/"
   },
   "exports": {
     ".": {
