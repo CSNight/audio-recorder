@@ -6,10 +6,7 @@ import type {
   RecorderInputSession,
 } from "@/input/types"
 import { RecorderController } from "@/core/recorder-controller"
-import {
-  pcmExportEncoder,
-  wavExportEncoder,
-} from "@/codecs/base"
+import { pcmExportEncoder, wavExportEncoder } from "@/codecs/base"
 import { createAsrExportPlugin } from "@/plugins/asr-export"
 import type { AsrChunkPayload } from "@/plugins/asr-export/types"
 import type { RecorderPluginEventContext } from "@/plugins/types"

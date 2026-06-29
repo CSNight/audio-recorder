@@ -1,7 +1,4 @@
-export {
-  oggExportEncoder,
-  webmExportEncoder,
-} from "./opus-snapshot-exporter"
+export { oggExportEncoder, webmExportEncoder } from "./opus-snapshot-exporter"
 export type {
   OpusEncoderOptions,
   OpusDecoderOptions,

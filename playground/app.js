@@ -25,10 +25,7 @@ import {
 } from "/dist/codecs/base/index.js"
 import { mp3ExportEncoder } from "/dist/codecs/mp3/index.js"
 import { g711ExportEncoder } from "/dist/codecs/g711/index.js"
-import {
-  oggExportEncoder,
-  webmExportEncoder,
-} from "/dist/codecs/opus/index.js"
+import { oggExportEncoder, webmExportEncoder } from "/dist/codecs/opus/index.js"
 import { flacExportEncoder } from "/dist/codecs/flac/index.js"
 import { aacExportEncoder } from "/dist/codecs/aac/index.js"
 import { amrExportEncoder } from "/dist/codecs/amr/index.js"

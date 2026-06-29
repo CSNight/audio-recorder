@@ -1,59 +1,57 @@
 # audio-recorder
 
-面向浏览器场景的 TypeScript 录音库，当前已经完成录音主链路、PCM/WAV/MP3 导出、插件事件体系、流式 chunk 导出，以及可插拔的持久化溢写能力。
+[English](./README.md) | [中文](./README.zh-CN.md)
 
-项目当前实现以 `src/` 为库源码，以 `dist/` 为对外产物；`playground/` 只消费构建后的产物，用来验证真实打包结果而不是源码直连行为。
+Browser audio recorder library for modern web apps. Supports input fallback, PCM frame pipelines, snapshot export, streaming export, plugins, and optional persistence.
 
-## 当前能力
+## Contents
 
-- `createRecorder()` 创建录音控制器，支持 `open / start / pause / resume / stop / close / destroy`
-- 输入来源支持麦克风和外部 `MediaStream`
-- 输入策略支持 `media-recorder`、`audio-worklet`、`script-processor`，默认按兼容性自动降级
-- 支持麦克风设备枚举与 `deviceId` 定向选择
-- 支持实时 PCM 帧分发、状态事件、告警事件和插件事件
-- 支持 `pcm`、`wav`、`mp3` 三种全量导出
-- 支持 `streaming-export` 实时 chunk 编码插件
-- 支持 `level-meter` 实时电平插件
-- 支持 `memory / auto / persistent` 三种缓冲存储模式
-- 支持 OPFS 与 IndexedDB 两种持久化后端
+- [Overview](#overview)
+- [Quick Start](#quick-start)
+- [Features](#features)
+- [API](#api)
+- [Plugins](#plugins)
+- [`level-meter`](#level-meter)
+- [`streaming-export`](#streaming-export)
+- [`asr-export`](#asr-export)
+- [`streaming-player`](#streaming-player)
+- [Storage](#storage)
+- [`storage/opfs`](#storageopfs)
+- [`storage/indexeddb`](#storageindexeddb)
+- [Codecs](#codecs)
+- [Development](#development)
+- [Browser Support](#browser-support)
+- [Benchmarks](#benchmarks)
+- [Architecture](#architecture)
+- [References](#references)
 
-## 安装与开发
+## Overview
 
-```bash
-npm install
-npm run dev
-```
+`audio-recorder` provides a browser recording stack with:
 
-常用命令：
+- microphone or external `MediaStream` input
+- automatic input backend selection
+- PCM frame events
+- encoder-based export
+- plugin-based extensions
+- OPFS / IndexedDB persistence
 
-- `npm run dev`：启动开发服务器
-- `npm run dev:playground`：先构建库，再打开 playground
-- `npm run build`：构建库产物与类型声明
-- `npm run typecheck`：TypeScript 检查
-- `npm run test:unit`：Vitest 单元测试
-- `npm run test:functional`：Playwright 功能测试
-- `npm run check`：执行 lint、typecheck、测试、build、导出校验
+Build target: `es2022`.
 
-## 快速使用
+## Quick Start
 
 ```ts
 import { createRecorder } from "audio-recorder"
-import {
-  pcmExportEncoder,
-  wavExportEncoder,
-} from "audio-recorder/codecs/base"
-import { mp3ExportEncoder } from "audio-recorder/codecs/mp3"
+import { pcmExportEncoder, wavExportEncoder } from "audio-recorder/codecs/base"
+import { createLevelMeterPlugin } from "audio-recorder/plugins/level-meter"
 
 const recorder = createRecorder({
   channelCount: 1,
   inputStrategy: "auto",
-  encoders: [
-    pcmExportEncoder,
-    wavExportEncoder,
-    mp3ExportEncoder,
-  ],
+  encoders: [pcmExportEncoder, wavExportEncoder],
 })
 
+await recorder.use(createLevelMeterPlugin())
 await recorder.open()
 await recorder.start()
 
@@ -63,30 +61,434 @@ const wav = await recorder.exportEncoded("wav", { bitRate: 16 })
 console.log(summary.durationMs, wav.arrayBuffer.byteLength)
 ```
 
-## 可选扩展入口
+## Features
 
-根入口只暴露最小核心 API，扩展能力通过子路径显式引入：
+- recorder lifecycle: `open / start / pause / resume / stop / close / destroy`
+- input strategies: `media-recorder`, `audio-worklet`, `script-processor`
+- device enumeration: `listMicrophoneDevices()`
+- capability detection: `checkRecorderCapability()`
+- recording events: `statechange`, `frame:async`, `issue`
+- snapshot export: `pcm`, `wav`, `mp3`, `flac`, `ogg`, `webm`, `g711`, `aac`, `amr`
+- persistence backends: `storage/opfs`, `storage/indexeddb`
+- bundled plugins: `level-meter`, `streaming-export`, `asr-export`, `streaming-player`
 
-- `audio-recorder/codecs/base`
-- `audio-recorder/codecs/mp3`
-- `audio-recorder/plugins/streaming-export`
-- `audio-recorder/plugins/level-meter`
-- `audio-recorder/storage/opfs`
-- `audio-recorder/storage/indexeddb`
+## API
 
-实时 chunk 导出示例：
+### Main entry
+
+```ts
+import {
+  createRecorder,
+  listMicrophoneDevices,
+  checkRecorderCapability,
+  RecorderController,
+} from "audio-recorder"
+```
+
+Exports:
+
+| Export | Description |
+|---|---|
+| `createRecorder(options?)` | Create a recorder controller |
+| `listMicrophoneDevices()` | Enumerate microphone devices |
+| `checkRecorderCapability()` | Return a browser capability report |
+| `RecorderController` | Recorder class |
+| `resample()` | PCM resampling helper |
+| `serializePcmSnapshot()` / `deserializePcmSnapshot()` | PCM snapshot codec |
+| `RecorderState` | Recorder state enum |
+| `RecorderWarningCode` | Warning code enum |
+| `RecorderInputSource` | Input source enum |
+
+### `createRecorder(options?)`
+
+| Option | Type | Default | Notes |
+|---|---|---|---|
+| `sampleRate` | `number` | `-` | Requested input sample rate |
+| `channelCount` | `number` | `-` | Requested channel count |
+| `echoCancellation` | `boolean` | `true` | Input constraint |
+| `noiseSuppression` | `boolean` | `true` | Input constraint |
+| `autoGainControl` | `boolean` | `true` | Input constraint |
+| `deviceId` | `string` | `-` | Target microphone device |
+| `disableFrameLossCompensation` | `boolean` | `false` | Skip silence padding |
+| `inputStrategy` | `"auto" \| "media-recorder" \| "audio-worklet" \| "script-processor"` | `"auto"` | Input backend selection |
+| `storage` | `RecorderStorageOptions` | `-` | Buffer persistence policy |
+| `encoders` | `ExportEncoderDefinition[]` | `[]` | Snapshot encoders |
+
+Returns:
+
+| Type | Description |
+|---|---|
+| `RecorderController` | Recorder controller instance |
+
+### `storage`
+
+Recorder persistence is configured through `createRecorder({ storage })`.
+
+`RecorderStorageOptions`:
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `mode` | `"memory" \| "persistent" \| "auto"` | `-` | Buffer mode |
+| `memoryThresholdBytes` | `number` | `-` | Switch threshold for `auto` mode |
+| `persistenceChunkBytes` | `number` | `-` | Target chunk size for persistence flush |
+| `persistencePlugin` | `RecorderPersistencePlugin` | `-` | Persistence backend |
+
+### `RecorderController`
+
+#### `on(event, listener)`
+
+Subscribe to recorder or plugin events.
+
+Parameters:
+
+| Name | Type | Description |
+|---|---|---|
+| `event` | `keyof RecorderEventMap` | Event name |
+| `listener` | `(payload) => void` | Event listener |
+
+Returns:
+
+| Type | Description |
+|---|---|
+| `() => void` | Unsubscribe function |
+
+#### `off(event, listener)`
+
+Remove an event listener.
+
+Parameters:
+
+| Name | Type | Description |
+|---|---|---|
+| `event` | `keyof RecorderEventMap` | Event name |
+| `listener` | `(payload) => void` | Listener to remove |
+
+Returns:
+
+| Type | Description |
+|---|---|
+| `void` | No return value |
+
+#### `getState()`
+
+Returns:
+
+| Type | Description |
+|---|---|
+| `RecorderState` | Current recorder state |
+
+#### `getRuntimeInfo()`
+
+Returns:
+
+| Type | Description |
+|---|---|
+| `RecorderRuntimeInfo` | Requested and actual input runtime info |
+
+#### `getLatestSummary()`
+
+Returns:
+
+| Type | Description |
+|---|---|
+| `RecorderSessionSummary` | Current session summary |
+
+#### `use(plugin)`
+
+Register a plugin.
+
+Parameters:
+
+| Name | Type | Description |
+|---|---|---|
+| `plugin` | `RecorderPlugin` | Plugin instance |
+
+Returns:
+
+| Type | Description |
+|---|---|
+| `Promise<void>` | Resolves when plugin setup completes |
+
+#### `registerEncoder(definition)`
+
+Register a snapshot encoder.
+
+Parameters:
+
+| Name | Type | Description |
+|---|---|---|
+| `definition` | `ExportEncoderDefinition` | Encoder definition for `exportEncoded()` |
+
+Returns:
+
+| Type | Description |
+|---|---|
+| `void` | No return value |
+
+#### `exportEncoded(type, options?)`
+
+Export the current PCM snapshot with a registered encoder.
+
+Parameters:
+
+| Name | Type | Description |
+|---|---|---|
+| `type` | `keyof EncoderMap \| string` | Encoder type |
+| `options` | encoder-specific | Export options for the selected encoder |
+
+Returns:
+
+| Type | Description |
+|---|---|
+| `Promise<TResult>` | Encoded result returned by the selected encoder |
+
+Common built-in result types:
+
+| Type | Result |
+|---|---|
+| `pcm` | `PcmExportResult` |
+| `wav` | `WavExportResult` |
+| `mp3` | `Mp3ExportResult` |
+| `flac` | `FlacExportResult` |
+| `ogg` / `webm` | `OpusExportResult` |
+| `g711` | `G711ExportResult` |
+| `aac` | `AacExportResult` |
+| `amr` | `AmrExportResult` |
+
+#### `open(options?)`
+
+Open a recorder session.
+
+Parameters:
+
+| Name | Type | Description |
+|---|---|---|
+| `options` | `RecorderOpenOptions` | Per-session input overrides |
+
+`RecorderOpenOptions` fields:
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `sampleRate` | `number` | `-` | Requested sample rate |
+| `channelCount` | `number` | `-` | Requested channel count |
+| `echoCancellation` | `boolean` | `true` | Enable echo cancellation |
+| `noiseSuppression` | `boolean` | `true` | Enable noise suppression |
+| `autoGainControl` | `boolean` | `true` | Enable auto gain control |
+| `deviceId` | `string` | `-` | Target microphone device |
+| `disableFrameLossCompensation` | `boolean` | `false` | Disable silence padding on detected frame loss |
+| `inputStrategy` | `"auto" \| "media-recorder" \| "audio-worklet" \| "script-processor"` | `"auto"` | Preferred input backend |
+
+Returns:
+
+| Type | Description |
+|---|---|
+| `Promise<RecorderRuntimeInfo>` | Actual runtime info after session opens |
+
+#### `start()`
+
+Returns:
+
+| Type | Description |
+|---|---|
+| `Promise<RecorderRuntimeInfo>` | Updated runtime info |
+
+#### `pause()`
+
+Returns:
+
+| Type | Description |
+|---|---|
+| `void` | No return value |
+
+#### `resume()`
+
+Returns:
+
+| Type | Description |
+|---|---|
+| `Promise<RecorderRuntimeInfo>` | Updated runtime info |
+
+#### `stop()`
+
+Returns:
+
+| Type | Description |
+|---|---|
+| `Promise<RecorderSessionSummary>` | Final session summary |
+
+#### `close()`
+
+Returns:
+
+| Type | Description |
+|---|---|
+| `Promise<void>` | Resolves when session resources are closed |
+
+#### `destroy()`
+
+Returns:
+
+| Type | Description |
+|---|---|
+| `Promise<void>` | Resolves when teardown completes |
+
+### Subpaths
+
+| Package path | Exports |
+|---|---|
+| `audio-recorder/codecs/base` | PCM and WAV encoders / decoders |
+| `audio-recorder/codecs/mp3` | MP3 encoder |
+| `audio-recorder/codecs/flac` | FLAC encoder |
+| `audio-recorder/codecs/opus` | Opus encoder |
+| `audio-recorder/codecs/aac` | AAC encoder |
+| `audio-recorder/codecs/amr` | AMR encoder |
+| `audio-recorder/codecs/g711` | G.711 encoder |
+| `audio-recorder/plugins/level-meter` | `createLevelMeterPlugin()` |
+| `audio-recorder/plugins/streaming-export` | `createStreamingExportPlugin()` |
+| `audio-recorder/plugins/asr-export` | `createAsrExportPlugin()` |
+| `audio-recorder/plugins/streaming-player` | `createStreamingPlayerPlugin()` |
+| `audio-recorder/storage/opfs` | `createOpfsPersistencePlugin()` |
+| `audio-recorder/storage/indexeddb` | `createIndexedDbPersistencePlugin()` |
+
+### Events
+
+#### `statechange`
+
+Fired when recorder state changes.
+
+| Field | Type | Description |
+|---|---|---|
+| `controller` | `RecorderController` | Recorder instance |
+| `sessionId` | `string` | Current session identifier |
+| `emittedAt` | `number` | Event timestamp in ms |
+| `previousState` | `RecorderState` | Previous state |
+| `state` | `RecorderState` | Next state |
+| `runtimeInfo` | `RecorderRuntimeInfo` | Runtime info snapshot |
+| `summary` | `RecorderSessionSummary` | Session summary snapshot |
+
+#### `frame:async`
+
+Fired asynchronously for accepted PCM frames.
+
+| Field | Type | Description |
+|---|---|---|
+| `controller` | `RecorderController` | Recorder instance |
+| `sessionId` | `string` | Current session identifier |
+| `emittedAt` | `number` | Event timestamp in ms |
+| `frame` | `AudioFrame` | PCM frame |
+| `runtimeInfo` | `RecorderRuntimeInfo` | Runtime info snapshot |
+| `summary` | `RecorderSessionSummary` | Session summary snapshot |
+
+`frame` fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `channels` | `number` | Channel count |
+| `sampleRate` | `number` | Frame sample rate |
+| `timestamp` | `number` | Frame timestamp in ms |
+| `durationMs` | `number` | Frame duration in ms |
+| `planar` | `Int16Array[]` | Per-channel PCM samples |
+
+#### `issue`
+
+Fired for warnings and errors.
+
+| Field | Type | Description |
+|---|---|---|
+| `controller` | `RecorderController` | Recorder instance |
+| `sessionId` | `string` | Current session identifier |
+| `emittedAt` | `number` | Event timestamp in ms |
+| `issue` | `RecorderIssue` | Warning or error payload |
+| `runtimeInfo` | `RecorderRuntimeInfo` | Runtime info snapshot |
+| `summary` | `RecorderSessionSummary` | Session summary snapshot |
+
+`issue` variants:
+
+| Variant | Fields |
+|---|---|
+| `warning` | `{ kind: "warning", warning: { code, message } }` |
+| `error` | `{ kind: "error", error: Error }` |
+
+## Plugins
+
+### `level-meter`
+
+#### Introduction
+
+Real-time level meter plugin. Consumes recorded frames and emits aggregate and per-channel `peak / rms`.
+
+Event:
+
+- `plugin:level`
+
+#### Quick Start
 
 ```ts
 import { createRecorder } from "audio-recorder"
+import { createLevelMeterPlugin } from "audio-recorder/plugins/level-meter"
+
+const recorder = createRecorder()
+
+await recorder.use(createLevelMeterPlugin())
+
+recorder.on("plugin:level", ({ payload }) => {
+  console.log(payload.level.peak, payload.level.rms)
+})
+```
+
+#### API
+
+| Export | Description |
+|---|---|
+| `createLevelMeterPlugin()` | Create the level meter plugin |
+
+Options:
+
+None.
+
+Event payload: `plugin:level`
+
+| Field | Type | Description |
+|---|---|---|
+| `controller` | `RecorderController` | Recorder instance |
+| `sessionId` | `string` | Current session identifier |
+| `emittedAt` | `number` | Event timestamp in ms |
+| `pluginName` | `string` | Plugin name |
+| `runtimeInfo` | `RecorderRuntimeInfo` | Runtime info snapshot |
+| `summary` | `RecorderSessionSummary` | Session summary snapshot |
+| `payload` | `RecorderLevelEvent` | Level payload |
+
+`payload.level` fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `peak` | `number` | Frame peak value normalized to `0..1` |
+| `rms` | `number` | Frame RMS value normalized to `0..1` |
+| `channels` | `RecorderLevelChannel[]` | Per-channel level array |
+
+### `streaming-export`
+
+#### Introduction
+
+Real-time chunk export plugin. Feeds PCM frames into a `StreamEncoderDefinition` and emits encoded chunks while recording.
+
+Event:
+
+- `plugin:encoded-chunk`
+
+#### Quick Start
+
+```ts
+import { createRecorder } from "audio-recorder"
+import { pcmStreamEncoder } from "audio-recorder/codecs/base"
 import { createStreamingExportPlugin } from "audio-recorder/plugins/streaming-export"
-import { wavStreamEncoder } from "audio-recorder/codecs/base"
 
 const recorder = createRecorder()
 
 await recorder.use(
   createStreamingExportPlugin({
-    format: "wav",
-    encoders: [wavStreamEncoder],
+    format: "pcm",
+    encoders: [pcmStreamEncoder],
   })
 )
 
@@ -95,7 +497,225 @@ recorder.on("plugin:encoded-chunk", ({ payload }) => {
 })
 ```
 
-持久化溢写示例：
+#### API
+
+| Export | Description |
+|---|---|
+| `createStreamingExportPlugin(options)` | Create a streaming export plugin |
+| `StreamEncoderDefinition` | Public stream encoder definition passed by the caller |
+| `StreamingChunkPayload` | Chunk event payload |
+| `StreamingExportPluginOptions` | Plugin options |
+
+Options: `StreamingExportPluginOptions`
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `format` | `"pcm" \| "wav"` | `-` | Output chunk format |
+| `encoderOptions` | `unknown` | `-` | Encoder-specific options passed to the public encoder definition |
+| `encoders` | `StreamEncoderDefinition[]` | `-` | Available stream encoders |
+| `allowMainThreadFallback` | `boolean` | `true` | Fall back to main-thread encoding when Worker execution is unavailable |
+
+`StreamEncoderDefinition` fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `format` | `string` | Encoder format key |
+| `workerFactory` | `() => Worker` | Optional Worker factory |
+| `preload` | `() => Promise<void>` | Optional preload hook |
+| `create` | `(options?) => StreamEncoder` | Create encoder instance |
+
+Event payload: `plugin:encoded-chunk`
+
+| Field | Type | Description |
+|---|---|---|
+| `controller` | `RecorderController` | Recorder instance |
+| `sessionId` | `string` | Current session identifier |
+| `emittedAt` | `number` | Event timestamp in ms |
+| `pluginName` | `string` | Plugin name |
+| `runtimeInfo` | `RecorderRuntimeInfo` | Runtime info snapshot |
+| `summary` | `RecorderSessionSummary` | Session summary snapshot |
+| `payload` | `StreamingChunkPayload` | Encoded chunk payload |
+
+`StreamingChunkPayload` fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `chunk` | `Uint8Array` | Encoded bytes |
+| `format` | `"pcm" \| "wav"` | Chunk format |
+| `timestampMs` | `number` | Frame timestamp for this chunk |
+| `sequenceIndex` | `number` | Monotonic chunk index |
+| `sampleRate` | `number` | Chunk sample rate |
+| `channels` | `number` | Chunk channel count |
+| `isFinal` | `boolean` | Final chunk flag |
+
+### `asr-export`
+
+#### Introduction
+
+Chunk export plugin for ASR pipelines. Downmixes input to mono, slices it into fixed-duration chunks, then encodes each chunk.
+
+Event:
+
+- `plugin:asr:chunk`
+
+#### Quick Start
+
+```ts
+import { createRecorder } from "audio-recorder"
+import { pcmExportEncoder } from "audio-recorder/codecs/base"
+import { createAsrExportPlugin } from "audio-recorder/plugins/asr-export"
+
+const recorder = createRecorder()
+
+await recorder.use(
+  createAsrExportPlugin({
+    format: "pcm",
+    encoders: [pcmExportEncoder],
+    sampleRate: 16000,
+    chunkDurationMs: 40,
+  })
+)
+
+recorder.on("plugin:asr:chunk", ({ payload }) => {
+  console.log(payload.sequenceIndex, payload.chunk.byteLength, payload.isFinal)
+})
+```
+
+#### API
+
+| Export | Description |
+|---|---|
+| `createAsrExportPlugin(options)` | Create an ASR export plugin |
+| `AsrChunkPayload` | ASR chunk payload |
+| `AsrExportPluginOptions` | Plugin options |
+
+Options: `AsrExportPluginOptions`
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `format` | `"pcm" \| "wav"` | `"pcm"` | Chunk output format |
+| `encoders` | `ExportEncoderDefinition[]` | `-` | Available snapshot encoders |
+| `sampleRate` | `8000 \| 16000 \| 24000 \| 32000 \| 48000` | `16000` | Output sample rate |
+| `channels` | `1` | `-` | Mono only |
+| `chunkDurationMs` | `number` | `40` | Chunk duration in milliseconds |
+| `bitsPerSample` | `16` | `16` | Currently fixed to 16-bit output |
+
+Event payload: `plugin:asr:chunk`
+
+| Field | Type | Description |
+|---|---|---|
+| `controller` | `RecorderController` | Recorder instance |
+| `sessionId` | `string` | Current session identifier |
+| `emittedAt` | `number` | Event timestamp in ms |
+| `pluginName` | `string` | Plugin name |
+| `runtimeInfo` | `RecorderRuntimeInfo` | Runtime info snapshot |
+| `summary` | `RecorderSessionSummary` | Session summary snapshot |
+| `payload` | `AsrChunkPayload` | ASR chunk payload |
+
+`AsrChunkPayload` fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `format` | `"pcm" \| "wav"` | Output format |
+| `chunk` | `Uint8Array` | Encoded bytes |
+| `sequenceIndex` | `number` | Monotonic chunk index |
+| `timestampMs` | `number` | Chunk timestamp in ms |
+| `durationMs` | `number` | Chunk duration |
+| `sampleRate` | `number` | Output sample rate |
+| `channels` | `1` | Always mono |
+| `isFinal` | `boolean` | Final chunk flag |
+
+### `streaming-player`
+
+#### Introduction
+
+Real-time playback plugin. Can play PCM frames directly or subscribe to `plugin:encoded-chunk` and decode chunks for playback.
+
+#### Quick Start
+
+```ts
+import { createRecorder } from "audio-recorder"
+import { createStreamingPlayerPlugin } from "audio-recorder/plugins/streaming-player"
+
+const recorder = createRecorder()
+
+await recorder.use(
+  createStreamingPlayerPlugin({
+    source: { type: "pcm-frame" },
+  })
+)
+```
+
+#### API
+
+| Export | Description |
+|---|---|
+| `createStreamingPlayerPlugin(options?)` | Create a streaming player plugin |
+| `StreamingPlayerEncoderDefinition` | Public decoder definition passed by the caller |
+| `StreamingPlayerPluginOptions` | Plugin options |
+
+Options: `StreamingPlayerPluginOptions`
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `volume` | `number` | `1` | Playback gain |
+| `autoPlay` | `boolean` | `true` | Auto-resume `AudioContext` |
+| `source` | `{ type: "pcm-frame" } \| { type: "plugin-event"; event: "plugin:encoded-chunk"; format: "pcm" \| "wav"; encoders: StreamingPlayerEncoderDefinition[] }` | `{ type: "pcm-frame" }` | Playback source |
+
+`StreamingPlayerEncoderDefinition` fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `format` | `string` | Encoded chunk format |
+| `decode` | `(payload) => Promise<DecodedAudioChunk>` | Decode plugin chunk into PCM |
+
+## Storage
+
+### `storage/opfs`
+
+#### Introduction
+
+OPFS persistence backend. Stores snapshots as chunk files and is suitable for long recordings or larger local caches.
+
+#### Quick Start
+
+```ts
+import { createRecorder } from "audio-recorder"
+import { createOpfsPersistencePlugin } from "audio-recorder/storage/opfs"
+
+const recorder = createRecorder({
+  storage: {
+    mode: "auto",
+    memoryThresholdBytes: 256 * 1024,
+    persistencePlugin: createOpfsPersistencePlugin(),
+  },
+})
+```
+
+#### API
+
+| Export | Description |
+|---|---|
+| `createOpfsPersistencePlugin()` | Create an OPFS persistence plugin |
+
+Use with the main recorder `storage` option:
+
+```ts
+createRecorder({
+  storage: {
+    mode: "auto",
+    persistencePlugin: createOpfsPersistencePlugin(),
+  },
+})
+```
+
+### `storage/indexeddb`
+
+#### Introduction
+
+IndexedDB persistence backend. Stores snapshots as chunk entries in an object store and is suitable for the broad compatibility path.
+
+#### Quick Start
 
 ```ts
 import { createRecorder } from "audio-recorder"
@@ -110,196 +730,245 @@ const recorder = createRecorder({
 })
 ```
 
-## 仓库结构
+#### API
 
-```text
-src/
-  core/               控制器、事件总线
-  input/              浏览器输入适配、后端选择、WebM PCM 提取
-  pipeline/           帧管线
-  buffer/             内存/持久化缓冲
-  codecs/             PCM/WAV/MP3 编解码器
-  plugins/            level-meter、streaming-export
-  storage/            OPFS / IndexedDB 持久化插件
-  workers/            通用 chunk 编码 Worker 桥接
-playground/           基于 dist 产物的验证页面
-tests/                单元测试与 Playwright 功能测试
-docs/                 方案、架构与文档索引
-vendor/               上游 Recorder 参考实现
+| Export | Description |
+|---|---|
+| `createIndexedDbPersistencePlugin()` | Create an IndexedDB persistence plugin |
+
+Use with the main recorder `storage` option:
+
+```ts
+createRecorder({
+  storage: {
+    mode: "auto",
+    persistencePlugin: createIndexedDbPersistencePlugin(),
+  },
+})
 ```
 
-## 文档入口
+## Codecs
 
-- 文档索引：[`docs/README.md`](./docs/README.md)
-- 架构文档：[`docs/architecture/execution-chain.md`](./docs/architecture/execution-chain.md)
-- 方案文档：[`docs/plans/recorder-ts-master-plan.md`](./docs/plans/recorder-ts-master-plan.md)
+### `codecs/base`
 
-## 测试覆盖现状
+Core PCM and WAV support.
 
-- 单元测试覆盖控制器、输入后端选择、PCM/WAV 编码、chunked encoder bridge、插件总线、持久化插件等核心模块
-- Playwright 功能测试覆盖 external stream 生命周期、IndexedDB/OPFS 持久化路径和 playground 对 `dist` 产物的真实消费
+- `pcmExportEncoder`: export raw PCM snapshots
+- `wavExportEncoder`: export WAV files
+- `pcmStreamEncoder`: stream PCM chunks
+- `wavStreamEncoder`: stream WAV chunks
 
-## 浏览器兼容性
+### `codecs/mp3`
 
-以下数据基于 `src/` 实际代码中使用的 Web API 逐一评估，构建产物以 ES2022 为输出目标（`vite.config.ts: target: "es2022"`）。
+MP3 export based on a WASM encoder.
 
-### 输入策略
+- suitable for broad playback compatibility
+- exposed as a separate subpath to avoid inflating the root bundle
 
-代码在 `media-recorder-backend.ts` 中通过 `MediaRecorder.isTypeSupported("audio/webm; codecs=pcm")` 做严格检测，只有支持 PCM 裸音频录入的浏览器才会走 media-recorder 路径；其他浏览器自动降级。
+### `codecs/flac`
 
-| 输入策略 | 最低 Chrome | 最低 Firefox | 最低 Safari | 代码依据 |
-|---|---|---|---|---|
-| `media-recorder`（默认首选） | **105** | ❌ 不支持 | ❌ 不支持 | `MediaRecorder` + `isTypeSupported("audio/webm; codecs=pcm")`，该 MIME 为 Chromium 专属，Firefox/Safari 不支持 |
-| `audio-worklet` | **66** | **76** | **14.1** | `AudioWorkletNode` + `audioWorklet.addModule()` |
-| `script-processor`（兜底） | **35** | **25** | **6** | `createScriptProcessor()`（已弃用，仅作降级兜底） |
-| `auto` 自动降级 | **66** ¹ | **76** | **14.1** | Firefox/Safari 跳过 media-recorder，直接走 audio-worklet |
+Lossless FLAC export based on a WASM encoder.
 
-¹ Chrome 66–104 无 `audio/webm; codecs=pcm` 支持，自动降级为 audio-worklet，不影响可用性。
+- suitable for archival or post-processing workflows
+- keeps source audio lossless at the cost of larger output than lossy codecs
 
-### 持久化存储
+### `codecs/opus`
 
-| 存储插件 | 最低 Chrome | 最低 Firefox | 最低 Safari | 代码依据 |
-|---|---|---|---|---|
-| `storage/indexeddb` | **24** | **16** | **8** | 标准 `indexedDB` API |
-| `storage/opfs` | **102** | **111** | **15.2** | `navigator.storage.getDirectory()` + `createWritable()`（async OPFS） |
+Opus export based on a WASM encoder.
 
-### 编码器
+- supports `ogg` and `webm` container output
+- suited for efficient speech and general audio compression
 
-编码器本身无录音 API 依赖，可独立于录音策略使用。
+### `codecs/aac`
 
-| 编码器 | 入口 | 最低 Chrome | 最低 Firefox | 最低 Safari | 代码依据 |
-|---|---|---|---|---|---|
-| PCM（原始） | `codecs/base` | **57** | **52** | **11** | 仅 `Float32Array` / `Int16Array`，ES2022 类型化数组 |
-| WAV | `codecs/base` | **57** | **52** | **11** | 同上，无额外 Web API |
-| G.711（μ-law / a-law） | `codecs/g711` | **57** | **52** | **11** | 纯算术运算，无额外 Web API |
-| MP3（libmp3lame WASM） | `codecs/mp3` | **57** | **52** | **11** | `WebAssembly.instantiate()`（Emscripten 胶水层） |
-| FLAC（libflac WASM） | `codecs/flac` | **57** | **52** | **11** | `WebAssembly.instantiate()`（Emscripten 胶水层）；已移除 `Symbol.dispose` |
-| Opus（libopus WASM） | `codecs/opus` | **57** | **52** | **11** | `WebAssembly.instantiate()`（同上）；Opus 编码器使用 `BigInt`（ES2020，Chrome 67+，以 WASM 57 为瓶颈） |
+AAC export based on a WASM encoder.
 
-> FLAC / Opus 瓶颈为 `WebAssembly.instantiate`（Chrome 57 / Firefox 52 / Safari 11），不受主库录音路径版本约束，可单独在更低版本中使用。
+- useful for workflows that expect AAC elementary streams
+- exposed through a dedicated subpath
 
-### 插件
+### `codecs/amr`
 
-| 插件 | 入口 | 最低 Chrome | 最低 Firefox | 最低 Safari | 代码依据 |
-|---|---|---|---|---|---|
-| `level-meter` | `plugins/level-meter` | **66** | **76** | **14.1** | 依赖录音帧事件，以 audio-worklet 为基准 |
-| `streaming-export` | `plugins/streaming-export` | **66** | **76** | **14.1** | 依赖 `Worker` + `MessageChannel`（ES2022 环境内已有） |
+AMR export based on a WASM encoder.
 
-### 综合最低版本汇总
+- supports `nb` and `wb`
+- intended for telephony and speech-oriented pipelines
 
-| 使用场景 | 最低 Chrome | 最低 Firefox | 最低 Safari |
-|---|---|---|---|
-| 核心录音（auto 策略） + 编码器 | **66** | **76** | **14.1** |
-| 核心录音（auto 策略） + 编码器 + IndexedDB 持久化 | **66** | **76** | **14.1** |
-| 核心录音（auto 策略） + 编码器 + OPFS 持久化 | **102** | **111** | **15.2** |
-| 强制使用 `media-recorder` 策略（最高质量采集） | **105** | ❌ | ❌ |
-| 仅使用编码器（不录音） | **57** | **52** | **11** |
+### `codecs/g711`
 
-## 当前边界
+G.711 export implemented in pure TypeScript.
 
-- 根入口不会自动注册任何编码器；调用 `exportEncoded()` 前需要显式传入或注册对应 `ExportEncoderDefinition`
-- MP3 作为可选子路径存在，避免把 MP3 WASM 编码器依赖注入主包
-- `script-processor` 仅作为兼容性兜底，不建议作为默认录音方案
-- Phase 5、Phase 6 中规划的更多编解码器和插件扩展目前尚未开发
+- supports `alaw` and `ulaw`
+- suited for telephony interoperability
 
-## 编码性能基准
+## Development
 
-基准命令：
+### Install
 
-- WASM SIMD 对比：`npm run benchmark:codecs -- --codec=flac,opus,aac,amr --simd=both --rounds=5 --warmup=1 --audio-ms=15000 --json-file=.cache/benchmark-results-simd.json`
+```bash
+npm install
+```
 
-测试环境与参数：
+### Common commands
 
-- Node.js `v25.9.0`
-- 单声道输入
-- 目标音频长度 `15 s`
-- 每项 `5` 轮正式测试，`1` 轮预热
-- `streaming` 场景统一按 `20 ms` PCM 帧喂入 `StreamEncoderDefinition`
+```bash
+npm run dev
+npm run build
+npm run typecheck
+npm run test
+```
 
-说明：
+### Build all WASM codecs
 
-- 所有编码器都同时覆盖两种场景：
-  - `snapshot`：直接对完整 `15 s` PCM 快照调用 `ExportEncoderDefinition.export()`
-  - `streaming`：把同样长度的 PCM 切成 `20 ms` 帧，逐帧喂给 `StreamEncoderDefinition.feedFrame()`，最后调用 `flush()`
-- `opus` 拆成两类容器分别测试：`ogg` 和 `webm`
-- `amr` 拆成两类带宽分别测试：`nb` 和 `wb`
-- `pcm`、`wav`、`mp3` 不依赖 WASM SIMD；`flac`、`opus`、`aac`、`amr` 支持 `SIMD 关闭 / 开启` 对比
+```bash
+npm run build:wasm
+```
 
-输入素材：
+This runs the Docker-based WASM build pipeline for all supported WASM codecs.
 
-| 素材 | 描述 |
-| --- | --- |
-| `tone` | 单频 `997 Hz` 正弦波，幅度约为满幅值的 `70%` |
-| `chirp` | 从低频扫到高频的线性扫频信号，并叠加缓慢包络变化 |
-| `noise` | 固定种子的确定性带限噪声，并叠加幅度包络 |
+### Build selected WASM codecs
 
-各编码器测试条件：
+```bash
+npm run build:wasm:select -- --codec=mp3
+npm run build:wasm:select -- --codec=flac,opus
+npm run build:wasm:select -- --codec=aac,amr
+```
 
-| 编码器 | 变体 | 采样率 | 声道 | snapshot / streaming 共用编码参数 |
-| --- | ---: | ---: | --- | --- |
-| `pcm` | `default` | `48000 Hz` | `1` | `snapshot: bitRate: 16`，`streaming: bitsPerSample: 16` |
-| `wav` | `default` | `48000 Hz` | `1` | `snapshot: bitRate: 16`，`streaming: bitsPerSample: 16, framesPerChunk: 100` |
-| `mp3` | `default` | `48000 Hz` | `1` | `bitrateKbps: 128` |
-| `flac` | `default` | `48000 Hz` | `1` | `bitsPerSample: 16`，`compressionLevel: 5` |
-| `opus` | `ogg` | `48000 Hz` | `1` | `bitrate: 128000`，`application: audio`，`complexity: 10`，`vbr: true` |
-| `opus` | `webm` | `48000 Hz` | `1` | `bitrate: 128000`，`application: audio`，`complexity: 10`，`vbr: true` |
-| `aac` | `default` | `48000 Hz` | `1` | `bitrate: 128000` |
-| `amr` | `nb` | `8000 Hz` | `1` | `bandMode: nb` |
-| `amr` | `wb` | `16000 Hz` | `1` | `bandMode: wb` |
+Available selections are driven by the build script and currently map to the dedicated codec builders under `scripts/wasm/`.
 
-结果组织方式：
+### Relevant scripts
 
-- `scripts/benchmark-codecs-runner.mjs` 会为每个 `编码器 / 变体 / 场景 / 素材` 生成一条独立结果。
-- 结果项命名格式为：`codec[-variant]/scenario/material`
-  - 例如：`opus-ogg/streaming/chirp`
-  - 例如：`flac/snapshot/noise`
-- SIMD 对比时，`off` 和 `on` 会针对同一组 `name` 做一一比较。
+| Command | Description |
+|---|---|
+| `npm run build:wasm` | Build all WASM codecs |
+| `npm run build:wasm:select -- --codec=<list>` | Build only selected WASM codecs |
+| `npm run benchmark:codecs` | Run codec benchmarks |
+| `npm run verify:exports` | Verify package export entrypoints |
 
-旧版只基于单一纯音、且混合了 snapshot 与流式路径的结果表已经移除；需要重新跑新的矩阵结果时，请以上述命令生成新的 JSON 再做汇总。
+### Script entrypoints
 
-### 最近一次结果（2026-06-28）
+| Path | Description |
+|---|---|
+| `scripts/wasm/build-docker.mjs` | Main Docker-based WASM build entry |
+| `scripts/wasm/build.mjs` | Shared WASM build orchestration |
+| `scripts/wasm/build-aac.mjs` | AAC build |
+| `scripts/wasm/build-amr.mjs` | AMR build |
+| `scripts/wasm/build-flac.mjs` | FLAC build |
+| `scripts/wasm/build-mp3.mjs` | MP3 build |
+| `scripts/wasm/build-opus.mjs` | Opus build |
 
-以下汇总基于 2026-06-28 重新实测；上半部分按同一 `codec / variant / scenario` 对 `tone / chirp / noise` 三种素材取算术平均，下半部分是 WASM codec 的 SIMD `off / on` 对比。该次实测原始结果见 `.cache/benchmark-results-current.json` 与 `.cache/benchmark-results-simd.json`。
+## Browser Support
 
-当前实现汇总（SIMD ON）：
+Based on direct API usage in `src/` and `vite.config.ts` target `es2022`.
 
-| 编码器 | 变体 | 场景 | 平均耗时（ms） | 平均实时倍速（x） | 平均输出大小（bytes） |
-| --- | --- | --- | ---: | ---: | ---: |
-| `pcm` | `default` | `snapshot` | 0.48 | 31493.03 | 1440000 |
-| `pcm` | `default` | `streaming` | 3.82 | 3987.75 | 1440000 |
-| `wav` | `default` | `snapshot` | 1.06 | 14286.82 | 1440044 |
-| `wav` | `default` | `streaming` | 2.12 | 8476.78 | 1440352 |
-| `mp3` | `default` | `snapshot` | 208.64 | 74.52 | 240384 |
-| `mp3` | `default` | `streaming` | 202.66 | 77.35 | 240384 |
-| `flac` | `default` | `snapshot` | 11.04 | 1374.19 | 679568 |
-| `flac` | `default` | `streaming` | 10.37 | 1447.88 | 679568 |
-| `opus` | `ogg` | `snapshot` | 49.84 | 305.77 | 262774 |
-| `opus` | `ogg` | `streaming` | 49.66 | 307.30 | 263229 |
-| `opus` | `webm` | `snapshot` | 48.38 | 314.75 | 246569 |
-| `opus` | `webm` | `streaming` | 48.40 | 315.27 | 246569 |
-| `aac` | `default` | `snapshot` | 94.14 | 159.52 | 245066 |
-| `aac` | `default` | `streaming` | 96.38 | 155.70 | 245066 |
-| `amr` | `nb` | `snapshot` | 29.05 | 516.49 | 24006 |
-| `amr` | `nb` | `streaming` | 29.09 | 515.67 | 24006 |
-| `amr` | `wb` | `snapshot` | 59.24 | 253.26 | 45759 |
-| `amr` | `wb` | `streaming` | 59.31 | 252.93 | 45759 |
+### Main library
 
-WASM SIMD 对比汇总：
+| Module | Chrome | Firefox | Safari | Notes |
+|---|---:|---:|---:|---|
+| Core recorder | 66 | 76 | 14.1 | `AudioWorkletNode` path is the stable baseline |
+| Auto input fallback | 66 | 76 | 14.1 | Falls back to `audio-worklet` when PCM `MediaRecorder` is unavailable |
+| `media-recorder` path | 105 | - | - | Uses `MediaRecorder.isTypeSupported("audio/webm; codecs=pcm")` |
+| `script-processor` fallback | 35 | 25 | 6 | Legacy fallback only |
 
-- `avgSpeedup > 1` 表示开启 SIMD 后更快。
-- 这次测试里 `flac` 和 `aac` 收益最明显，`opus-webm` 次之，`opus-ogg` 和 `amr-wb` 有中等收益，`amr-nb` 收益有限。
+### Plugins
 
-| 编码器 | 变体 | 场景 | 平均加速比（off / on） | 最小加速比 | 最大加速比 |
-| --- | --- | --- | ---: | ---: | ---: |
-| `flac` | `default` | `snapshot` | 1.370 | 1.242 | 1.536 |
-| `flac` | `default` | `streaming` | 1.305 | 1.269 | 1.352 |
-| `opus` | `ogg` | `snapshot` | 1.130 | 1.105 | 1.175 |
-| `opus` | `ogg` | `streaming` | 1.118 | 1.110 | 1.126 |
-| `opus` | `webm` | `snapshot` | 1.215 | 1.077 | 1.351 |
-| `opus` | `webm` | `streaming` | 1.264 | 1.203 | 1.374 |
-| `aac` | `default` | `snapshot` | 1.377 | 1.335 | 1.424 |
-| `aac` | `default` | `streaming` | 1.361 | 1.301 | 1.401 |
-| `amr` | `nb` | `snapshot` | 1.055 | 1.026 | 1.083 |
-| `amr` | `nb` | `streaming` | 1.097 | 1.067 | 1.144 |
-| `amr` | `wb` | `snapshot` | 1.107 | 1.092 | 1.131 |
-| `amr` | `wb` | `streaming` | 1.126 | 1.116 | 1.135 |
+| Plugin | Chrome | Firefox | Safari | Notes |
+|---|---:|---:|---:|---|
+| `level-meter` | 66 | 76 | 14.1 | PCM frame consumer |
+| `streaming-export` | 66 | 76 | 14.1 | Worker-based chunk export |
+| `asr-export` | 66 | 76 | 14.1 | PCM chunking and registered encoders |
+| `streaming-player` | 66 | 76 | 14.1 | `AudioContext` playback |
+
+### Codecs
+
+| Codec | Chrome | Firefox | Safari | Notes |
+|---|---:|---:|---:|---|
+| PCM | 57 | 52 | 11 | Pure typed-array processing |
+| WAV | 57 | 52 | 11 | Pure file packaging |
+| G.711 | 57 | 52 | 11 | Pure arithmetic |
+| MP3 | 57 | 52 | 11 | WASM encoder |
+| FLAC | 57 | 52 | 11 | WASM encoder |
+| Opus | 57 | 52 | 11 | WASM encoder |
+| AAC | 57 | 52 | 11 | WASM encoder |
+| AMR | 57 | 52 | 11 | WASM encoder |
+
+### Storage
+
+| Module | Chrome | Firefox | Safari | Notes |
+|---|---:|---:|---:|---|
+| `storage/indexeddb` | 24 | 16 | 8 | Standard IndexedDB |
+| `storage/opfs` | 102 | 111 | 15.2 | `navigator.storage.getDirectory()` |
+
+## Benchmarks
+
+Latest recorded run: 2026-06-28.
+
+### Summary
+
+| Codec | Variant | Scenario | Avg ms | RTF x | Bytes |
+|---|---|---|---:|---:|---:|
+| pcm | default | snapshot | 0.48 | 31493.03 | 1440000 |
+| pcm | default | streaming | 3.82 | 3987.75 | 1440000 |
+| wav | default | snapshot | 1.06 | 14286.82 | 1440044 |
+| wav | default | streaming | 2.12 | 8476.78 | 1440352 |
+| mp3 | default | snapshot | 208.64 | 74.52 | 240384 |
+| mp3 | default | streaming | 202.66 | 77.35 | 240384 |
+| flac | default | snapshot | 11.04 | 1374.19 | 679568 |
+| flac | default | streaming | 10.37 | 1447.88 | 679568 |
+| opus | ogg | snapshot | 49.84 | 305.77 | 262774 |
+| opus | ogg | streaming | 49.66 | 307.30 | 263229 |
+| opus | webm | snapshot | 48.38 | 314.75 | 246569 |
+| opus | webm | streaming | 48.40 | 315.27 | 246569 |
+| aac | default | snapshot | 94.14 | 159.52 | 245066 |
+| aac | default | streaming | 96.38 | 155.70 | 245066 |
+| amr | nb | snapshot | 29.05 | 516.49 | 24006 |
+| amr | nb | streaming | 29.09 | 515.67 | 24006 |
+| amr | wb | snapshot | 59.24 | 253.26 | 45759 |
+| amr | wb | streaming | 59.31 | 252.93 | 45759 |
+
+### SIMD
+
+| Codec | Variant | Scenario | off/on |
+|---|---|---|---:|
+| flac | default | snapshot | 1.370 |
+| flac | default | streaming | 1.305 |
+| opus | ogg | snapshot | 1.130 |
+| opus | ogg | streaming | 1.118 |
+| opus | webm | snapshot | 1.215 |
+| opus | webm | streaming | 1.264 |
+| aac | default | snapshot | 1.377 |
+| aac | default | streaming | 1.361 |
+| amr | nb | snapshot | 1.055 |
+| amr | nb | streaming | 1.097 |
+| amr | wb | snapshot | 1.107 |
+| amr | wb | streaming | 1.126 |
+
+## Architecture
+
+Current execution chain:
+
+```text
+createRecorder
+  -> RecorderController
+  -> BrowserInputAdapter
+  -> BrowserInputSession
+  -> input backend
+  -> PcmFramePipeline
+  -> PcmBufferStore
+  -> encoders / plugins / persistence
+```
+
+Notes:
+
+- the root entry does not auto-register encoders
+- plugins are opt-in and live under dedicated subpaths
+- `streaming-export`, `asr-export`, and `streaming-player` are independent extensions
+- `opfs` and `indexeddb` are optional persistence backends
+
+Detailed chain document:
+
+- [docs/architecture/execution-chain.md](./docs/architecture/execution-chain.md)
+- [docs/README.md](./docs/README.md)
+
+## References
+
+Reserved.

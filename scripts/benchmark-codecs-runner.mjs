@@ -371,10 +371,7 @@ async function run() {
 
   if (codecs.includes("mp3")) {
     const mp3 = await import("../dist/codecs/mp3/index.js")
-    await preloadDefinitions([
-      mp3.mp3ExportEncoder,
-      mp3.mp3StreamEncoder,
-    ])
+    await preloadDefinitions([mp3.mp3ExportEncoder, mp3.mp3StreamEncoder])
 
     await benchmarkMaterialSet({
       cases,
@@ -415,10 +412,7 @@ async function run() {
 
   if (codecs.includes("flac")) {
     const flac = await import("../dist/codecs/flac/index.js")
-    await preloadDefinitions([
-      flac.flacExportEncoder,
-      flac.flacStreamEncoder,
-    ])
+    await preloadDefinitions([flac.flacExportEncoder, flac.flacStreamEncoder])
 
     await benchmarkMaterialSet({
       cases,
@@ -548,10 +542,7 @@ async function run() {
 
   if (codecs.includes("aac")) {
     const aac = await import("../dist/codecs/aac/index.js")
-    await preloadDefinitions([
-      aac.aacExportEncoder,
-      aac.aacStreamEncoder,
-    ])
+    await preloadDefinitions([aac.aacExportEncoder, aac.aacStreamEncoder])
 
     await benchmarkMaterialSet({
       cases,
@@ -592,10 +583,7 @@ async function run() {
 
   if (codecs.includes("amr")) {
     const amr = await import("../dist/codecs/amr/index.js")
-    await preloadDefinitions([
-      amr.amrExportEncoder,
-      amr.amrStreamEncoder,
-    ])
+    await preloadDefinitions([amr.amrExportEncoder, amr.amrStreamEncoder])
 
     for (const bandMode of ["nb", "wb"]) {
       const sampleRate = bandMode === "nb" ? 8000 : 16000
