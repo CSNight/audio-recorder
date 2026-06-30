@@ -13,6 +13,7 @@ export default defineConfig(
       "playwright-report",
       "public",
       "test-results",
+      "playground",
       "**/vendor/**",
       "docs",
       "src/codecs/**/*.mjs",

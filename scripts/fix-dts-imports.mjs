@@ -2,7 +2,6 @@ import { readdir, readFile, writeFile } from "node:fs/promises"
 import { relative, dirname, join, posix } from "node:path"
 
 const distRoot = "dist"
-const aliasPrefix = "@/"
 const specifierPattern = /(["'])@\/([^"'`]+)\1/g
 
 async function collectDeclarationFiles(directory) {

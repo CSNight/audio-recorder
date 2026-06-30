@@ -1,5 +1,10 @@
 import type { StreamingChunkPayload } from "@/plugins/streaming-export"
-import type { DecodedAudioChunk } from "@/plugins/streaming-player/types"
+
+export interface DecodedAudioChunk {
+  sampleRate: number
+  channels: number
+  planar: Float32Array[]
+}
 
 export const pcmDecoderDefinition = {
   format: "pcm",

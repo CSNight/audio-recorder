@@ -14,7 +14,6 @@
 - [`level-meter`](#level-meter)
 - [`streaming-export`](#streaming-export)
 - [`asr-export`](#asr-export)
-- [`streaming-player`](#streaming-player)
 - [存储](#存储)
 - [`storage/opfs`](#storageopfs)
 - [`storage/indexeddb`](#storageindexeddb)
@@ -83,7 +82,7 @@ console.log(summary.durationMs, wav.arrayBuffer.byteLength)
 - 录音事件：`statechange`、`frame:async`、`issue`
 - 快照导出：`pcm`、`wav`、`mp3`、`flac`、`ogg`、`webm`、`g711`、`aac`、`amr`
 - 持久化后端：`storage/opfs`、`storage/indexeddb`
-- 内置插件：`level-meter`、`streaming-export`、`asr-export`、`streaming-player`
+- 内置插件：`level-meter`、`streaming-export`、`asr-export`
 
 ## API
 
@@ -359,7 +358,6 @@ import {
 | `@csnight/audio-recorder/plugins/level-meter` | `createLevelMeterPlugin()` |
 | `@csnight/audio-recorder/plugins/streaming-export` | `createStreamingExportPlugin()` |
 | `@csnight/audio-recorder/plugins/asr-export` | `createAsrExportPlugin()` |
-| `@csnight/audio-recorder/plugins/streaming-player` | `createStreamingPlayerPlugin()` |
 | `@csnight/audio-recorder/storage/opfs` | `createOpfsPersistencePlugin()` |
 | `@csnight/audio-recorder/storage/indexeddb` | `createIndexedDbPersistencePlugin()` |
 
@@ -638,50 +636,6 @@ Event payload: `plugin:asr:chunk`
 | `channels` | `1` | 固定单声道 |
 | `isFinal` | `boolean` | 是否为最终 chunk |
 
-### `streaming-player`
-
-#### Introduction
-
-实时播放插件。可以直接播放 PCM 帧，也可以订阅 `plugin:encoded-chunk` 并解码播放。
-
-#### Quick Start
-
-```ts
-import { createRecorder } from "@csnight/audio-recorder"
-import { createStreamingPlayerPlugin } from "@csnight/audio-recorder/plugins/streaming-player"
-
-const recorder = createRecorder()
-
-await recorder.use(
-  createStreamingPlayerPlugin({
-    source: { type: "pcm-frame" },
-  })
-)
-```
-
-#### API
-
-| Export | Description |
-|---|---|
-| `createStreamingPlayerPlugin(options?)` | 创建实时播放插件 |
-| `StreamingPlayerEncoderDefinition` | 由调用方传入的公开解码器定义 |
-| `StreamingPlayerPluginOptions` | 插件选项 |
-
-Options: `StreamingPlayerPluginOptions`
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `volume` | `number` | `1` | 播放增益 |
-| `autoPlay` | `boolean` | `true` | 自动恢复 `AudioContext` |
-| `source` | `{ type: "pcm-frame" } \| { type: "plugin-event"; event: "plugin:encoded-chunk"; format: "pcm" \| "wav"; encoders: StreamingPlayerEncoderDefinition[] }` | `{ type: "pcm-frame" }` | 播放源 |
-
-`StreamingPlayerEncoderDefinition` 字段：
-
-| Field | Type | Description |
-|---|---|---|
-| `format` | `string` | 编码 chunk 格式 |
-| `decode` | `(payload) => Promise<DecodedAudioChunk>` | 将插件 chunk 解码为 PCM |
-
 ## 存储
 
 ### `storage/opfs`
@@ -889,7 +843,6 @@ npm run build:wasm:select -- --codec=aac,amr
 | `level-meter` | 66 | 76 | 14.1 | PCM 帧消费者 |
 | `streaming-export` | 66 | 76 | 14.1 | Worker 分片导出 |
 | `asr-export` | 66 | 76 | 14.1 | PCM 切块 + 编码器 |
-| `streaming-player` | 66 | 76 | 14.1 | `AudioContext` 播放 |
 
 ### 编码器
 
@@ -974,7 +927,7 @@ createRecorder
 
 - 根入口不会自动注册编码器
 - 插件都是显式启用的独立子路径
-- `streaming-export`、`asr-export`、`streaming-player` 是独立扩展
+- `streaming-export`、`asr-export` 是独立扩展
 - `opfs` 和 `indexeddb` 是可选持久化后端
 
 详细架构文档：

@@ -90,10 +90,6 @@
       "types": "./dist/plugins/asr-export/index.d.ts",
       "import": "./dist/plugins/asr-export/index.js"
     },
-    "./plugins/streaming-player": {
-      "types": "./dist/plugins/streaming-player/index.d.ts",
-      "import": "./dist/plugins/streaming-player/index.js"
-    },
     "./codecs/mp3": {
       "types": "./dist/codecs/mp3/index.d.ts",
       "import": "./dist/codecs/mp3/index.js"

@@ -15,7 +15,6 @@ TypeScript browser audio recorder library for microphone and `MediaStream` input
 - [`level-meter`](#level-meter)
 - [`streaming-export`](#streaming-export)
 - [`asr-export`](#asr-export)
-- [`streaming-player`](#streaming-player)
 - [Storage](#storage)
 - [`storage/opfs`](#storageopfs)
 - [`storage/indexeddb`](#storageindexeddb)
@@ -84,7 +83,7 @@ console.log(summary.durationMs, wav.arrayBuffer.byteLength)
 - recording events: `statechange`, `frame:async`, `issue`
 - snapshot export: `pcm`, `wav`, `mp3`, `flac`, `ogg`, `webm`, `g711`, `aac`, `amr`
 - persistence backends: `storage/opfs`, `storage/indexeddb`
-- bundled plugins: `level-meter`, `streaming-export`, `asr-export`, `streaming-player`
+- bundled plugins: `level-meter`, `streaming-export`, `asr-export`
 
 ## API
 
@@ -360,7 +359,6 @@ Returns:
 | `@csnight/audio-recorder/plugins/level-meter` | `createLevelMeterPlugin()` |
 | `@csnight/audio-recorder/plugins/streaming-export` | `createStreamingExportPlugin()` |
 | `@csnight/audio-recorder/plugins/asr-export` | `createAsrExportPlugin()` |
-| `@csnight/audio-recorder/plugins/streaming-player` | `createStreamingPlayerPlugin()` |
 | `@csnight/audio-recorder/storage/opfs` | `createOpfsPersistencePlugin()` |
 | `@csnight/audio-recorder/storage/indexeddb` | `createIndexedDbPersistencePlugin()` |
 
@@ -639,50 +637,6 @@ Event payload: `plugin:asr:chunk`
 | `channels` | `1` | Always mono |
 | `isFinal` | `boolean` | Final chunk flag |
 
-### `streaming-player`
-
-#### Introduction
-
-Real-time playback plugin. Can play PCM frames directly or subscribe to `plugin:encoded-chunk` and decode chunks for playback.
-
-#### Quick Start
-
-```ts
-import { createRecorder } from "@csnight/audio-recorder"
-import { createStreamingPlayerPlugin } from "@csnight/audio-recorder/plugins/streaming-player"
-
-const recorder = createRecorder()
-
-await recorder.use(
-  createStreamingPlayerPlugin({
-    source: { type: "pcm-frame" },
-  })
-)
-```
-
-#### API
-
-| Export | Description |
-|---|---|
-| `createStreamingPlayerPlugin(options?)` | Create a streaming player plugin |
-| `StreamingPlayerEncoderDefinition` | Public decoder definition passed by the caller |
-| `StreamingPlayerPluginOptions` | Plugin options |
-
-Options: `StreamingPlayerPluginOptions`
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `volume` | `number` | `1` | Playback gain |
-| `autoPlay` | `boolean` | `true` | Auto-resume `AudioContext` |
-| `source` | `{ type: "pcm-frame" } \| { type: "plugin-event"; event: "plugin:encoded-chunk"; format: "pcm" \| "wav"; encoders: StreamingPlayerEncoderDefinition[] }` | `{ type: "pcm-frame" }` | Playback source |
-
-`StreamingPlayerEncoderDefinition` fields:
-
-| Field | Type | Description |
-|---|---|---|
-| `format` | `string` | Encoded chunk format |
-| `decode` | `(payload) => Promise<DecodedAudioChunk>` | Decode plugin chunk into PCM |
-
 ## Storage
 
 ### `storage/opfs`
@@ -890,7 +844,6 @@ Based on direct API usage in `src/` and `vite.config.ts` target `es2022`.
 | `level-meter` | 66 | 76 | 14.1 | PCM frame consumer |
 | `streaming-export` | 66 | 76 | 14.1 | Worker-based chunk export |
 | `asr-export` | 66 | 76 | 14.1 | PCM chunking and registered encoders |
-| `streaming-player` | 66 | 76 | 14.1 | `AudioContext` playback |
 
 ### Codecs
 
@@ -975,7 +928,7 @@ Notes:
 
 - the root entry does not auto-register encoders
 - plugins are opt-in and live under dedicated subpaths
-- `streaming-export`, `asr-export`, and `streaming-player` are independent extensions
+- `streaming-export` and `asr-export` are independent extensions
 - `opfs` and `indexeddb` are optional persistence backends
 
 Detailed chain document:

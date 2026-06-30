@@ -1,5 +1,5 @@
 import type { StreamingChunkPayload } from "@/plugins/streaming-export/types"
-import type { DecodedAudioChunk } from "@/plugins/streaming-player/types"
+import type { DecodedAudioChunk } from "@/codecs/base/pcm-decoder"
 
 export interface DecodedWavPcm {
   sampleRate: number
