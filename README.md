@@ -2,7 +2,7 @@
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
-Browser audio recorder library for modern web apps. Supports input fallback, PCM frame pipelines, snapshot export, streaming export, plugins, and optional persistence.
+TypeScript browser audio recorder library for microphone and `MediaStream` input. Build modern web audio recording flows with PCM frame processing, streaming export, plugins, persistence, and codec output including WAV, MP3, Opus, FLAC, AAC, AMR, and G.711.
 
 ## Contents
 
@@ -28,14 +28,14 @@ Browser audio recorder library for modern web apps. Supports input fallback, PCM
 
 ## Overview
 
-`@csnight/audio-recorder` provides a browser recording stack with:
+`@csnight/audio-recorder` is a browser audio recording library for web apps that need:
 
-- microphone or external `MediaStream` input
-- automatic input backend selection
-- PCM frame events
-- encoder-based export
-- plugin-based extensions
-- OPFS / IndexedDB persistence
+- microphone recording or external `MediaStream` input
+- automatic browser input backend fallback
+- PCM frame events and in-memory processing
+- snapshot export and streaming audio chunk export
+- plugin-based extensions for metering, playback, and ASR pipelines
+- optional OPFS and IndexedDB persistence for longer recording sessions
 
 Build target: `es2022`.
 

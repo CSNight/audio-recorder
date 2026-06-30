@@ -2,7 +2,7 @@
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
-面向现代 Web 应用的浏览器录音库。支持输入降级、PCM 帧管线、快照导出、流式导出、插件和可选持久化。
+面向浏览器端麦克风和 `MediaStream` 输入的 TypeScript 录音库。适合在现代 Web 应用中构建音频录制、PCM 处理、流式导出、插件扩展、持久化存储，以及 WAV、MP3、Opus、FLAC、AAC、AMR、G.711 等格式输出能力。
 
 ## 目录
 
@@ -27,14 +27,14 @@
 
 ## 概览
 
-`@csnight/audio-recorder` 提供一套浏览器录音能力：
+`@csnight/audio-recorder` 提供一套面向 Web 应用的浏览器录音能力，适合以下场景：
 
-- 麦克风或外部 `MediaStream`
-- 自动输入后端选择
-- PCM 帧事件
-- 编码器导出
-- 插件扩展
-- OPFS / IndexedDB 持久化
+- 麦克风录音或外部 `MediaStream` 输入
+- 浏览器输入后端自动降级与回退
+- PCM 帧事件与内存内音频处理
+- 录音快照导出与流式音频分片导出
+- 面向电平检测、播放、ASR 的插件扩展
+- 使用 OPFS 和 IndexedDB 的长时录音持久化能力
 
 构建目标：`es2022`。
 

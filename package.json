@@ -1,10 +1,10 @@
 {
   "name": "@csnight/audio-recorder",
   "private": false,
-  "version": "1.0.1",
+  "version": "1.0.0",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
-  "description": "Browser audio recorder library with PCM pipelines, plugins, persistence, and optional codec exports.",
+  "description": "TypeScript browser audio recorder for microphone and MediaStream input with PCM pipelines, plugins, streaming export, persistence, and WAV/MP3/Opus/FLAC/AAC/AMR output.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
@@ -23,10 +23,20 @@
     "url": "https://github.com/CSNight/audio-recorder/issues"
   },
   "keywords": [
-    "audio",
-    "recorder",
+    "audio-recorder",
+    "browser-audio-recorder",
+    "voice-recording",
+    "microphone-recorder",
     "mediarecorder",
     "webaudio",
+    "mediastream",
+    "pcm",
+    "wav",
+    "mp3",
+    "opus",
+    "flac",
+    "aac",
+    "amr",
     "typescript",
     "wasm"
   ],
