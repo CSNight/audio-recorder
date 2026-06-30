@@ -593,7 +593,7 @@ function bindRecorderEvents(targetRecorder) {
     appendLog("error", issue.error.message)
   })
 
-  const offStream = targetRecorder.on("plugin:encoded-chunk", (event) => {
+  const offStream = targetRecorder.on("plugin:stream", (event) => {
     state.realtimeChunkCount += 1
     state.realtimeChunkBytes += event.payload.chunk.byteLength
   })

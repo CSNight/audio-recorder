@@ -4,7 +4,7 @@ import { createStreamingExportPlugin } from "@/plugins/streaming-export/plugin"
 import type {
   StreamEncoderDefinition,
   StreamingExportFormat,
-  StreamingChunkPayload,
+  StreamingPacketPayload,
 } from "@/plugins/streaming-export/types"
 import type { RecorderPluginEventContext } from "@/plugins/types"
 import type {
@@ -83,9 +83,9 @@ async function flushMicrotasks(times = 3): Promise<void> {
   }
 }
 
-function isStreamingChunkEvent(
+function isStreamingPacketEvent(
   event: unknown
-): event is RecorderPluginEventContext<StreamingChunkPayload> {
+): event is RecorderPluginEventContext<StreamingPacketPayload> {
   if (typeof event !== "object" || event === null) {
     return false
   }
@@ -101,7 +101,9 @@ function isStreamingChunkEvent(
     "chunk" in payload &&
     "isFinal" in payload &&
     "sequenceIndex" in payload &&
-    "timestampMs" in payload
+    "timestampMs" in payload &&
+    "durationMs" in payload &&
+    "sessionId" in payload
   )
 }
 
@@ -121,7 +123,7 @@ describe("createStreamingExportPlugin", () => {
     ).toThrow(/ChunkedEncoder for format "pcm" not found/)
   })
 
-  it("emits PCM encoded chunks through the recorder plugin event channel", async () => {
+  it("emits PCM stream packets through the recorder plugin event channel", async () => {
     const adapter = new FakeStreamingInputAdapter()
     const recorder = new RecorderController({
       inputAdapter: adapter,
@@ -132,6 +134,8 @@ describe("createStreamingExportPlugin", () => {
       isFinal: boolean
       chunk: number[]
       timestampMs: number
+      durationMs: number
+      sessionId: string
       pluginName: string
     }> = []
 
@@ -148,9 +152,9 @@ describe("createStreamingExportPlugin", () => {
       }),
     }
 
-    recorder.on("plugin:encoded-chunk", (event) => {
-      if (!isStreamingChunkEvent(event)) {
-        throw new Error("Expected streaming chunk plugin event.")
+    recorder.on("plugin:stream", (event) => {
+      if (!isStreamingPacketEvent(event)) {
+        throw new Error("Expected streaming packet plugin event.")
       }
 
       const { payload, pluginName } = event
@@ -159,6 +163,8 @@ describe("createStreamingExportPlugin", () => {
         isFinal: payload.isFinal,
         chunk: Array.from(payload.chunk),
         timestampMs: payload.timestampMs,
+        durationMs: payload.durationMs,
+        sessionId: payload.sessionId,
         pluginName,
       })
     })
@@ -179,11 +185,15 @@ describe("createStreamingExportPlugin", () => {
       isFinal: false,
       chunk: [4, 0],
       timestampMs: 10,
+      durationMs: 0.25,
+      sessionId: events[0]?.sessionId,
       pluginName: "streaming-export:pcm",
     })
     expect(events[1]?.sequenceIndex).toBe(1)
     expect(events[1]?.isFinal).toBe(true)
     expect(events[1]?.chunk).toEqual([255])
+    expect(events[1]?.durationMs).toBe(0)
+    expect(events[1]?.sessionId).toBe(events[0]?.sessionId)
     expect(events[1]?.pluginName).toBe("streaming-export:pcm")
   })
 
@@ -208,9 +218,9 @@ describe("createStreamingExportPlugin", () => {
       }),
     }
 
-    recorder.on("plugin:encoded-chunk", (event) => {
-      if (!isStreamingChunkEvent(event)) {
-        throw new Error("Expected streaming chunk plugin event.")
+    recorder.on("plugin:stream", (event) => {
+      if (!isStreamingPacketEvent(event)) {
+        throw new Error("Expected streaming packet plugin event.")
       }
 
       emitted.push(Array.from(event.payload.chunk))
@@ -292,9 +302,9 @@ describe("createStreamingExportPlugin", () => {
       }),
     }
 
-    recorder.on("plugin:encoded-chunk", (event) => {
-      if (!isStreamingChunkEvent(event)) {
-        throw new Error("Expected streaming chunk plugin event.")
+    recorder.on("plugin:stream", (event) => {
+      if (!isStreamingPacketEvent(event)) {
+        throw new Error("Expected streaming packet plugin event.")
       }
 
       emitted.push(Array.from(event.payload.chunk))
@@ -338,9 +348,9 @@ describe("createStreamingExportPlugin", () => {
       }),
     }
 
-    recorder.on("plugin:encoded-chunk", (event) => {
-      if (!isStreamingChunkEvent(event)) {
-        throw new Error("Expected streaming chunk plugin event.")
+    recorder.on("plugin:stream", (event) => {
+      if (!isStreamingPacketEvent(event)) {
+        throw new Error("Expected streaming packet plugin event.")
       }
 
       events.push({

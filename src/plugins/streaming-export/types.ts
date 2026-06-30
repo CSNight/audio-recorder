@@ -6,7 +6,7 @@
  * - 可在 Worker 和主线程中直接实例化，使用同一份代码
  */
 
-/** 实时编码块的事件 payload，通过 "encoded-chunk" 事件发出 */
+/** 编码器直接产出的 chunk 结构，供编码桥与编码器实现共用。 */
 export interface StreamingChunkPayload {
   chunk: Uint8Array
   format: StreamingExportFormat
@@ -16,6 +16,25 @@ export interface StreamingChunkPayload {
   channels: number
   /** true 表示本次 session 的最后一个 chunk（flush 产物） */
   isFinal: boolean
+}
+
+/** 标准流式数据包 payload，通过 "plugin:stream" 事件发出。 */
+export interface StreamingPacketPayload {
+  /** 区分不同流式导出会话的 ID，也用于跨端传输和缓存索引。 */
+  sessionId: string
+  sequenceIndex: number
+  timestampMs: number
+  durationMs: number
+  sampleRate: number
+  channels: number
+  format: StreamingExportFormat
+  chunk: Uint8Array
+  /** true 表示本次 session 的最后一个 packet（flush 产物）。 */
+  isFinal: boolean
+  /** 标记当前 packet 前后存在不连续片段，供传输和播放端处理 gap。 */
+  discontinuity?: boolean
+  /** 预留扩展字段，避免后续为 transport-neutral 元数据频繁破坏类型。 */
+  metadata?: Record<string, unknown>
 }
 
 export type StreamingExportFormat = "pcm" | "wav"
