@@ -1,5 +1,6 @@
 <script setup>
-import { computed, onBeforeUnmount, reactive } from "vue"
+import { computed, onBeforeUnmount, reactive, ref } from "vue"
+import StreamingPlayerDemo from "./StreamingPlayerDemo.vue"
 import {
   createRecorder,
   listMicrophoneDevices,
@@ -80,6 +81,7 @@ const state = reactive({
 })
 
 let recorder = createPlaygroundRecorder()
+const recorderRef = ref(recorder)
 let recorderDisposers = []
 let currentSource = null
 
@@ -286,6 +288,7 @@ async function initializeRecorder() {
 async function rebuildRecorder() {
   unbindRecorderEvents(recorderDisposers)
   recorder = createPlaygroundRecorder()
+  recorderRef.value = recorder
   await initializeRecorder()
   state.recorderState = recorder.getState()
 }
@@ -594,6 +597,7 @@ function bindRecorderEvents(targetRecorder) {
   })
 
   const offStream = targetRecorder.on("plugin:stream", (event) => {
+    console.log(event)
     state.realtimeChunkCount += 1
     state.realtimeChunkBytes += event.payload.chunk.byteLength
   })
@@ -1059,7 +1063,10 @@ onBeforeUnmount(() => {
             </article>
             <article class="stat-card">
               <span>实时 chunk</span>
-              <strong>{{ state.realtimeChunkCount }} / {{ state.realtimeChunkBytes }}</strong>
+              <strong
+                >{{ state.realtimeChunkCount }} /
+                {{ state.realtimeChunkBytes }}</strong
+              >
             </article>
             <article class="stat-card">
               <span>ASR Chunk</span>
@@ -1244,6 +1251,8 @@ onBeforeUnmount(() => {
             </div>
           </template>
         </section>
+
+        <StreamingPlayerDemo :recorder="recorderRef" />
 
         <section class="panel">
           <div class="panel-head">

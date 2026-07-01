@@ -24,6 +24,9 @@ export default defineConfig({
         "plugins/asr-export/index": fileURLToPath(
           new URL("./src/plugins/asr-export/index.ts", import.meta.url)
         ),
+        "streaming-player/index": fileURLToPath(
+          new URL("./src/streaming-player/index.ts", import.meta.url)
+        ),
         "codecs/base/index": fileURLToPath(
           new URL("./src/codecs/base/index.ts", import.meta.url)
         ),

@@ -1,52 +1,121 @@
 import { fileURLToPath, URL } from "node:url"
 import { defineConfig } from "vite"
 import vue from "@vitejs/plugin-vue"
+import { createReadStream, existsSync } from "node:fs"
+import { dirname, join, resolve } from "node:path"
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const distAssetsDir = resolve(__dirname, "../dist/assets")
 
 export default defineConfig({
-  plugins: [vue()],
-  resolve: {
-    alias: {
-      "@csnight/audio-recorder": fileURLToPath(
-        new URL("../dist/index.js", import.meta.url)
-      ),
-      "@csnight/audio-recorder/plugins/level-meter": fileURLToPath(
-        new URL("../dist/plugins/level-meter/index.js", import.meta.url)
-      ),
-      "@csnight/audio-recorder/plugins/streaming-export": fileURLToPath(
-        new URL("../dist/plugins/streaming-export/index.js", import.meta.url)
-      ),
-      "@csnight/audio-recorder/plugins/asr-export": fileURLToPath(
-        new URL("../dist/plugins/asr-export/index.js", import.meta.url)
-      ),
-      "@csnight/audio-recorder/storage/indexeddb": fileURLToPath(
-        new URL("../dist/storage/indexeddb/index.js", import.meta.url)
-      ),
-      "@csnight/audio-recorder/storage/opfs": fileURLToPath(
-        new URL("../dist/storage/opfs/index.js", import.meta.url)
-      ),
-      "@csnight/audio-recorder/codecs/base": fileURLToPath(
-        new URL("../dist/codecs/base/index.js", import.meta.url)
-      ),
-      "@csnight/audio-recorder/codecs/mp3": fileURLToPath(
-        new URL("../dist/codecs/mp3/index.js", import.meta.url)
-      ),
-      "@csnight/audio-recorder/codecs/g711": fileURLToPath(
-        new URL("../dist/codecs/g711/index.js", import.meta.url)
-      ),
-      "@csnight/audio-recorder/codecs/opus": fileURLToPath(
-        new URL("../dist/codecs/opus/index.js", import.meta.url)
-      ),
-      "@csnight/audio-recorder/codecs/flac": fileURLToPath(
-        new URL("../dist/codecs/flac/index.js", import.meta.url)
-      ),
-      "@csnight/audio-recorder/codecs/aac": fileURLToPath(
-        new URL("../dist/codecs/aac/index.js", import.meta.url)
-      ),
-      "@csnight/audio-recorder/codecs/amr": fileURLToPath(
-        new URL("../dist/codecs/amr/index.js", import.meta.url)
-      ),
-      vue: "vue/dist/vue.esm-bundler.js",
+  plugins: [
+    vue(),
+    {
+      name: "serve-dist-assets",
+      configureServer(server) {
+        server.middlewares.use("/assets", (req, res, next) => {
+          const filePath = join(distAssetsDir, req.url ?? "")
+          if (existsSync(filePath)) {
+            res.setHeader("Content-Type", "application/javascript")
+            createReadStream(filePath).pipe(res)
+          } else {
+            next()
+          }
+        })
+      },
     },
+  ],
+  resolve: {
+    alias: [
+      {
+        find: "@csnight/audio-recorder/plugins/level-meter",
+        replacement: fileURLToPath(
+          new URL("../dist/plugins/level-meter/index.js", import.meta.url)
+        ),
+      },
+      {
+        find: "@csnight/audio-recorder/plugins/streaming-export",
+        replacement: fileURLToPath(
+          new URL("../dist/plugins/streaming-export/index.js", import.meta.url)
+        ),
+      },
+      {
+        find: "@csnight/audio-recorder/plugins/asr-export",
+        replacement: fileURLToPath(
+          new URL("../dist/plugins/asr-export/index.js", import.meta.url)
+        ),
+      },
+      {
+        find: "@csnight/audio-recorder/storage/indexeddb",
+        replacement: fileURLToPath(
+          new URL("../dist/storage/indexeddb/index.js", import.meta.url)
+        ),
+      },
+      {
+        find: "@csnight/audio-recorder/storage/opfs",
+        replacement: fileURLToPath(
+          new URL("../dist/storage/opfs/index.js", import.meta.url)
+        ),
+      },
+      {
+        find: "@csnight/audio-recorder/codecs/base",
+        replacement: fileURLToPath(
+          new URL("../dist/codecs/base/index.js", import.meta.url)
+        ),
+      },
+      {
+        find: "@csnight/audio-recorder/codecs/mp3",
+        replacement: fileURLToPath(
+          new URL("../dist/codecs/mp3/index.js", import.meta.url)
+        ),
+      },
+      {
+        find: "@csnight/audio-recorder/codecs/g711",
+        replacement: fileURLToPath(
+          new URL("../dist/codecs/g711/index.js", import.meta.url)
+        ),
+      },
+      {
+        find: "@csnight/audio-recorder/codecs/opus",
+        replacement: fileURLToPath(
+          new URL("../dist/codecs/opus/index.js", import.meta.url)
+        ),
+      },
+      {
+        find: "@csnight/audio-recorder/codecs/flac",
+        replacement: fileURLToPath(
+          new URL("../dist/codecs/flac/index.js", import.meta.url)
+        ),
+      },
+      {
+        find: "@csnight/audio-recorder/codecs/aac",
+        replacement: fileURLToPath(
+          new URL("../dist/codecs/aac/index.js", import.meta.url)
+        ),
+      },
+      {
+        find: "@csnight/audio-recorder/codecs/amr",
+        replacement: fileURLToPath(
+          new URL("../dist/codecs/amr/index.js", import.meta.url)
+        ),
+      },
+      {
+        find: "@csnight/audio-recorder/streaming-player",
+        replacement: fileURLToPath(
+          new URL("../dist/streaming-player/index.js", import.meta.url)
+        ),
+      },
+      {
+        find: "@csnight/audio-recorder",
+        replacement: fileURLToPath(
+          new URL("../dist/index.js", import.meta.url)
+        ),
+      },
+      {
+        find: "vue",
+        replacement: "vue/dist/vue.esm-bundler.js",
+      },
+    ],
   },
   server: {
     fs: {

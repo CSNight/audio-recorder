@@ -117,6 +117,10 @@
     "./codecs/amr": {
       "types": "./dist/codecs/amr/index.d.ts",
       "import": "./dist/codecs/amr/index.js"
+    },
+    "./streaming-player": {
+      "types": "./dist/streaming-player/index.d.ts",
+      "import": "./dist/streaming-player/index.js"
     }
   },
   "devDependencies": {
