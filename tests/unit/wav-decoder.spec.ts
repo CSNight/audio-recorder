@@ -18,7 +18,7 @@ describe("wavDecoderDefinition", () => {
       chunk: new Uint8Array(wav.arrayBuffer),
       format: "wav",
       sampleRate: 16000,
-      channels: 1
+      channels: 1,
     })
 
     expect(decoded.sampleRate).toBe(16000)
@@ -40,7 +40,7 @@ describe("wavDecoderDefinition", () => {
       chunk: new Uint8Array(wav.arrayBuffer),
       format: "wav",
       sampleRate: 8000,
-      channels: 2
+      channels: 2,
     })
 
     expect(decoded.sampleRate).toBe(8000)
@@ -63,7 +63,7 @@ describe("wavDecoderDefinition", () => {
       chunk: new Uint8Array(wav.arrayBuffer),
       format: "wav",
       sampleRate: 48000,
-      channels: 2
+      channels: 2,
     })
 
     expect(decoded.sampleRate).toBe(48000)
@@ -81,7 +81,7 @@ describe("wavDecoderDefinition", () => {
         chunk: invalid,
         format: "wav",
         sampleRate: 16000,
-        channels: 1
+        channels: 1,
       })
     ).rejects.toThrow("Invalid WAV header.")
   })
