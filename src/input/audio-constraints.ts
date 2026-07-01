@@ -1,5 +1,8 @@
-import type { InputIssue } from "@/input/types"
-import { type RecorderInputOptions, RecorderWarningCode } from "@/types"
+import {
+  type RecorderInputOptions,
+  type RecorderIssue,
+  RecorderWarningCode,
+} from "@/types"
 
 /**
  * 由录音输入参数构建 getUserMedia 音频约束。
@@ -74,7 +77,7 @@ export async function acquireMicStream(
 export function reportUnappliedConstraints(
   stream: MediaStream,
   input: RecorderInputOptions,
-  emitIssue: (issue: InputIssue) => void
+  emitIssue: (issue: RecorderIssue) => void
 ): void {
   const track = stream.getAudioTracks()[0]
   if (!track?.getSettings) {

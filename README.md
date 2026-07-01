@@ -274,11 +274,11 @@ Open a recorder session.
 
 Parameters:
 
-| Name | Type | Description |
-|---|---|---|
-| `options` | `RecorderOpenOptions` | Per-session input overrides |
+| Name      | Type                   | Description                 |
+|-----------|------------------------|-----------------------------|
+| `options` | `RecorderInputOptions` | Per-session input overrides |
 
-`RecorderOpenOptions` fields:
+`RecorderInputOptions` fields:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -450,9 +450,14 @@ recorder.on("plugin:level", ({ payload }) => {
 
 #### API
 
-| Export | Description |
-|---|---|
-| `createLevelMeterPlugin()` | Create the level meter plugin |
+The following runtime and event types are exported from `@csnight/audio-recorder/plugins/level-meter`.
+
+| Export                     | Description                       |
+|----------------------------|-----------------------------------|
+| `createLevelMeterPlugin()` | Create the level meter plugin     |
+| `RecorderLevel`            | Level payload body type           |
+| `RecorderLevelChannel`     | Per-channel level type            |
+| `RecorderLevelEvent`       | `plugin:level` event payload type |
 
 Options:
 
@@ -519,12 +524,14 @@ recorder.on("plugin:stream", ({ payload }) => {
 
 #### API
 
-| Export | Description |
-|---|---|
-| `createStreamingExportPlugin(options)` | Create a streaming export plugin |
-| `StreamEncoderDefinition` | Public stream encoder definition passed by the caller |
-| `StreamingPacketPayload` | Stream packet payload |
-| `StreamingExportPluginOptions` | Plugin options |
+The following types are exported from `@csnight/audio-recorder/plugins/streaming-export`.
+
+| Export                                 | Description                                           |
+|----------------------------------------|-------------------------------------------------------|
+| `createStreamingExportPlugin(options)` | Create a streaming export plugin                      |
+| `StreamEncoderDefinition`              | Public stream encoder definition passed by the caller |
+| `StreamingPacketPayload`               | Stream packet payload                                 |
+| `StreamingExportPluginOptions`         | Plugin options                                        |
 
 Options: `StreamingExportPluginOptions`
 
@@ -607,11 +614,13 @@ recorder.on("plugin:asr:chunk", ({ payload }) => {
 
 #### API
 
-| Export | Description |
-|---|---|
+The following types are exported from `@csnight/audio-recorder/plugins/asr-export`.
+
+| Export                           | Description                 |
+|----------------------------------|-----------------------------|
 | `createAsrExportPlugin(options)` | Create an ASR export plugin |
-| `AsrChunkPayload` | ASR chunk payload |
-| `AsrExportPluginOptions` | Plugin options |
+| `AsrChunkPayload`                | ASR chunk payload           |
+| `AsrExportPluginOptions`         | Plugin options              |
 
 Options: `AsrExportPluginOptions`
 

@@ -9,7 +9,6 @@ export type {
   StreamEncoder,
   StreamEncoderDefinition,
   StreamingExportFormat,
-  StreamingChunkPayload,
   StreamingPacketPayload,
   StreamingExportPluginOptions,
 } from "@/plugins/streaming-export/types"

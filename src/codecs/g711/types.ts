@@ -1,12 +1,6 @@
 /** G.711 编码变体：alaw（A律，欧洲/中国标准）或 ulaw（μ律，北美/日本标准） */
 export type G711Variant = "alaw" | "ulaw"
 
-/** G.711 流式（chunked）编码器选项 */
-export interface G711ChunkedEncoderOptions {
-  /** 编码变体，默认 "ulaw" */
-  variant?: G711Variant
-}
-
 /** G.711 一次性快照导出选项 */
 export interface G711ExportOptions {
   /** 编码变体，默认 "ulaw" */

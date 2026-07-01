@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest"
 import { BrowserInputSession } from "@/input/browser-input-session"
 import type { InputBackend } from "@/input/backends/types"
 import type { RecorderInputHandlers } from "@/input/types"
-import type { AudioChannelCount } from "@/types"
 import { RecorderWarningCode } from "@/types"
 
 type FakeTrack = { stop: ReturnType<typeof vi.fn> }
@@ -33,7 +32,7 @@ function createSession(options: {
   stream?: MediaStream
   onFrame?: ReturnType<typeof vi.fn>
   onIssue?: ReturnType<typeof vi.fn>
-  requestedChannelCount?: AudioChannelCount
+  requestedChannelCount?: number
   ownsStream?: boolean
   disableFrameLossCompensation?: boolean
   backend?: InputBackend

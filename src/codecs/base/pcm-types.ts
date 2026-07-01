@@ -1,5 +1,3 @@
-import type { AudioChannelCount } from "@/types"
-
 /** PCM 一次性导出选项 */
 export interface PcmExportOptions {
   /** 导出采样率，默认沿用输入 PCM 的采样率；与输入不同时会触发重采样 */
@@ -12,7 +10,7 @@ export interface PcmExportOptions {
 
 export interface PcmExportResult {
   sampleRate: number
-  channels: AudioChannelCount
+  channels: number
   bitRate: 8 | 16
   durationMs: number
   /**

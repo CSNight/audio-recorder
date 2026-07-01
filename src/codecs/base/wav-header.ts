@@ -1,5 +1,3 @@
-import type { AudioChannelCount } from "@/types"
-
 const WAV_HEADER_BYTES = 44
 
 /**
@@ -9,7 +7,7 @@ const WAV_HEADER_BYTES = 44
 export function createWavHeader(options: {
   dataBytes: number
   sampleRate: number
-  channels: AudioChannelCount
+  channels: number
   bitRate: 8 | 16
 }): ArrayBuffer {
   const { dataBytes, sampleRate, channels, bitRate } = options

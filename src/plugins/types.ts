@@ -1,28 +1,23 @@
 import type { RecorderController } from "@/core/recorder-controller"
 import type {
   AudioFrame,
+  RecorderEventContext,
   RecorderRuntimeInfo,
   RecorderSessionSummary,
 } from "@/types"
 
-export type RecorderPluginEventPayload = object
-
-export interface RecorderPluginEventContext<TPayload> {
-  controller: RecorderController
-  sessionId: string
-  emittedAt: number
+export interface RecorderPluginEventContext<
+  TPayload extends object = object,
+> extends RecorderEventContext {
   pluginName: string
-  runtimeInfo: RecorderRuntimeInfo
-  summary: RecorderSessionSummary
   payload: TPayload
 }
 
+export type RecorderPluginEventMap = Record<string, RecorderPluginEventContext>
+
 export interface RecorderPluginEventBus {
   register(event: string): void
-  emit<TPayload extends RecorderPluginEventPayload>(
-    event: string,
-    payload: TPayload
-  ): void
+  emit<TPayload extends object>(event: string, payload: TPayload): void
 }
 
 export interface RecorderPluginContext {

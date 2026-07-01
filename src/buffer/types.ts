@@ -1,4 +1,4 @@
-import type { AudioChannelCount, AudioFrame } from "@/types"
+import type { AudioFrame } from "@/types"
 
 export type MaybePromise<T> = T | Promise<T>
 
@@ -7,7 +7,7 @@ export interface PcmBufferSnapshot {
   /** 采样率（Hz），通常与 AudioContext.sampleRate 一致。 */
   sampleRate: number
   /** 声道数（1 = 单声道，2 = 立体声）。 */
-  channels: AudioChannelCount
+  channels: number
   /** 快照包含的 AudioFrame 帧数。 */
   frameCount: number
   /** 快照对应的音频时长（毫秒）。 */

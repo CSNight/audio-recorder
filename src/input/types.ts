@@ -1,24 +1,8 @@
-import type {
-  AudioChannelCount,
-  AudioFrame,
-  RecorderInputStrategy,
-  RecorderWarning,
-} from "@/types"
-
-/** 输入层向上层传递的问题事件（警告或错误） */
-export type InputIssue =
-  | {
-      kind: "warning"
-      warning: RecorderWarning
-    }
-  | {
-      kind: "error"
-      error: Error
-    }
+import type { AudioFrame, RecorderInputStrategy, RecorderIssue } from "@/types"
 
 export interface RecorderInputHandlers {
   onFrame: (frame: AudioFrame) => void
-  onIssue: (issue: InputIssue) => void
+  onIssue: (issue: RecorderIssue) => void
 }
 
 export interface RecorderInputRequest {
@@ -33,7 +17,7 @@ export interface InputSessionSummary {
 
 export interface RecorderInputSession {
   readonly actualSampleRate: number
-  readonly actualChannelCount: AudioChannelCount
+  readonly actualChannelCount: number
   /** 实际建立的采集链路（来自所选 InputBackend） */
   readonly actualInputStrategy: RecorderInputStrategy
   start(): Promise<void>

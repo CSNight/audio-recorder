@@ -1,6 +1,6 @@
 import type {
   Mp3ChannelMode,
-  Mp3EncoderOptions,
+  Mp3ExportOptions,
   Mp3RateMode,
   Mp3SampleRate,
   Mp3WasmEncoderHandle,
@@ -105,7 +105,7 @@ export async function preloadMp3Module(): Promise<void> {
 }
 
 export function resolveMp3EncoderOptions(
-  options: Mp3EncoderOptions,
+  options: Mp3ExportOptions,
   sampleRate: number,
   channels: number
 ): ResolvedMp3EncoderOptions {

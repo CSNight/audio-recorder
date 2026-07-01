@@ -4,11 +4,7 @@ import type {
   RecorderInputHandlers,
   RecorderInputSession,
 } from "@/input/types"
-import {
-  type AudioChannelCount,
-  type RecorderInputStrategy,
-  RecorderWarningCode,
-} from "@/types"
+import { type RecorderInputStrategy, RecorderWarningCode } from "@/types"
 import { createAudioFrame, resolveChannelCount } from "@/utils/audio-frame"
 
 const enum InputSessionState {
@@ -23,7 +19,7 @@ export interface BrowserInputSessionOptions {
   audioContext: AudioContext
   stream: MediaStream
   handlers: RecorderInputHandlers
-  requestedChannelCount: AudioChannelCount
+  requestedChannelCount: number
   ownsStream: boolean
   disableFrameLossCompensation: boolean
 }
@@ -41,13 +37,13 @@ export class BrowserInputSession
   private readonly audioContext: AudioContext
   private readonly stream: MediaStream
   private readonly handlers: RecorderInputHandlers
-  private readonly requestedChannelCount: AudioChannelCount
+  private readonly requestedChannelCount: number
   private readonly ownsStream: boolean
   private readonly disableFrameLossCompensation: boolean
 
   private backend: InputBackend | undefined
   private sessionState = InputSessionState.Ready
-  private activeChannelCount: AudioChannelCount
+  private activeChannelCount: number
   private hasWarnedChannelAdjustment = false
   private readonly summary: InputSessionSummary = { frames: 0, durationMs: 0 }
 
@@ -71,7 +67,7 @@ export class BrowserInputSession
   }
 
   /** 实际声道数，由第一帧 planar 数组长度推断，可能与请求值不同。 */
-  get actualChannelCount(): AudioChannelCount {
+  get actualChannelCount(): number {
     return this.activeChannelCount
   }
 
@@ -238,7 +234,7 @@ export class BrowserInputSession
   }
 
   private reportChannelCountAdjustmentIfNeeded(
-    actualChannelCount: AudioChannelCount
+    actualChannelCount: number
   ): void {
     if (
       this.hasWarnedChannelAdjustment ||

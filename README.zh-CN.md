@@ -273,11 +273,11 @@ import {
 
 参数：
 
-| Name | Type | Description |
-|---|---|---|
-| `options` | `RecorderOpenOptions` | 每次会话的输入覆盖项 |
+| Name      | Type                   | Description |
+|-----------|------------------------|-------------|
+| `options` | `RecorderInputOptions` | 每次会话的输入覆盖项  |
 
-`RecorderOpenOptions` 字段：
+`RecorderInputOptions` 字段：
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -449,9 +449,14 @@ recorder.on("plugin:level", ({ payload }) => {
 
 #### API
 
-| Export | Description |
-|---|---|
-| `createLevelMeterPlugin()` | 创建电平插件 |
+以下运行时与事件类型从 `@csnight/audio-recorder/plugins/level-meter` 子路径导出。
+
+| Export                     | Description           |
+|----------------------------|-----------------------|
+| `createLevelMeterPlugin()` | 创建电平插件                |
+| `RecorderLevel`            | 电平负载主体类型              |
+| `RecorderLevelChannel`     | 分声道电平类型               |
+| `RecorderLevelEvent`       | `plugin:level` 事件负载类型 |
 
 Options:
 
@@ -518,12 +523,14 @@ recorder.on("plugin:stream", ({ payload }) => {
 
 #### API
 
-| Export | Description |
-|---|---|
-| `createStreamingExportPlugin(options)` | 创建实时分片导出插件 |
-| `StreamEncoderDefinition` | 由调用方传入的公开编码器定义 |
-| `StreamingPacketPayload` | 流式 packet 负载 |
-| `StreamingExportPluginOptions` | 插件选项 |
+以下类型从 `@csnight/audio-recorder/plugins/streaming-export` 子路径导出。
+
+| Export                                 | Description    |
+|----------------------------------------|----------------|
+| `createStreamingExportPlugin(options)` | 创建实时分片导出插件     |
+| `StreamEncoderDefinition`              | 由调用方传入的公开编码器定义 |
+| `StreamingPacketPayload`               | 流式 packet 负载   |
+| `StreamingExportPluginOptions`         | 插件选项           |
 
 Options: `StreamingExportPluginOptions`
 
@@ -605,6 +612,8 @@ recorder.on("plugin:asr:chunk", ({ payload }) => {
 ```
 
 #### API
+
+以下类型从 `@csnight/audio-recorder/plugins/asr-export` 子路径导出。
 
 | Export | Description |
 |---|---|

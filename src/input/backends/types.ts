@@ -1,5 +1,4 @@
-import type { InputIssue } from "@/input/types"
-import type { AudioChannelCount, RecorderInputStrategy } from "@/types"
+import type { RecorderInputStrategy, RecorderIssue } from "@/types"
 
 /**
  * 原始 float planar 帧的接收方。由 BrowserInputSession 实现，
@@ -33,9 +32,9 @@ export interface InputBackend {
 export interface InputBackendContext {
   audioContext: AudioContext
   stream: MediaStream
-  channelCount: AudioChannelCount
+  channelCount: number
   sink: InputFrameSink
-  emitIssue: (issue: InputIssue) => void
+  emitIssue: (issue: RecorderIssue) => void
 }
 
 /**

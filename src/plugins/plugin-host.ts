@@ -1,18 +1,15 @@
 import type { RecorderController } from "@/core/recorder-controller"
 import { EventBus } from "@/core/event-bus"
-import {
-  PluginEventBus,
-  type PluginEventBusContext,
-  type PluginEventMap,
-} from "@/plugins/plugin-event-bus"
+import { PluginEventBus } from "@/plugins/plugin-event-bus"
 import type {
   RecorderPlugin,
   RecorderPluginContext,
   RecorderPluginEventContext,
-  RecorderPluginEventPayload,
+  RecorderPluginEventMap,
 } from "@/plugins/types"
 import type {
   AudioFrame,
+  RecorderEventContext,
   RecorderIssue,
   RecorderRuntimeInfo,
   RecorderSessionSummary,
@@ -29,7 +26,7 @@ interface PluginHostOptions {
   /** 获取最近一次录音导出摘要，供插件事件上下文使用。 */
   getLatestSummary: () => RecorderSessionSummary
   /** 每次插件 emit 时调用，生成注入事件对象的上下文快照。 */
-  createEventContext: () => PluginEventBusContext
+  createEventContext: () => RecorderEventContext
 }
 
 /**
@@ -43,7 +40,7 @@ interface PluginHostOptions {
  */
 export class PluginHost {
   private readonly plugins: RecorderPlugin[] = []
-  private readonly pluginEventBus = new EventBus<PluginEventMap>()
+  private readonly pluginEventBus = new EventBus<RecorderPluginEventMap>()
   private readonly hookDispatch: Record<
     "onFrame" | "onStart" | "onPause" | "onResume" | "onStop",
     (plugin: RecorderPlugin, frame?: AudioFrame) => void
@@ -59,18 +56,14 @@ export class PluginHost {
 
   on(
     event: string,
-    listener: (
-      payload: RecorderPluginEventContext<RecorderPluginEventPayload>
-    ) => void
+    listener: (payload: RecorderPluginEventContext) => void
   ): () => void {
     return this.pluginEventBus.on(event, listener)
   }
 
   off(
     event: string,
-    listener: (
-      payload: RecorderPluginEventContext<RecorderPluginEventPayload>
-    ) => void
+    listener: (payload: RecorderPluginEventContext) => void
   ): void {
     this.pluginEventBus.off(event, listener)
   }

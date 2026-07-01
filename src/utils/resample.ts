@@ -1,9 +1,8 @@
 import type { PcmBufferSnapshot } from "@/buffer/types"
-import type { AudioChannelCount } from "@/types"
 
 export interface ResampledPcm {
   sampleRate: number
-  channels: AudioChannelCount
+  channels: number
   durationMs: number
   planar: Int16Array[]
 }

@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { RecorderController } from "@/core/recorder-controller"
 import { createStreamingExportPlugin } from "@/plugins/streaming-export/plugin"
+import type { RecorderPluginEventContext } from "@/plugins/types"
 import type {
   StreamEncoderDefinition,
   StreamingExportFormat,
   StreamingPacketPayload,
 } from "@/plugins/streaming-export/types"
-import type { RecorderPluginEventContext } from "@/plugins/types"
 import type {
+  InputSessionSummary,
   RecorderInputAdapter,
   RecorderInputHandlers,
   RecorderInputSession,
-  InputSessionSummary,
 } from "@/input/types"
 import { createAudioFrame } from "@/utils/audio-frame"
 

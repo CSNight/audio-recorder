@@ -2,27 +2,9 @@ import { EventBus } from "@/core/event-bus"
 import type {
   RecorderPluginEventBus,
   RecorderPluginEventContext,
-  RecorderPluginEventPayload,
+  RecorderPluginEventMap,
 } from "@/plugins/types"
-import type { RecorderRuntimeInfo, RecorderSessionSummary } from "@/types"
-
-/** 插件专用事件总线的事件映射：key 为事件名，value 为携带上下文的插件事件对象。 */
-export type PluginEventMap = Record<
-  string,
-  RecorderPluginEventContext<RecorderPluginEventPayload>
->
-
-/**
- * 插件事件发布时附带的上下文快照。
- * 由 PluginHost 在每次 emit 时注入，插件监听方可直接读取录音状态而无需持有控制器引用。
- */
-export interface PluginEventBusContext {
-  controller: import("@/core/recorder-controller").RecorderController
-  sessionId: string
-  emittedAt: number
-  runtimeInfo: RecorderRuntimeInfo
-  summary: RecorderSessionSummary
-}
+import type { RecorderEventContext } from "@/types"
 
 /**
  * 核心内置事件名，插件不得注册同名事件，避免与主事件总线产生命名冲突。
@@ -45,8 +27,8 @@ export class PluginEventBus implements RecorderPluginEventBus {
 
   constructor(
     private readonly pluginName: string,
-    private readonly eventBus: EventBus<PluginEventMap>,
-    private readonly createContext: () => PluginEventBusContext
+    private readonly eventBus: EventBus<RecorderPluginEventMap>,
+    private readonly createContext: () => RecorderEventContext
   ) {}
 
   /** 注册一个插件自定义事件名；必须在 emit 前调用，否则 emit 抛错。 */
@@ -56,10 +38,7 @@ export class PluginEventBus implements RecorderPluginEventBus {
   }
 
   /** 发布已注册的插件事件，自动附加录音上下文快照。 */
-  emit<TPayload extends RecorderPluginEventPayload>(
-    event: string,
-    payload: TPayload
-  ): void {
+  emit<TPayload extends object>(event: string, payload: TPayload): void {
     this.assertRegisteredEvent(event)
 
     const pluginEvent: RecorderPluginEventContext<TPayload> = {
@@ -70,7 +49,7 @@ export class PluginEventBus implements RecorderPluginEventBus {
 
     this.eventBus.emit(
       event,
-      pluginEvent as unknown as RecorderPluginEventContext<RecorderPluginEventPayload>
+      pluginEvent as unknown as RecorderPluginEventContext
     )
   }
 

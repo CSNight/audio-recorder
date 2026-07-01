@@ -2,18 +2,21 @@ import { createPcmBufferStore } from "@/buffer/pcm-buffer-store"
 import type { RecorderInputAdapter, RecorderInputSession } from "@/input/types"
 import { checkRecorderCapability } from "@/input/capability-check"
 import type {
+  RecorderPlugin,
+  RecorderPluginEventContext,
+} from "@/plugins/types"
+import type {
   AudioFrame,
   EncoderMap,
+  ExportEncoderDefinition,
   RecorderEventMap,
   RecorderFrameEvent,
   RecorderInputOptions,
   RecorderIssue,
   RecorderIssueEvent,
-  RecorderOpenOptions,
   RecorderRuntimeInfo,
   RecorderSessionSummary,
   RecorderStateChangeEvent,
-  ExportEncoderDefinition,
 } from "@/types"
 import {
   RecorderInputSource,
@@ -23,7 +26,6 @@ import {
 import { PcmFramePipeline } from "@/pipeline/pcm-frame-pipeline"
 import type { RecorderFramePipeline } from "@/pipeline/types"
 import { PluginHost } from "@/plugins/plugin-host"
-import type { RecorderPlugin } from "@/plugins/types"
 import type { RecorderStorageOptions } from "@/storage/types"
 import { EventBus } from "@/core/event-bus"
 
@@ -90,11 +92,7 @@ export class RecorderController {
     if (typeof event === "string" && event.startsWith("plugin:")) {
       return this.pluginHost.on(
         event,
-        listener as (
-          payload: import("@/plugins/types").RecorderPluginEventContext<
-            import("@/plugins/types").RecorderPluginEventPayload
-          >
-        ) => void
+        listener as (payload: RecorderPluginEventContext) => void
       )
     }
     return this.eventBus.on(event, listener)
@@ -107,11 +105,7 @@ export class RecorderController {
     if (typeof event === "string" && event.startsWith("plugin:")) {
       this.pluginHost.off(
         event,
-        listener as (
-          payload: import("@/plugins/types").RecorderPluginEventContext<
-            import("@/plugins/types").RecorderPluginEventPayload
-          >
-        ) => void
+        listener as (payload: RecorderPluginEventContext) => void
       )
       return
     }
@@ -183,13 +177,14 @@ export class RecorderController {
     })
   }
 
-  async open(options: RecorderOpenOptions = {}): Promise<RecorderRuntimeInfo> {
+  async open(options: RecorderInputOptions = {}): Promise<RecorderRuntimeInfo> {
     this.assertState([RecorderState.Idle, RecorderState.Closed])
 
     // sourceStream 是内部字段，从扩展选项中提取后单独传给 adapter
-    const { sourceStream, ...inputOptions } = options as RecorderOpenOptions & {
-      sourceStream?: MediaStream
-    }
+    const { sourceStream, ...inputOptions } =
+      options as RecorderInputOptions & {
+        sourceStream?: MediaStream
+      }
 
     // open() 字段优先，未传的 fallback 到 createRecorder 时存储的默认值
     const mergedInput: RecorderInputOptions = {

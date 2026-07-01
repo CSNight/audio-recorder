@@ -1,5 +1,12 @@
 import type { RecorderPlugin } from "@/plugins/types"
-import type { AudioFrame, RecorderLevel, RecorderLevelChannel } from "@/types"
+import type { AudioFrame } from "@/types"
+import type { RecorderLevel, RecorderLevelChannel } from "./types"
+
+export type {
+  RecorderLevel,
+  RecorderLevelChannel,
+  RecorderLevelEvent,
+} from "./types"
 
 /**
  * createLevelMeterPlugin：实时电平监测插件。

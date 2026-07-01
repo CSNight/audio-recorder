@@ -17,7 +17,7 @@ export type Mp3SampleRate =
   | 48000
 
 /** MP3 编码器选项 */
-export interface Mp3EncoderOptions {
+export interface Mp3ExportOptions {
   /** 比特率，单位 kbps；CBR / ABR 模式下生效，默认 128 */
   bitrateKbps?: number
   /** 码率控制模式，默认 cbr */
@@ -50,9 +50,6 @@ export interface Mp3WasmEncoderHandle {
   flush(): Uint8Array
   free(): void
 }
-
-/** MP3 一次性导出选项 */
-export type Mp3ExportOptions = Mp3EncoderOptions
 
 export interface Mp3ExportResult {
   sampleRate: Mp3SampleRate

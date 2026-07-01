@@ -323,7 +323,7 @@ flowchart LR
 
 ### 12.1 Level Meter
 
-入口：[`src/plugins/level-meter/public.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/level-meter/public.ts)
+入口：[`src/plugins/level-meter/index.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/level-meter/index.ts)
 
 功能：
 

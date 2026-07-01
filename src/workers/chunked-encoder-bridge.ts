@@ -16,8 +16,9 @@ import type {
   StreamEncoder,
   StreamEncoderDefinition,
 } from "@/plugins/streaming-export/types"
+import type { EncoderWorkerOutgoingMessage } from "@/types"
 
-export interface ChunkedEncoderBridgeOptions {
+export interface StreamEncoderBridgeOptions {
   format: string
   encoderOptions?: unknown
   definition: StreamEncoderDefinition
@@ -27,11 +28,6 @@ export interface ChunkedEncoderBridgeOptions {
    */
   allowMainThreadFallback?: boolean | undefined
 }
-
-type WorkerOutgoingMessage =
-  | { type: "ready" }
-  | { type: "result"; result: Uint8Array | null; seqId: number }
-  | { type: "error"; message: string; seqId: number }
 
 type PendingResolve = (value: Uint8Array | null) => void
 type PendingReject = (reason: Error) => void
@@ -57,7 +53,7 @@ export class ChunkedEncoderBridge {
   private resolveReady: (() => void) | null = null
   private rejectReady: ((reason: Error) => void) | null = null
 
-  constructor(opts: ChunkedEncoderBridgeOptions) {
+  constructor(opts: StreamEncoderBridgeOptions) {
     this.definition = opts.definition
     const allowFallback = opts.allowMainThreadFallback ?? true
 
@@ -229,7 +225,9 @@ export class ChunkedEncoderBridge {
   }
 
   private setupWorkerHandlers(): void {
-    this.worker!.onmessage = (event: MessageEvent<WorkerOutgoingMessage>) => {
+    this.worker!.onmessage = (
+      event: MessageEvent<EncoderWorkerOutgoingMessage>
+    ) => {
       const msg = event.data
 
       if (msg.type === "ready") {

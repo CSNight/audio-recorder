@@ -21,26 +21,12 @@ import type {
   StreamEncoder,
   StreamEncoderDefinition,
 } from "@/plugins/streaming-export/types"
+import type {
+  EncoderWorkerIncomingMessage,
+  EncoderWorkerOutgoingMessage,
+} from "@/types"
 
-type WorkerIncomingMessage =
-  | { type: "init"; format: string; options?: unknown }
-  | { type: "reset"; options?: unknown }
-  | {
-      type: "feedFrame"
-      planar: Int16Array[]
-      channels: number
-      sampleRate: number
-      seqId: number
-    }
-  | { type: "flush"; seqId: number }
-  | { type: "dispose" }
-
-type WorkerOutgoingMessage =
-  | { type: "ready" }
-  | { type: "result"; result: Uint8Array | null; seqId: number }
-  | { type: "error"; message: string; seqId: number }
-
-function postMsg(msg: WorkerOutgoingMessage, transfer?: Transferable[]) {
+function postMsg(msg: EncoderWorkerOutgoingMessage, transfer?: Transferable[]) {
   if (transfer) {
     ;(self as unknown as Worker).postMessage(msg, transfer)
   } else {
@@ -57,11 +43,11 @@ function postMsg(msg: WorkerOutgoingMessage, transfer?: Transferable[]) {
  */
 export function createWorkerMessageHandler(
   resolveDefinition: (format: string) => StreamEncoderDefinition
-): (event: MessageEvent<WorkerIncomingMessage>) => void {
+): (event: MessageEvent<EncoderWorkerIncomingMessage>) => void {
   let definition: StreamEncoderDefinition | null = null
   let encoder: StreamEncoder | null = null
 
-  return async (event: MessageEvent<WorkerIncomingMessage>) => {
+  return async (event: MessageEvent<EncoderWorkerIncomingMessage>) => {
     const msg = event.data
 
     if (msg.type === "init") {

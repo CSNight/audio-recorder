@@ -1,5 +1,3 @@
-import type { AudioChannelCount } from "@/types"
-
 /** WAV 一次性导出选项 */
 export interface WavExportOptions {
   /** 导出采样率，默认沿用输入 PCM 的采样率；与输入不同时会触发重采样 */
@@ -11,7 +9,7 @@ export interface WavExportOptions {
 /** WAV 导出结果 */
 export interface WavExportResult {
   sampleRate: number
-  channels: AudioChannelCount
+  channels: number
   bitRate: 8 | 16
   durationMs: number
   mimeType: "audio/wav"

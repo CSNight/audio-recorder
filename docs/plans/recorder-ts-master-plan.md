@@ -242,7 +242,7 @@ window.Recorder = ...
 
 在当前仓库中的落地形式：
 
-- 输入参数直接平铺在 `CreateRecorderOptions` / `RecorderOpenOptions`
+- 输入参数直接平铺在 `CreateRecorderOptions` / `RecorderInputOptions`
 - 存储能力收敛到 `storage` 字段
 - 导出格式差异通过具体编码器选项定义处理，而不是把所有格式混成一套通用配置
 
@@ -250,7 +250,7 @@ window.Recorder = ...
 
 ### 5.1 结论
 
-当前代码层已经允许 `AudioChannelCount = number`，但首要支持目标仍应明确为：
+当前代码层已经允许 `channelCount: number`，但首要支持目标仍应明确为：
 
 - v1 优先稳定单声道与双声道
 - PCM / WAV / MP3 全量导出至少正确覆盖 1/2 声道主场景
@@ -1508,4 +1508,3 @@ Phase 2 实施顺序补充：
 - 同一天内的多个大步骤统一写入同一个日期日志文件，不新建重复日期文件。
 - 日志内容至少包含目标、完成、变更文件、测试结果、遗留问题、下次恢复入口。
 - 每个日志文件顶部应维护”当前阶段 / 已完成 / 进行中 / 下一步 / 风险或阻塞”，用于中断恢复；不再维护单独的 `IMPLEMENTATION-LOG.md`。
-

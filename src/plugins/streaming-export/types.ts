@@ -6,18 +6,6 @@
  * - 可在 Worker 和主线程中直接实例化，使用同一份代码
  */
 
-/** 编码器直接产出的 chunk 结构，供编码桥与编码器实现共用。 */
-export interface StreamingChunkPayload {
-  chunk: Uint8Array
-  format: StreamingExportFormat
-  timestampMs: number
-  sequenceIndex: number
-  sampleRate: number
-  channels: number
-  /** true 表示本次 session 的最后一个 chunk（flush 产物） */
-  isFinal: boolean
-}
-
 /** 标准流式数据包 payload，通过 "plugin:stream" 事件发出。 */
 export interface StreamingPacketPayload {
   /** 区分不同流式导出会话的 ID，也用于跨端传输和缓存索引。 */

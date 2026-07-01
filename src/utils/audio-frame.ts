@@ -1,9 +1,7 @@
-import type { AudioChannelCount, AudioFrame } from "@/types"
+import type { AudioFrame } from "@/types"
 
-/** 将请求的声道数规范化为合法的 AudioChannelCount；非法值回退到 1。 */
-export function resolveChannelCount(
-  requested?: number | null
-): AudioChannelCount {
+/** 将请求的声道数规范化为合法的声道数；非法值回退到 1。 */
+export function resolveChannelCount(requested?: number | null): number {
   // 支持任意声道数，只验证合法性
   if (requested == null || requested < 1 || !Number.isInteger(requested)) {
     return 1 // 无效输入时回退到单声道

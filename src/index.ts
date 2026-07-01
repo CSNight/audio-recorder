@@ -26,7 +26,6 @@ export type {
   RecorderStorageOptions,
 } from "@/storage/types"
 export type {
-  AudioChannelCount,
   AudioFrame,
   AudioInputDevice,
   CreateRecorderOptions,
@@ -36,10 +35,6 @@ export type {
   RecorderInputStrategy,
   RecorderIssue,
   RecorderIssueEvent,
-  RecorderLevel,
-  RecorderLevelChannel,
-  RecorderLevelEvent,
-  RecorderOpenOptions,
   RecorderRuntimeInfo,
   RecorderSessionSummary,
   RecorderStateChangeEvent,

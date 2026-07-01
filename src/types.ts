@@ -1,9 +1,7 @@
 import type { PcmBufferSnapshot } from "@/buffer/types"
 import type { RecorderController } from "@/core/recorder-controller"
-import type {
-  RecorderPluginEventContext,
-  RecorderPluginEventPayload,
-} from "@/plugins/types"
+import type { RecorderLevelEvent } from "@/plugins/level-meter/types"
+import type { RecorderPluginEventContext } from "@/plugins/types"
 import type { RecorderStorageOptions } from "@/storage/types"
 import type {
   PcmExportOptions,
@@ -35,15 +33,6 @@ export interface AudioDecoderDefinition {
   format: string
   decode(chunk: EncodedAudioChunk): Promise<DecodedAudioChunk>
 }
-/**
- * 音频声道数。支持任意正整数，常见值：
- * - 1: 单声道
- * - 2: 立体声
- * - 6: 5.1 环绕声
- * - 8: 7.1 环绕声
- * 实际支持的声道数取决于硬件设备和编码器能力。
- */
-export type AudioChannelCount = number
 
 /** 三种底层采集链路。auto 由 createInputGraph 按兼容性逐级降级选择。 */
 export type RecorderInputStrategy =
@@ -83,7 +72,7 @@ export enum RecorderInputSource {
  */
 export interface RecorderInputOptions {
   sampleRate?: number
-  channelCount?: AudioChannelCount
+  channelCount?: number
   echoCancellation?: boolean // 默认 true
   noiseSuppression?: boolean // 默认 true
   autoGainControl?: boolean // 默认 true
@@ -110,7 +99,7 @@ export interface AudioInputDevice {
 }
 
 export interface AudioFrame {
-  channels: AudioChannelCount
+  channels: number
   sampleRate: number
   timestamp: number
   durationMs: number
@@ -135,8 +124,8 @@ export type RecorderIssue =
 export interface RecorderRuntimeInfo {
   requestedSampleRate?: number
   actualSampleRate?: number
-  requestedChannelCount: AudioChannelCount
-  actualChannelCount?: AudioChannelCount
+  requestedChannelCount: number
+  actualChannelCount?: number
   source: RecorderInputSource
   /** 实际使用的采集链路，open() 成功后写入（为实际值，非能力预测值） */
   inputStrategy?: RecorderInputStrategy
@@ -146,50 +135,46 @@ export interface RecorderSessionSummary {
   frames: number
   durationMs: number
   sampleRate: number
-  channels: AudioChannelCount
+  channels: number
 }
 
-export interface RecorderStateChangeEvent {
+export interface RecorderEventContext {
   controller: RecorderController
   sessionId: string
   emittedAt: number
+  runtimeInfo: RecorderRuntimeInfo
+  summary: RecorderSessionSummary
+}
+
+export type EncoderWorkerIncomingMessage =
+  | { type: "init"; format: string; options?: unknown }
+  | { type: "reset"; options?: unknown }
+  | {
+      type: "feedFrame"
+      planar: Int16Array[]
+      channels: number
+      sampleRate: number
+      seqId: number
+    }
+  | { type: "flush"; seqId: number }
+  | { type: "dispose" }
+
+export type EncoderWorkerOutgoingMessage =
+  | { type: "ready" }
+  | { type: "result"; result: Uint8Array | null; seqId: number }
+  | { type: "error"; message: string; seqId: number }
+
+export interface RecorderStateChangeEvent extends RecorderEventContext {
   previousState: RecorderState
   state: RecorderState
-  runtimeInfo: RecorderRuntimeInfo
-  summary: RecorderSessionSummary
 }
 
-export interface RecorderFrameEvent {
-  controller: RecorderController
-  sessionId: string
-  emittedAt: number
+export interface RecorderFrameEvent extends RecorderEventContext {
   frame: AudioFrame
-  runtimeInfo: RecorderRuntimeInfo
-  summary: RecorderSessionSummary
 }
 
-export interface RecorderIssueEvent {
-  controller: RecorderController
-  sessionId: string
-  emittedAt: number
+export interface RecorderIssueEvent extends RecorderEventContext {
   issue: RecorderIssue
-  runtimeInfo: RecorderRuntimeInfo
-  summary: RecorderSessionSummary
-}
-
-export interface RecorderLevelChannel {
-  peak: number
-  rms: number
-}
-
-export interface RecorderLevel {
-  peak: number
-  rms: number
-  channels: RecorderLevelChannel[]
-}
-
-export interface RecorderLevelEvent {
-  level: RecorderLevel
 }
 
 export interface RecorderEventMap {
@@ -198,17 +183,11 @@ export interface RecorderEventMap {
   issue: RecorderIssueEvent
   "plugin:level": RecorderPluginEventContext<RecorderLevelEvent>
   [event: string]:
-    | RecorderPluginEventContext<RecorderPluginEventPayload>
+    | RecorderPluginEventContext
     | RecorderStateChangeEvent
     | RecorderFrameEvent
     | RecorderIssueEvent
 }
-
-/**
- * open() 配置。展平为录音输入参数，无需嵌套 capture 层。
- * open() 传入的字段优先级高于 createRecorder 时的 input 默认值。
- */
-export type RecorderOpenOptions = RecorderInputOptions
 
 /**
  * createRecorder() 配置。所有字段均可选，最简用法 createRecorder() 无参即可。

@@ -11,11 +11,7 @@ import {
 import { BrowserInputSession } from "@/input/browser-input-session"
 import { selectInputBackend } from "@/input/backends/select"
 import type { InputBackendContext } from "@/input/backends/types"
-import type {
-  AudioChannelCount,
-  AudioInputDevice,
-  RecorderInputOptions,
-} from "@/types"
+import type { AudioInputDevice, RecorderInputOptions } from "@/types"
 
 type AudioContextConstructor = typeof AudioContext
 type AudioContextScope = typeof globalThis & {
@@ -61,8 +57,8 @@ export async function listMicrophoneDevices(): Promise<AudioInputDevice[]> {
  */
 function resolveTrackChannelCount(
   stream: MediaStream,
-  fallback: AudioChannelCount
-): AudioChannelCount {
+  fallback: number
+): number {
   const track = stream.getAudioTracks()[0]
   const actual = track?.getSettings?.().channelCount
   // 支持任意正整数声道数

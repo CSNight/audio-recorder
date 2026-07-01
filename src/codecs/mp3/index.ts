@@ -1,7 +1,6 @@
 export { mp3ExportEncoder } from "./mp3-snapshot-exporter"
 export type {
   Mp3ChannelMode,
-  Mp3EncoderOptions,
   Mp3ExportOptions,
   Mp3ExportResult,
   Mp3RateMode,

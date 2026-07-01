@@ -1,14 +1,14 @@
 import type { PcmBufferSnapshot, PcmBufferStore } from "@/buffer/types"
 import { mergeChannelChunks } from "@/buffer/pcm-buffer-utils"
-import type { AudioChannelCount, AudioFrame } from "@/types"
+import type { AudioFrame } from "@/types"
 
 type PcmLayout = {
   sampleRate: number
-  channels: AudioChannelCount
+  channels: number
 }
 
 type PlanarSource = {
-  channels: AudioChannelCount
+  channels: number
   frameCount: number
   durationMs: number
   planar: readonly (Int16Array | undefined)[]
@@ -91,7 +91,7 @@ export class InMemoryPcmBufferStore implements PcmBufferStore {
     this.planarChunks = []
   }
 
-  private ensureLayout(sampleRate: number, channels: AudioChannelCount): void {
+  private ensureLayout(sampleRate: number, channels: number): void {
     if (!this.layout) {
       this.layout = { sampleRate, channels }
       // 声道分桶按实际声道数构造，不再写死双声道。
