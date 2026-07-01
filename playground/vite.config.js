@@ -1,30 +1,14 @@
 import { fileURLToPath, URL } from "node:url"
 import { defineConfig } from "vite"
 import vue from "@vitejs/plugin-vue"
-import { createReadStream, existsSync } from "node:fs"
-import { dirname, join, resolve } from "node:path"
+import { dirname, resolve } from "node:path"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const distAssetsDir = resolve(__dirname, "../dist/assets")
 
 export default defineConfig({
-  plugins: [
-    vue(),
-    {
-      name: "serve-dist-assets",
-      configureServer(server) {
-        server.middlewares.use("/assets", (req, res, next) => {
-          const filePath = join(distAssetsDir, req.url ?? "")
-          if (existsSync(filePath)) {
-            res.setHeader("Content-Type", "application/javascript")
-            createReadStream(filePath).pipe(res)
-          } else {
-            next()
-          }
-        })
-      },
-    },
-  ],
+  plugins: [vue()],
+  publicDir: false,
   resolve: {
     alias: [
       {
