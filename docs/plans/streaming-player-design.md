@@ -54,16 +54,10 @@ StreamingPacketSource
 
 ### 输入
 
-```ts
-// source 接口：任何能推包的东西都能接
-interface StreamingPacketSource {
-  subscribe(handler: (packet: StreamingPacketPayload) => void): () => void
-}
+```
+通过push(packet);
+接入，业务侧可事件接入, 可websocket接入;
 
-// v1 内置三种 source
-createMemorySource()           // 手动 push(packet)
-createWebSocketSource(url)     // 自动连接，收到消息后反序列化推入
-createRecorderEventSource(recorder)  // 订阅 recorder 的 plugin:stream 事件
 ```
 
 `StreamingPacketPayload` 直接复用现有类型，不改字段。
@@ -104,12 +98,12 @@ player.droppedPackets   // 已丢弃包数
 ## 四、目录结构
 
 ```
-src/streaming-player/
+src/plugin/streaming-player/
   types.ts               // 所有公共接口定义
   player.ts              // createStreamingPlayer 入口
   reorder-buffer.ts      // 按 seq 排序
   jitter-buffer.ts       // 抖动缓冲
-  ring-buffer.ts         // SharedArrayBuffer 环形缓冲工具
+  ring-buffer.ts         // 环形缓冲工具
   worklet/
     player-processor.ts  // AudioWorkletProcessor 实现
   source/

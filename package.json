@@ -86,6 +86,10 @@
       "types": "./dist/plugins/streaming-export/index.d.ts",
       "import": "./dist/plugins/streaming-export/index.js"
     },
+    "./plugins/streaming-player": {
+      "types": "./dist/plugins/streaming-player/index.d.ts",
+      "import": "./dist/plugins/streaming-player/index.js"
+    },
     "./plugins/asr-export": {
       "types": "./dist/plugins/asr-export/index.d.ts",
       "import": "./dist/plugins/asr-export/index.js"
@@ -117,10 +121,6 @@
     "./codecs/amr": {
       "types": "./dist/codecs/amr/index.d.ts",
       "import": "./dist/codecs/amr/index.js"
-    },
-    "./streaming-player": {
-      "types": "./dist/streaming-player/index.d.ts",
-      "import": "./dist/streaming-player/index.js"
     }
   },
   "devDependencies": {

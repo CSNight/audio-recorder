@@ -50,7 +50,8 @@ export class ReorderBuffer {
   }
 
   private scheduleTimeout(): void {
-    if (this.timer !== null) clearTimeout(this.timer)
+    // 已有 timer 则不重置——避免持续 push 导致超时永远被推迟
+    if (this.timer !== null) return
     if (this.buffer.length === 0) return
     this.timer = setTimeout(() => {
       this.timer = null

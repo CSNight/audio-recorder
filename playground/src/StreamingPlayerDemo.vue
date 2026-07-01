@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, ref } from "vue"
-import { createStreamingPlayer } from "@csnight/audio-recorder/streaming-player"
+import { createStreamingPlayer } from "@csnight/audio-recorder/plugins/streaming-player"
 import {
   pcmDecoderDefinition,
   wavDecoderDefinition,
@@ -36,6 +36,8 @@ function appendLog(type, message) {
   ].slice(0, 40)
 }
 
+const replaySeconds = ref(5)
+
 const canStart = computed(
   () => playerState.value === "idle" && props.recorder !== null
 )
@@ -44,6 +46,9 @@ const canStop = computed(() =>
 )
 const canPause = computed(() => playerState.value === "playing")
 const canResume = computed(() => playerState.value === "paused")
+const canReplay = computed(() =>
+  ["buffering", "playing", "paused"].includes(playerState.value)
+)
 
 async function startPlayer() {
   const recorder = props.recorder?.value ?? props.recorder

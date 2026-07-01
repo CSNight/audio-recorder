@@ -18,14 +18,21 @@ export class JitterBuffer {
     this.bufferedMs += packet.durationMs
   }
 
-  drain(): void {
+  /**
+   * 每次 tick 最多释放 releaseWindowMs 毫秒的 packet。
+   * 默认 releaseWindowMs = 60ms（覆盖 3 个 20ms tick 的余量），
+   * 避免一次性投出大量 packet 导致并发 decode 使 scheduleTime 追不上 currentTime。
+   */
+  drain(releaseWindowMs = 60): void {
     if (!this.started) {
       if (this.bufferedMs < this.targetLatencyMs) return
       this.started = true
     }
-    while (this.queue.length > 0) {
+    let releasedMs = 0
+    while (this.queue.length > 0 && releasedMs < releaseWindowMs) {
       const packet = this.queue.shift()!
       this.bufferedMs = Math.max(0, this.bufferedMs - packet.durationMs)
+      releasedMs += packet.durationMs
       this.onRelease?.(packet)
     }
     if (this.queue.length === 0) {

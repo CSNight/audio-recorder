@@ -36,6 +36,8 @@ export interface StreamingPlayerOptions {
   backlogPolicy?: "wait" | "drop-old"
   /** 初始音量 [0, 1]，默认 1.0 */
   volume?: number
+  /** 创建后是否自动开始播放（等待缓冲充足），默认 true */
+  autoPlay?: boolean
   /** AudioContext，不传则内部创建 */
   audioContext?: AudioContext
   /** 欠载回调：解码队列空时触发 */
@@ -69,4 +71,8 @@ export interface StreamingPlayerHandle {
   setVolume(volume: number): void
   /** 销毁 player，释放所有资源 */
   destroy(): void
+  /** 重播最近 N 秒的 packet */
+  replay(seconds: number): void
+  /** 状态变化回调，可在创建后直接赋值，null 表示不监听 */
+  onStateChange: ((state: StreamingPlayerState) => void) | null
 }

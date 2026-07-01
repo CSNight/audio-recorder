@@ -84,9 +84,9 @@ export default defineConfig({
         ),
       },
       {
-        find: "@csnight/audio-recorder/streaming-player",
+        find: "@csnight/audio-recorder/plugins/streaming-player",
         replacement: fileURLToPath(
-          new URL("../dist/streaming-player/index.js", import.meta.url)
+          new URL("../dist/plugins/streaming-player/index.js", import.meta.url)
         ),
       },
       {
