@@ -8,14 +8,16 @@
 
 /** 标准流式数据包 payload，通过 "plugin:stream" 事件发出。 */
 export interface StreamingPacketPayload {
+  /** 逻辑流 ID；同一条流跨重连/重开可保持稳定。 */
+  streamId: string
   /** 区分不同流式导出会话的 ID，也用于跨端传输和缓存索引。 */
   sessionId: string
-  sequenceIndex: number
+  seq: number
   timestampMs: number
   durationMs: number
   sampleRate: number
   channels: number
-  format: StreamingExportFormat
+  format: string
   chunk: Uint8Array
   /** true 表示本次 session 的最后一个 packet（flush 产物）。 */
   isFinal: boolean
@@ -25,7 +27,7 @@ export interface StreamingPacketPayload {
   metadata?: Record<string, unknown>
 }
 
-export type StreamingExportFormat = "pcm" | "wav"
+export type StreamingExportFormat = string
 
 /**
  * StreamEncoder：编码分片逻辑的统一封装，只写一次，Worker 和主线程共用。
@@ -83,4 +85,14 @@ export interface StreamingExportPluginOptions {
   encoders: StreamEncoderDefinition[]
   /** Worker 编码不可用时是否允许降级到主线程同步编码，默认 true */
   allowMainThreadFallback?: boolean
+  /** 逻辑流 ID。未传时优先走 createStreamId()，否则按默认规则生成。 */
+  streamId?: string
+  /** 附加到每个 packet 的静态外层元数据。 */
+  metadata?: Record<string, unknown>
+
+  /** 懒生成逻辑流 ID，只在 plugin 实例初始化时调用一次。 */
+  createStreamId?(): string
+
+  /** 每次 onStart() 时生成新的会话 ID。 */
+  createSessionId?(): string
 }

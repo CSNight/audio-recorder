@@ -1,7 +1,5 @@
 import type { RecorderPlugin } from "@/plugins/types"
 import type {
-  StreamEncoderDefinition,
-  StreamingExportFormat,
   StreamingExportPluginOptions,
   StreamingPacketPayload,
 } from "@/plugins/streaming-export/types"
@@ -28,54 +26,91 @@ import type { AudioFrame } from "@/types"
  * })
  * ```
  */
+
+/**
+ * 帧时间戳积累器：
+ * 编码器可能将多帧合并成一个 chunk，需要在无产出的帧上累积时长和起始时间戳，
+ * 待 chunk 产出时一并写入 packet。
+ */
+interface PendingTime {
+  /** 积累帧段的起始时间戳（ms），null 表示尚未开始积累 */
+  startMs: number | null
+  /** 已积累的总时长（ms） */
+  durationMs: number
+  /** 下一个 packet 的预期时间戳：上一 packet 的 startMs + durationMs */
+  nextMs: number | null
+  /** resume 后首个 packet 需标记不连续 */
+  discontinuity: boolean
+}
+
+function makePendingTime(): PendingTime {
+  return { startMs: null, durationMs: 0, nextMs: null, discontinuity: false }
+}
+
+function generateStreamId(): string {
+  return `stream-${crypto.randomUUID()}`
+}
+
+function generateSessionId(): string {
+  return `session-${crypto.randomUUID()}`
+}
+
 export function createStreamingExportPlugin(
   options: StreamingExportPluginOptions
 ): RecorderPlugin {
-  const { format, encoderOptions, allowMainThreadFallback, encoders } = options
-  assertSupportedFormat(format)
+  const {
+    format,
+    encoderOptions,
+    allowMainThreadFallback,
+    encoders,
+    createSessionId,
+    metadata,
+  } = options
 
-  // 构建局部查表，不依赖任何全局注册表
-  const encoderMap: Record<StreamingExportFormat, StreamEncoderDefinition> = {
-    pcm: undefined as unknown as StreamEncoderDefinition,
-    wav: undefined as unknown as StreamEncoderDefinition,
-  }
-  for (const def of encoders) {
-    if (def.format === "pcm" || def.format === "wav") {
-      encoderMap[def.format] = def
-    }
-  }
+  const streamId =
+    options.streamId ?? options.createStreamId?.() ?? generateStreamId()
 
-  const definition = encoderMap[format]
+  const definition = encoders.find((e) => e.format === format)
   if (!definition) {
+    const available = encoders.map((e) => e.format)
     throw new Error(
       `ChunkedEncoder for format "${format}" not found. ` +
         `Please pass the corresponding StreamEncoderDefinition via options.encoders. ` +
-        `Available formats: ${Object.keys(encoderMap).join(", ") || "(none)"}`
+        `Available formats: ${available.join(", ") || "(none)"}`
     )
   }
 
   let bridge: ChunkedEncoderBridge | undefined
-  let packetSequenceIndex = 0
-  let sessionId = ""
-  let latestSampleRate = 0
-  let latestChannels = 0
-  let pendingDurationMs = 0
-  let isActive = false
   let emitPacket: ((payload: StreamingPacketPayload) => void) | undefined
+
+  // --- 每次录音会话的可变状态 ---
+  let isActive = false
+  let sessionId = ""
+  let seq = 0
+  let lastSampleRate = 0
+  let lastChannels = 0
+  let pending = makePendingTime()
+
+  function resetSession(): void {
+    isActive = false
+    sessionId = ""
+    seq = 0
+    lastSampleRate = 0
+    lastChannels = 0
+    pending = makePendingTime()
+  }
 
   return {
     name: `streaming-export:${format}`,
 
     async setup(context) {
       context.eventBus.register("plugin:stream")
-      emitPacket = (payload) => {
-        context.eventBus.emit("plugin:stream", payload)
-      }
+      emitPacket = (payload) => context.eventBus.emit("plugin:stream", payload)
 
-      // 预热 WASM 模块（若 definition 支持），await 确保 create() 调用时模块已就绪
+      // 预热 WASM 模块（若编码器支持），保证 create() 时模块已就绪
       await definition.preload?.()
 
-      // setup 时创建 Bridge（含 Worker），常驻于整个插件生命周期
+      // Bridge 常驻整个插件生命周期，跨录音会话复用
       bridge = new ChunkedEncoderBridge({
         format,
         definition,
@@ -85,31 +120,33 @@ export function createStreamingExportPlugin(
     },
 
     onStart() {
-      // 不再 new ChunkedEncoderBridge，改为 reset 已有 Bridge
       bridge!.reset(encoderOptions)
-      packetSequenceIndex = 0
-      sessionId = createStreamingSessionId()
-      latestSampleRate = 0
-      latestChannels = 0
-      pendingDurationMs = 0
+      resetSession()
+      sessionId = createSessionId?.() ?? generateSessionId()
       isActive = true
     },
 
     onFrame(frame) {
       if (!isActive || !bridge) return
 
-      const capturedSessionId = sessionId
-      latestSampleRate = frame.sampleRate
-      latestChannels = frame.channels
+      lastSampleRate = frame.sampleRate
+      lastChannels = frame.channels
 
-      // fire-and-forget：编码在 Worker / 主线程完成后回调 emit
+      // 提前捕获 sessionId，防止异步回调时会话已切换
+      const capturedSessionId = sessionId
+
       void bridge
         .feedFrame(frame.channels, frame.sampleRate, frame.planar)
         .then((chunk) => {
-          emitPacketChunk(chunk, capturedSessionId, false, frame)
+          if (capturedSessionId !== sessionId) return
+          if (chunk !== null) {
+            emitChunkPacket(chunk, capturedSessionId, frame)
+          } else {
+            accumulateFrame(frame)
+          }
         })
         .catch(() => {
-          // Worker 错误已在 bridge 内部通过 onerror 处理；bridge disposed 时也会 reject，此处静默
+          // Worker 错误已在 bridge 内部处理；bridge disposed 时也会 reject，此处静默
         })
     },
 
@@ -119,6 +156,7 @@ export function createStreamingExportPlugin(
 
     onResume() {
       isActive = true
+      pending.discontinuity = true
     },
 
     onStop() {
@@ -128,69 +166,96 @@ export function createStreamingExportPlugin(
 
       void bridge
         ?.flush()
-        .then((finalChunk) => {
-          emitPacketChunk(finalChunk, capturedSessionId, true)
+        .then((chunk) => {
+          if (capturedSessionId === sessionId) {
+            emitFinalPacket(chunk, capturedSessionId)
+          }
         })
         .catch(() => {
-          // 静默：bridge disposed 或 Worker 错误，isFinal chunk 丢失
+          // 静默：isFinal packet 丢失，bridge 已 disposed 或 Worker 出错
         })
     },
 
     dispose() {
-      isActive = false
-      sessionId = ""
+      resetSession()
       bridge?.dispose()
       bridge = undefined
       emitPacket = undefined
-      latestSampleRate = 0
-      latestChannels = 0
-      pendingDurationMs = 0
     },
   }
-  function createStreamingSessionId(): string {
-    return `stream-session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-  }
 
-  function assertSupportedFormat(
-    format: string
-  ): asserts format is StreamingExportFormat {
-    if (format === "pcm" || format === "wav") {
-      return
+  // ---------------------------------------------------------------------------
+  // 内部工具函数
+  // ---------------------------------------------------------------------------
+
+  /** 将当前帧的时间信息累积到 pending（编码器本次无产出时调用） */
+  function accumulateFrame(frame: AudioFrame): void {
+    if (pending.startMs === null) {
+      pending.startMs = pending.nextMs ?? frame.timestamp
     }
-
-    throw new Error(
-      `Streaming export only supports "pcm" and "wav". Received "${format}".`
-    )
+    pending.durationMs += frame.durationMs
   }
 
-  function emitPacketChunk(
-    chunk: Uint8Array | null,
+  /** 构建并发出普通（非 final）packet，同时将当前帧时间合并进 pending 后一并输出 */
+  function emitChunkPacket(
+    chunk: Uint8Array,
     capturedSessionId: string,
-    isFinal: boolean,
-    frame?: AudioFrame
+    frame: AudioFrame
   ): void {
-    if (chunk === null || !emitPacket || capturedSessionId !== sessionId) {
-      if (!isFinal && frame && capturedSessionId === sessionId) {
-        pendingDurationMs += frame.durationMs
-      }
-      return
-    }
+    // 将本帧时间并入积累器，然后将积累结果写入 packet
+    accumulateFrame(frame)
 
-    if (!isFinal && frame) {
-      pendingDurationMs += frame.durationMs
-    }
+    const timestampMs = pending.startMs ?? frame.timestamp
+    const durationMs = pending.durationMs
 
-    emitPacket({
+    const packet: StreamingPacketPayload = {
+      streamId,
       sessionId: capturedSessionId,
-      sequenceIndex: packetSequenceIndex++,
-      timestampMs: isFinal ? performance.now() : (frame?.timestamp ?? 0),
-      durationMs: pendingDurationMs,
-      sampleRate: isFinal ? latestSampleRate : (frame?.sampleRate ?? 0),
-      channels: isFinal ? latestChannels : (frame?.channels ?? 0),
+      seq: seq++,
+      timestampMs,
+      durationMs,
+      sampleRate: frame.sampleRate,
+      channels: frame.channels,
       format,
       chunk,
-      isFinal,
-    })
-    pendingDurationMs = 0
+      isFinal: false,
+    }
+    if (pending.discontinuity) packet.discontinuity = true
+    if (metadata !== undefined) packet.metadata = metadata
+
+    emitPacket!(packet)
+
+    // 更新下一 packet 的预期起始时间戳，并清空积累器
+    pending.nextMs = timestampMs + durationMs
+    pending.startMs = null
+    pending.durationMs = 0
+    pending.discontinuity = false
+  }
+
+  /** 构建并发出 flush 产生的 final packet；chunk 为 null（编码器无剩余）时不 emit */
+  function emitFinalPacket(
+    chunk: Uint8Array | null,
+    capturedSessionId: string
+  ): void {
+    if (chunk === null) return
+
+    const timestampMs = pending.startMs ?? pending.nextMs ?? 0
+
+    const packet: StreamingPacketPayload = {
+      streamId,
+      sessionId: capturedSessionId,
+      seq: seq++,
+      timestampMs,
+      durationMs: pending.durationMs,
+      sampleRate: lastSampleRate,
+      channels: lastChannels,
+      format,
+      chunk,
+      isFinal: true,
+    }
+    if (pending.discontinuity) packet.discontinuity = true
+    if (metadata !== undefined) packet.metadata = metadata
+
+    emitPacket!(packet)
   }
 }

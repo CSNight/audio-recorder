@@ -370,7 +370,7 @@ flowchart LR
 
 入口：`createStreamingExportPlugin({ format, encoders })`
 
-当前实现只接受 `format: "pcm" | "wav"`，并要求 `encoders` 中显式传入匹配定义。当前仓库中可直接使用：
+支持任意格式，只需在 `encoders` 中传入对应的 `StreamEncoderDefinition`。内置基础编解码器提供：
 
 - `pcmStreamEncoder`
 - `wavStreamEncoder`

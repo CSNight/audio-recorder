@@ -7,9 +7,7 @@
 
 import type { FlacEncoderHandle, FlacEncoderOptions } from "./types"
 import { FlacError } from "./types"
-
-// This will be the WASM module type
-type LibFlacModule = any // Will be properly typed in types.d.mts
+import type { LibFlacModule } from "./types.d.mts"
 
 // FLAC encoder state codes (FLAC__StreamEncoderState)
 const FLAC__STREAM_ENCODER_OK = 0
@@ -66,7 +64,7 @@ async function getModule(): Promise<LibFlacModule> {
       return m
     })
   }
-  return modulePromise
+  return modulePromise!
 }
 
 /**

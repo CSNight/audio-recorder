@@ -490,11 +490,11 @@ Event payload: `plugin:level`
 
 当前行为：
 
-- 目前只支持 `pcm` 和 `wav`
+- 支持任何拥有匹配 `StreamEncoderDefinition` 的格式；内置基础编解码器提供 `pcm` 和 `wav`
 - 必须由调用方通过 `encoders` 显式传入匹配格式的编码器
 - 整个插件生命周期内复用同一个 bridge，并在 `start()` 时重置
 - 优先使用 Worker 编码，必要时可降级到主线程编码
-- `stop()` 时若编码器仍有缓冲，会额外 `flush()` 出一个最终 packet
+- `stop()` 时若编码器仍有缓冲，会额外 `flush()` 出一个最终 packet；若无剩余输出则不 emit
 
 事件：
 
@@ -534,12 +534,16 @@ recorder.on("plugin:stream", ({ payload }) => {
 
 Options: `StreamingExportPluginOptions`
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `format` | `"pcm" \| "wav"` | `-` | 输出 chunk 格式 |
-| `encoderOptions` | `unknown` | `-` | 传给 `definition.create(options)` 和 `bridge.reset(options)` 的编码参数 |
-| `encoders` | `StreamEncoderDefinition[]` | `-` | 可用流式编码器，必须包含选中的 `format` |
-| `allowMainThreadFallback` | `boolean` | `true` | Worker 不可用时退回主线程编码 |
+| Field                     | Type                        | Default | Description                                                     |
+|---------------------------|-----------------------------|---------|-----------------------------------------------------------------|
+| `format`                  | `string`                    | `-`     | 输出 chunk 格式                                                     |
+| `encoderOptions`          | `unknown`                   | `-`     | 传给 `definition.create(options)` 和 `bridge.reset(options)` 的编码参数 |
+| `encoders`                | `StreamEncoderDefinition[]` | `-`     | 可用流式编码器，必须包含选中的 `format`                                        |
+| `allowMainThreadFallback` | `boolean`                   | `true`  | Worker 不可用时退回主线程编码                                              |
+| `streamId`                | `string`                    | 自动      | 固定逻辑流 ID；跨会话保持稳定。未传时从 `createStreamId()` 求值一次，或自动生成             |
+| `createStreamId`          | `() => string`              | `-`     | 懒生成流 ID 的工厂函数，在插件创建时调用一次；设置了 `streamId` 时忽略                     |
+| `createSessionId`         | `() => string`              | 自动      | 每次 `start()` 时调用的会话 ID 工厂；默认基于 `crypto.randomUUID()` 生成         |
+| `metadata`                | `Record<string, unknown>`   | `-`     | 附加到每个 packet 的静态元数据                                             |
 
 `StreamEncoderDefinition` 字段：
 
@@ -564,19 +568,20 @@ Event payload: `plugin:stream`
 
 `StreamingPacketPayload` 字段：
 
-| Field | Type | Description |
-|---|---|---|
-| `sessionId` | `string` | 每次 `start()` 生成的流式会话 ID |
-| `sequenceIndex` | `number` | 会话内单调递增的 packet 序号 |
-| `timestampMs` | `number` | 来源帧时间戳；最终 packet 为 `flush()` 时刻时间戳 |
-| `durationMs` | `number` | 当前 packet 覆盖的累计源帧时长 |
-| `sampleRate` | `number` | packet 采样率 |
-| `channels` | `number` | packet 声道数 |
-| `format` | `"pcm" \| "wav"` | packet 格式 |
-| `chunk` | `Uint8Array` | 编码后的字节 |
-| `isFinal` | `boolean` | 是否为由 `flush()` 产出的最终 packet |
-| `discontinuity` | `boolean \| undefined` | 供传输层或播放层识别 gap 的可选标记 |
-| `metadata` | `Record<string, unknown> \| undefined` | 预留扩展字段 |
+| Field           | Type                                   | Description                        |
+|-----------------|----------------------------------------|------------------------------------|
+| `streamId`      | `string`                               | 逻辑流 ID；跨会话保持稳定                     |
+| `sessionId`     | `string`                               | 每次 `start()` 生成的流式会话 ID            |
+| `seq`           | `number`                               | 会话内单调递增的 packet 序号                 |
+| `timestampMs`   | `number`                               | 来源帧时间戳；最终 packet 为 `flush()` 时刻时间戳 |
+| `durationMs`    | `number`                               | 当前 packet 覆盖的累计源帧时长                |
+| `sampleRate`    | `number`                               | packet 采样率                         |
+| `channels`      | `number`                               | packet 声道数                         |
+| `format`        | `string`                               | packet 格式                          |
+| `chunk`         | `Uint8Array`                           | 编码后的字节                             |
+| `isFinal`       | `boolean`                              | 是否为由 `flush()` 产出的最终 packet        |
+| `discontinuity` | `boolean \| undefined`                 | 供传输层或播放层识别 gap 的可选标记               |
+| `metadata`      | `Record<string, unknown> \| undefined` | 预留扩展字段                             |
 
 ### `asr-export`
 
@@ -607,7 +612,7 @@ await recorder.use(
 )
 
 recorder.on("plugin:asr:chunk", ({ payload }) => {
-  console.log(payload.sequenceIndex, payload.chunk.byteLength, payload.isFinal)
+  console.log(payload.seq, payload.chunk.byteLength, payload.isFinal)
 })
 ```
 
@@ -646,16 +651,16 @@ Event payload: `plugin:asr:chunk`
 
 `AsrChunkPayload` 字段：
 
-| Field | Type | Description |
-|---|---|---|
-| `format` | `"pcm" \| "wav"` | 输出格式 |
-| `chunk` | `Uint8Array` | 编码后的字节 |
-| `sequenceIndex` | `number` | 单调递增序号 |
-| `timestampMs` | `number` | chunk 时间戳（毫秒） |
-| `durationMs` | `number` | chunk 时长 |
-| `sampleRate` | `number` | 输出采样率 |
-| `channels` | `1` | 固定单声道 |
-| `isFinal` | `boolean` | 是否为最终 chunk |
+| Field         | Type             | Description   |
+|---------------|------------------|---------------|
+| `format`      | `"pcm" \| "wav"` | 输出格式          |
+| `chunk`       | `Uint8Array`     | 编码后的字节        |
+| `seq`         | `number`         | 单调递增序号        |
+| `timestampMs` | `number`         | chunk 时间戳（毫秒） |
+| `durationMs`  | `number`         | chunk 时长      |
+| `sampleRate`  | `number`         | 输出采样率         |
+| `channels`    | `1`              | 固定单声道         |
+| `isFinal`     | `boolean`        | 是否为最终 chunk   |
 
 ## 存储
 

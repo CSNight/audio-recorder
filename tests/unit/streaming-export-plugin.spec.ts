@@ -4,7 +4,6 @@ import { createStreamingExportPlugin } from "@/plugins/streaming-export/plugin"
 import type { RecorderPluginEventContext } from "@/plugins/types"
 import type {
   StreamEncoderDefinition,
-  StreamingExportFormat,
   StreamingPacketPayload,
 } from "@/plugins/streaming-export/types"
 import type {
@@ -35,9 +34,9 @@ class FakeStreamingInputSession implements RecorderInputSession {
 
   async close(): Promise<void> {}
 
-  emitFrame(samples: number[] = [0, 0.5, -0.5]): void {
+  emitFrame(samples: number[] = [0, 0.5, -0.5], timestamp = 10): void {
     this.handlers.onFrame(
-      createAudioFrame([new Float32Array(samples)], 16_000, 10)
+      createAudioFrame([new Float32Array(samples)], 16_000, timestamp)
     )
   }
 }
@@ -100,27 +99,55 @@ function isStreamingPacketEvent(
     payload !== null &&
     "chunk" in payload &&
     "isFinal" in payload &&
-    "sequenceIndex" in payload &&
+    "seq" in payload &&
     "timestampMs" in payload &&
     "durationMs" in payload &&
-    "sessionId" in payload
+    "sessionId" in payload &&
+    "streamId" in payload
   )
 }
 
 describe("createStreamingExportPlugin", () => {
-  it("throws when format is outside pcm/wav", () => {
-    expect(() =>
-      createStreamingExportPlugin({
-        format: "test" as unknown as StreamingExportFormat,
-        encoders: [],
-      })
-    ).toThrow(/only supports "pcm" and "wav"/)
-  })
-
   it("throws when no encoder definition matches the requested supported format", () => {
     expect(() =>
       createStreamingExportPlugin({ format: "pcm", encoders: [] })
     ).toThrow(/ChunkedEncoder for format "pcm" not found/)
+  })
+
+  it("accepts arbitrary formats when a matching encoder definition is provided", async () => {
+    const adapter = new FakeStreamingInputAdapter()
+    const recorder = new RecorderController({
+      inputAdapter: adapter,
+      storageOptions: undefined,
+    })
+    const events: string[] = []
+
+    const definition: StreamEncoderDefinition = {
+      format: "test",
+      create: () => ({
+        feedFrame: () => new Uint8Array([7]),
+        flush: () => null,
+        dispose: () => undefined,
+      }),
+    }
+
+    recorder.on("plugin:stream", (event) => {
+      if (!isStreamingPacketEvent(event)) {
+        throw new Error("Expected streaming packet plugin event.")
+      }
+
+      events.push(event.payload.format)
+    })
+
+    await recorder.use(
+      createStreamingExportPlugin({ format: "test", encoders: [definition] })
+    )
+    await recorder.open()
+    await recorder.start()
+    adapter.session?.emitFrame()
+    await flushMicrotasks()
+
+    expect(events).toEqual(["test"])
   })
 
   it("emits PCM stream packets through the recorder plugin event channel", async () => {
@@ -130,12 +157,15 @@ describe("createStreamingExportPlugin", () => {
       storageOptions: undefined,
     })
     const events: Array<{
-      sequenceIndex: number
+      seq: number
       isFinal: boolean
       chunk: number[]
       timestampMs: number
       durationMs: number
+      streamId: string
       sessionId: string
+      discontinuity: boolean | undefined
+      metadata: Record<string, unknown> | undefined
       pluginName: string
     }> = []
 
@@ -159,18 +189,26 @@ describe("createStreamingExportPlugin", () => {
 
       const { payload, pluginName } = event
       events.push({
-        sequenceIndex: payload.sequenceIndex,
+        seq: payload.seq,
         isFinal: payload.isFinal,
         chunk: Array.from(payload.chunk),
         timestampMs: payload.timestampMs,
         durationMs: payload.durationMs,
+        streamId: payload.streamId,
         sessionId: payload.sessionId,
+        discontinuity: payload.discontinuity,
+        metadata: payload.metadata,
         pluginName,
       })
     })
 
     await recorder.use(
-      createStreamingExportPlugin({ format: "pcm", encoders: [definition] })
+      createStreamingExportPlugin({
+        format: "pcm",
+        encoders: [definition],
+        streamId: "stream-alpha",
+        metadata: { producer: "test" },
+      })
     )
     await recorder.open()
     await recorder.start()
@@ -181,19 +219,25 @@ describe("createStreamingExportPlugin", () => {
 
     expect(events).toHaveLength(2)
     expect(events[0]).toEqual({
-      sequenceIndex: 0,
+      seq: 0,
       isFinal: false,
       chunk: [4, 0],
       timestampMs: 10,
       durationMs: 0.25,
+      streamId: "stream-alpha",
       sessionId: events[0]?.sessionId,
+      discontinuity: undefined,
+      metadata: { producer: "test" },
       pluginName: "streaming-export:pcm",
     })
-    expect(events[1]?.sequenceIndex).toBe(1)
+    expect(events[1]?.seq).toBe(1)
     expect(events[1]?.isFinal).toBe(true)
     expect(events[1]?.chunk).toEqual([255])
+    expect(events[1]?.timestampMs).toBe(10.25)
     expect(events[1]?.durationMs).toBe(0)
+    expect(events[1]?.streamId).toBe("stream-alpha")
     expect(events[1]?.sessionId).toBe(events[0]?.sessionId)
+    expect(events[1]?.metadata).toEqual({ producer: "test" })
     expect(events[1]?.pluginName).toBe("streaming-export:pcm")
   })
 
@@ -337,7 +381,11 @@ describe("createStreamingExportPlugin", () => {
       inputAdapter: adapter,
       storageOptions: undefined,
     })
-    const events: Array<{ isFinal: boolean; chunk: number[] }> = []
+    const events: Array<{
+      isFinal: boolean
+      chunk: number[]
+      discontinuity: boolean | undefined
+    }> = []
 
     const definition: StreamEncoderDefinition = {
       format: "wav",
@@ -356,6 +404,7 @@ describe("createStreamingExportPlugin", () => {
       events.push({
         isFinal: event.payload.isFinal,
         chunk: Array.from(event.payload.chunk),
+        discontinuity: event.payload.discontinuity,
       })
     })
 
@@ -372,7 +421,86 @@ describe("createStreamingExportPlugin", () => {
     await recorder.stop()
     await flushMicrotasks()
 
-    expect(events).toEqual([{ isFinal: false, chunk: [1] }])
+    expect(events).toEqual([
+      { isFinal: false, chunk: [1], discontinuity: true },
+    ])
+  })
+
+  it("keeps streamId stable across sessions while creating a new sessionId per start", async () => {
+    const adapter = new FakeStreamingInputAdapter()
+    const recorder = new RecorderController({
+      inputAdapter: adapter,
+      storageOptions: undefined,
+    })
+    const packets: Array<{
+      streamId: string
+      sessionId: string
+      timestampMs: number
+      isFinal: boolean
+    }> = []
+    const createdSessionIds = ["session-a", "session-b"]
+
+    const definition: StreamEncoderDefinition = {
+      format: "pcm",
+      create: () => ({
+        feedFrame: () => new Uint8Array([1]),
+        flush: () => new Uint8Array([9]),
+        dispose: () => undefined,
+      }),
+    }
+
+    recorder.on("plugin:stream", (event) => {
+      if (!isStreamingPacketEvent(event)) {
+        throw new Error("Expected streaming packet plugin event.")
+      }
+
+      packets.push({
+        streamId: event.payload.streamId,
+        sessionId: event.payload.sessionId,
+        timestampMs: event.payload.timestampMs,
+        isFinal: event.payload.isFinal,
+      })
+    })
+
+    await recorder.use(
+      createStreamingExportPlugin({
+        format: "pcm",
+        encoders: [definition],
+        streamId: "stream-shared",
+        createSessionId: () => createdSessionIds.shift() ?? "session-fallback",
+      })
+    )
+    await recorder.open()
+
+    await recorder.start()
+    adapter.session?.emitFrame([0, 0.5], 42)
+    await flushMicrotasks()
+    await recorder.stop()
+    await flushMicrotasks()
+
+    await recorder.close()
+    await recorder.open()
+    await recorder.start()
+    adapter.session?.emitFrame([0.25, -0.25], 100)
+    await flushMicrotasks()
+    await recorder.stop()
+    await flushMicrotasks()
+
+    expect(packets).toHaveLength(4)
+    expect(packets.map((packet) => packet.streamId)).toEqual([
+      "stream-shared",
+      "stream-shared",
+      "stream-shared",
+      "stream-shared",
+    ])
+    expect(packets[0]?.sessionId).toBe("session-a")
+    expect(packets[1]?.sessionId).toBe("session-a")
+    expect(packets[2]?.sessionId).toBe("session-b")
+    expect(packets[3]?.sessionId).toBe("session-b")
+    expect(packets[0]?.timestampMs).toBe(42)
+    expect(packets[1]?.timestampMs).toBe(42.125)
+    expect(packets[2]?.timestampMs).toBe(100)
+    expect(packets[3]?.timestampMs).toBe(100.125)
   })
 
   it("swallows worker rejections instead of surfacing unhandled plugin errors", async () => {
