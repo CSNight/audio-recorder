@@ -22,6 +22,13 @@ pcmStreamEncoder.workerFactory = () => new PcmWorker()
 export { pcmStreamEncoder }
 export { pcmExportEncoder } from "./pcm-snapshot-encoder"
 export { pcmDecoderDefinition } from "./pcm-decoder"
+export type {
+  AudioDecoderDefinition,
+  DecodedAudioChunk,
+  EncodedAudioChunk,
+} from "@/types"
+export type { PcmExportOptions, PcmExportResult } from "./pcm-types"
+export type { WavExportOptions, WavExportResult } from "./wav-types"
 export type { PcmChunkedEncoderOptions } from "./pcm-chunked-encoder"
 ;(
   wavStreamEncoder as typeof wavStreamEncoder & {

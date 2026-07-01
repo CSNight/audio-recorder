@@ -5,15 +5,36 @@ import type {
   RecorderPluginEventPayload,
 } from "@/plugins/types"
 import type { RecorderStorageOptions } from "@/storage/types"
-import type { PcmExportOptions, PcmExportResult } from "@/codecs/base/pcm-types"
-import type { WavExportOptions, WavExportResult } from "@/codecs/base/wav-types"
-import type { Mp3ExportOptions, Mp3ExportResult } from "@/codecs/mp3/types"
+import type {
+  PcmExportOptions,
+  PcmExportResult,
+  WavExportOptions,
+  WavExportResult,
+} from "@/codecs/base"
+import type { Mp3ExportOptions, Mp3ExportResult } from "@/codecs/mp3"
 import type { FlacExportOptions, FlacExportResult } from "@/codecs/flac"
 import type { OpusExportOptions, OpusExportResult } from "@/codecs/opus"
 import type { G711ExportOptions, G711ExportResult } from "@/codecs/g711"
 import type { AacExportOptions, AacExportResult } from "@/codecs/aac"
 import type { AmrExportOptions, AmrExportResult } from "@/codecs/amr"
 
+export interface EncodedAudioChunk {
+  format: string
+  sampleRate: number
+  channels: number
+  chunk: Uint8Array
+}
+
+export interface DecodedAudioChunk {
+  sampleRate: number
+  channels: number
+  planar: Float32Array[]
+}
+
+export interface AudioDecoderDefinition {
+  format: string
+  decode(chunk: EncodedAudioChunk): Promise<DecodedAudioChunk>
+}
 /**
  * 音频声道数。支持任意正整数，常见值：
  * - 1: 单声道

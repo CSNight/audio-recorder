@@ -17,11 +17,8 @@ describe("wavDecoderDefinition", () => {
     const decoded = await wavDecoderDefinition.decode({
       chunk: new Uint8Array(wav.arrayBuffer),
       format: "wav",
-      timestampMs: 0,
-      sequenceIndex: 0,
       sampleRate: 16000,
-      channels: 1,
-      isFinal: false,
+      channels: 1
     })
 
     expect(decoded.sampleRate).toBe(16000)
@@ -42,11 +39,8 @@ describe("wavDecoderDefinition", () => {
     const decoded = await wavDecoderDefinition.decode({
       chunk: new Uint8Array(wav.arrayBuffer),
       format: "wav",
-      timestampMs: 0,
-      sequenceIndex: 0,
       sampleRate: 8000,
-      channels: 2,
-      isFinal: false,
+      channels: 2
     })
 
     expect(decoded.sampleRate).toBe(8000)
@@ -68,11 +62,8 @@ describe("wavDecoderDefinition", () => {
     const decoded = await wavDecoderDefinition.decode({
       chunk: new Uint8Array(wav.arrayBuffer),
       format: "wav",
-      timestampMs: 0,
-      sequenceIndex: 0,
       sampleRate: 48000,
-      channels: 2,
-      isFinal: false,
+      channels: 2
     })
 
     expect(decoded.sampleRate).toBe(48000)
@@ -89,11 +80,8 @@ describe("wavDecoderDefinition", () => {
       wavDecoderDefinition.decode({
         chunk: invalid,
         format: "wav",
-        timestampMs: 0,
-        sequenceIndex: 0,
         sampleRate: 16000,
-        channels: 1,
-        isFinal: false,
+        channels: 1
       })
     ).rejects.toThrow("Invalid WAV header.")
   })

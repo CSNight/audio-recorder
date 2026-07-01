@@ -1,5 +1,8 @@
-import type { StreamingChunkPayload } from "@/plugins/streaming-export/types"
-import type { DecodedAudioChunk } from "@/codecs/base/pcm-decoder"
+import type {
+  AudioDecoderDefinition,
+  DecodedAudioChunk,
+  EncodedAudioChunk,
+} from "@/types"
 
 export interface DecodedWavPcm {
   sampleRate: number
@@ -116,10 +119,10 @@ function readAscii(view: DataView, offset: number, length: number): string {
   return output
 }
 
-export const wavDecoderDefinition = {
+export const wavDecoderDefinition: AudioDecoderDefinition = {
   format: "wav",
-  async decode(payload: StreamingChunkPayload): Promise<DecodedAudioChunk> {
-    const decoded = decodeWavToFloat32(payload.chunk.slice().buffer)
+  async decode(chunk: EncodedAudioChunk): Promise<DecodedAudioChunk> {
+    const decoded = decodeWavToFloat32(chunk.chunk.slice().buffer)
     return {
       sampleRate: decoded.sampleRate,
       channels: decoded.channels,

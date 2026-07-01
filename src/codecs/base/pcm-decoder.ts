@@ -1,20 +1,18 @@
-import type { StreamingChunkPayload } from "@/plugins/streaming-export"
+import type {
+  AudioDecoderDefinition,
+  DecodedAudioChunk,
+  EncodedAudioChunk,
+} from "@/types"
 
-export interface DecodedAudioChunk {
-  sampleRate: number
-  channels: number
-  planar: Float32Array[]
-}
-
-export const pcmDecoderDefinition = {
+export const pcmDecoderDefinition: AudioDecoderDefinition = {
   format: "pcm",
-  async decode(payload: StreamingChunkPayload): Promise<DecodedAudioChunk> {
-    const sampleRate = payload.sampleRate || 16000
-    const channels = payload.channels || 1
+  async decode(chunk: EncodedAudioChunk): Promise<DecodedAudioChunk> {
+    const sampleRate = chunk.sampleRate || 16000
+    const channels = chunk.channels || 1
     const int16 = new Int16Array(
-      payload.chunk.buffer,
-      payload.chunk.byteOffset,
-      Math.floor(payload.chunk.byteLength / 2)
+      chunk.chunk.buffer,
+      chunk.chunk.byteOffset,
+      Math.floor(chunk.chunk.byteLength / 2)
     )
     const frameLength = Math.max(1, Math.floor(int16.length / channels))
     const planar = Array.from(

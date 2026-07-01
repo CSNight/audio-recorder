@@ -1,4 +1,4 @@
-import type { AmrBandMode, AmrEncoderHandle, AmrEncoderOptions } from "./types"
+import type { AmrBandMode, AmrEncoderHandle, AmrExportOptions } from "./types"
 
 type LibAmrModule = {
   HEAP16: Int16Array
@@ -86,7 +86,7 @@ export function getAmrMimeType(bandMode: AmrBandMode): string {
 }
 
 export function createAmrEncoder(
-  options: AmrEncoderOptions = {}
+  options: AmrExportOptions = {}
 ): AmrEncoderHandle {
   const bandMode = options.bandMode ?? "nb"
   if (bandMode === "nb") {

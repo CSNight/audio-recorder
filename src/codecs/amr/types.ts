@@ -2,13 +2,10 @@
 export type AmrBandMode = "nb" | "wb"
 
 /** AMR 编码器选项 */
-export interface AmrEncoderOptions {
+export interface AmrExportOptions {
   /** 频带模式，默认 "nb"（AMR-NB） */
   bandMode?: AmrBandMode
 }
-
-/** AMR 一次性导出选项 */
-export type AmrExportOptions = AmrEncoderOptions
 
 /** AMR 导出结果 */
 export interface AmrExportResult {
