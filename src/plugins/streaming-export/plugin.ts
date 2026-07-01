@@ -17,7 +17,7 @@ import type { AudioFrame } from "@/types"
  *
  * 用法：
  * ```ts
- * import { pcmStreamEncoder } from "@csnight/audio-recorder/codecs/pcm"
+ * import { pcmStreamEncoder } from "@csnight/audio-recorder/codecs/base"
  * const plugin = createStreamingExportPlugin({
  *   format: "pcm",
  *   encoders: [pcmStreamEncoder],

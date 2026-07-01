@@ -311,7 +311,7 @@ flowchart LR
 插件事件以 `plugin:` 为前缀，例如：
 
 - `plugin:level`
-- `plugin:encoded-chunk`
+- `plugin:stream`
 
 `RecorderController.on()` 会根据事件名前缀决定路由到哪条总线。
 
@@ -340,7 +340,9 @@ flowchart LR
 - 接收实时 PCM 帧
 - 通过 `ChunkedEncoderBridge` 驱动 chunk 编码
 - 优先走 Worker，失败时可降级回主线程
-- 通过 `plugin:encoded-chunk` 输出编码分片
+- 在 `start()` 时重置 bridge，并为本次录音生成新的 stream session
+- 通过 `plugin:stream` 输出 `StreamingPacketPayload`
+- `stop()` 时通过 `flush()` 补发最终 packet（若编码器仍有剩余输出）
 
 ## 13. 导出链路
 
@@ -368,11 +370,10 @@ flowchart LR
 
 入口：`createStreamingExportPlugin({ format, encoders })`
 
-支持格式取决于传入的 `StreamEncoderDefinition`。当前仓库中可直接使用：
+当前实现只接受 `format: "pcm" | "wav"`，并要求 `encoders` 中显式传入匹配定义。当前仓库中可直接使用：
 
 - `pcmStreamEncoder`
 - `wavStreamEncoder`
-- `mp3StreamEncoder`
 
 ## 14. Worker bridge 链路
 

@@ -2,7 +2,7 @@
  * PCM 编解码器子路径导出入口（独立 Vite entry）。
  *
  * 导入此模块即可使用 pcmStreamEncoder：
- *   import { pcmStreamEncoder } from "@csnight/audio-recorder/codecs/pcm"
+ *   import { pcmStreamEncoder } from "@csnight/audio-recorder/codecs/base"
  *
  * 传入 createStreamingExportPlugin({ format: "pcm", encoders: [pcmStreamEncoder] })。
  */

@@ -482,11 +482,19 @@ Event payload: `plugin:level`
 
 #### Introduction
 
-Real-time chunk export plugin. Feeds PCM frames into a `StreamEncoderDefinition` and emits encoded chunks while recording.
+Real-time chunk export plugin. Feeds PCM frames into a `StreamEncoderDefinition` through `ChunkedEncoderBridge` and emits standardized stream packets while recording.
+
+Current behavior:
+
+- Supports `pcm` and `wav` only
+- Requires the caller to pass a matching encoder via `encoders`
+- Reuses one bridge instance across recorder sessions and resets it on `start()`
+- Prefers Worker encoding and can fall back to main-thread encoding when enabled
+- Flushes one final packet on `stop()` if the encoder still has buffered output
 
 Event:
 
-- `plugin:encoded-chunk`
+- `plugin:stream`
 
 #### Quick Start
 
@@ -504,7 +512,7 @@ await recorder.use(
   })
 )
 
-recorder.on("plugin:encoded-chunk", ({ payload }) => {
+recorder.on("plugin:stream", ({ payload }) => {
   console.log(payload.format, payload.chunk.byteLength, payload.isFinal)
 })
 ```
@@ -515,7 +523,7 @@ recorder.on("plugin:encoded-chunk", ({ payload }) => {
 |---|---|
 | `createStreamingExportPlugin(options)` | Create a streaming export plugin |
 | `StreamEncoderDefinition` | Public stream encoder definition passed by the caller |
-| `StreamingChunkPayload` | Chunk event payload |
+| `StreamingPacketPayload` | Stream packet payload |
 | `StreamingExportPluginOptions` | Plugin options |
 
 Options: `StreamingExportPluginOptions`
@@ -523,8 +531,8 @@ Options: `StreamingExportPluginOptions`
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `format` | `"pcm" \| "wav"` | `-` | Output chunk format |
-| `encoderOptions` | `unknown` | `-` | Encoder-specific options passed to the public encoder definition |
-| `encoders` | `StreamEncoderDefinition[]` | `-` | Available stream encoders |
+| `encoderOptions` | `unknown` | `-` | Encoder-specific options passed to `definition.create(options)` and `bridge.reset(options)` |
+| `encoders` | `StreamEncoderDefinition[]` | `-` | Available stream encoders; must include the selected `format` |
 | `allowMainThreadFallback` | `boolean` | `true` | Fall back to main-thread encoding when Worker execution is unavailable |
 
 `StreamEncoderDefinition` fields:
@@ -532,11 +540,11 @@ Options: `StreamingExportPluginOptions`
 | Field | Type | Description |
 |---|---|---|
 | `format` | `string` | Encoder format key |
-| `workerFactory` | `() => Worker` | Optional Worker factory |
-| `preload` | `() => Promise<void>` | Optional preload hook |
+| `workerFactory` | `() => Worker` | Optional Worker factory used by `ChunkedEncoderBridge` |
+| `preload` | `() => Promise<void>` | Optional preload hook called during plugin `setup()` |
 | `create` | `(options?) => StreamEncoder` | Create encoder instance |
 
-Event payload: `plugin:encoded-chunk`
+Event payload: `plugin:stream`
 
 | Field | Type | Description |
 |---|---|---|
@@ -546,19 +554,23 @@ Event payload: `plugin:encoded-chunk`
 | `pluginName` | `string` | Plugin name |
 | `runtimeInfo` | `RecorderRuntimeInfo` | Runtime info snapshot |
 | `summary` | `RecorderSessionSummary` | Session summary snapshot |
-| `payload` | `StreamingChunkPayload` | Encoded chunk payload |
+| `payload` | `StreamingPacketPayload` | Encoded stream packet payload |
 
-`StreamingChunkPayload` fields:
+`StreamingPacketPayload` fields:
 
 | Field | Type | Description |
 |---|---|---|
+| `sessionId` | `string` | Streaming session ID generated on each `start()` |
+| `sequenceIndex` | `number` | Monotonic packet index within the session |
+| `timestampMs` | `number` | Source frame timestamp, or flush timestamp for the final packet |
+| `durationMs` | `number` | Accumulated source-frame duration represented by this packet |
+| `sampleRate` | `number` | Packet sample rate |
+| `channels` | `number` | Packet channel count |
+| `format` | `"pcm" \| "wav"` | Packet format |
 | `chunk` | `Uint8Array` | Encoded bytes |
-| `format` | `"pcm" \| "wav"` | Chunk format |
-| `timestampMs` | `number` | Frame timestamp for this chunk |
-| `sequenceIndex` | `number` | Monotonic chunk index |
-| `sampleRate` | `number` | Chunk sample rate |
-| `channels` | `number` | Chunk channel count |
-| `isFinal` | `boolean` | Final chunk flag |
+| `isFinal` | `boolean` | Final packet emitted from `flush()` |
+| `discontinuity` | `boolean \| undefined` | Optional gap marker for transport or playback layers |
+| `metadata` | `Record<string, unknown> \| undefined` | Reserved extensibility field |
 
 ### `asr-export`
 
