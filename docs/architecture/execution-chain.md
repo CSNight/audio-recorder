@@ -5,18 +5,19 @@
 相关文档：
 
 - 总索引：[`docs/README.md`](../README.md)
-- 长期方案：[`docs/plans/recorder-ts-master-plan.md`](../plans/recorder-ts-master-plan.md)
+- Streaming Player 设计方案：[`docs/plans/streaming-player-design.md`](../plans/streaming-player-design.md)
 
 ---
 
 ## 0. 总览
 
-当前架构可以概括为四层：
+当前架构可以概括为五层：
 
 1. 控制层：`RecorderController` 负责生命周期、状态机、事件分发、编码器注册和插件宿主。
 2. 输入层：`BrowserInputAdapter` 负责取流、选择输入后端，并把原始音频帧交给 `BrowserInputSession`。
 3. 缓冲与导出层：`PcmFramePipeline + PcmBufferStore` 负责积累 PCM 快照，编码器负责全量导出或实时分片编码。
-4. 扩展层：插件、持久化后端、Worker bridge 通过显式子路径接入，不污染根入口。
+4. 插件层：Level Meter、StreamingExport、ASR Export 等插件通过 `PluginHost` 接入，以 `plugin:` 前缀事件对外输出。
+5. 扩展层：持久化后端、Worker bridge 通过显式子路径接入，不污染根入口。
 
 ## 1. 模块职责图
 
@@ -35,10 +36,14 @@ flowchart LR
   B --> I[EventBus]
   B --> J[PluginHost]
   J --> K[PluginEventBus]
-  B --> L[Snapshot Encoders]
-  J --> M[ChunkedEncoderBridge]
-  H --> N[Persistence Plugin]
-  O[playground] --> A
+    J --> L1[LevelMeterPlugin]
+    J --> L2[StreamingExportPlugin]
+    J --> L3[AsrExportPlugin]
+    L2 --> M[ChunkedEncoderBridge]
+    M --> N[Worker / Main Thread Encoder]
+    B --> O[Snapshot Encoders]
+    H --> P[Persistence Plugin]
+    Q[playground] --> A
 ```
 
 ## 2. 主入口链路
@@ -310,8 +315,9 @@ flowchart LR
 
 插件事件以 `plugin:` 为前缀，例如：
 
-- `plugin:level`
-- `plugin:stream`
+- `plugin:level` — 音量电平
+- `plugin:stream` — 实时流式数据包（StreamingExportPlugin 产出）
+- `plugin:asr` — ASR 导出数据包（AsrExportPlugin 产出）
 
 `RecorderController.on()` 会根据事件名前缀决定路由到哪条总线。
 
@@ -319,7 +325,7 @@ flowchart LR
 
 插件宿主位于 [`src/plugins/plugin-host.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/plugin-host.ts)。
 
-当前内置且稳定的插件能力有两个：
+当前内置且稳定的插件能力有三个：
 
 ### 12.1 Level Meter
 
@@ -344,117 +350,111 @@ flowchart LR
 - 通过 `plugin:stream` 输出 `StreamingPacketPayload`
 - `stop()` 时通过 `flush()` 补发最终 packet（若编码器仍有剩余输出）
 
-## 13. 导出链路
+输出包类型（`StreamingPacketPayload`）：
+
+```ts
+interface StreamingPacketPayload {
+  streamId: string        // 逻辑流 ID，跨重连可稳定
+  sessionId: string       // 本次录音会话 ID
+  seq: number             // 顺序号
+  timestampMs: number     // 帧时间戳
+  durationMs: number      // 本 chunk 时长
+  sampleRate: number
+  channels: number
+  format: string
+  chunk: Uint8Array       // 编码后的音频数据
+  isFinal: boolean        // 是否为 session 最后一个 packet
+  discontinuity?: boolean // 是否存在不连续片段
+  metadata?: Record<string, unknown>
+}
+```
+
+### 12.3 ASR Export
+
+入口：[`src/plugins/asr-export/index.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/asr-export/index.ts)
+
+功能：
+
+- 专为 ASR（语音识别）场景设计
+- 支持独立采样率设置（通常 16kHz）
+- 支持自定义分块时长 `chunkDurationMs`
+- 通过 `plugin:asr` 输出数据包
+
+## 13. ChunkedEncoderBridge
+
+位于 [
+`src/plugins/chunked-encoder-bridge.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/chunked-encoder-bridge.ts)。
+
+这是 StreamingExport 和 ASR Export 的共享实现核心，负责：
+
+- 在 Worker 和主线程之间透明地调度编码任务
+- 维护 `sequenceIndex` 和时间戳
+- 管理 Worker 生命周期和降级逻辑
+
+## 14. 导出链路
 
 当前同时存在两类导出路径。
 
-### 13.1 全量快照导出
+### 14.1 全量快照导出
 
-入口：`recorder.exportEncoded(type, options)`
+入口：`recorder.exportEncoded(type, options?)`
 
-支持格式：
+链路：
 
-- `pcm`
-- `wav`
-- `mp3`
-
-前提是调用方已经注册对应 `ExportEncoderDefinition`。
-
-相关实现：
-
-- [`src/codecs/base/pcm-snapshot-encoder.ts`](/E:/ai-base-workspace/audio-recorder/src/codecs/base/pcm-snapshot-encoder.ts)
-- [`src/codecs/base/wav-snapshot-encoder.ts`](/E:/ai-base-workspace/audio-recorder/src/codecs/base/wav-snapshot-encoder.ts)
-- [`src/codecs/mp3/mp3-snapshot-exporter.ts`](/E:/ai-base-workspace/audio-recorder/src/codecs/mp3/mp3-snapshot-exporter.ts)
-
-### 13.2 实时 chunk 导出
-
-入口：`createStreamingExportPlugin({ format, encoders })`
-
-支持任意格式，只需在 `encoders` 中传入对应的 `StreamEncoderDefinition`。内置基础编解码器提供：
-
-- `pcmStreamEncoder`
-- `wavStreamEncoder`
-
-## 14. Worker bridge 链路
-
-通用 Worker bridge 位于 [`src/workers/chunked-encoder-bridge.ts`](/E:/ai-base-workspace/audio-recorder/src/workers/chunked-encoder-bridge.ts)。
-
-职责：
-
-- 统一管理 chunked encoder 的 Worker/主线程执行模式
-- 抽象 `feedFrame()` 与 `flush()` 的异步接口
-- 隔离 MP3 等重型编码依赖
-
-当前策略：
-
-- 如果 `StreamEncoderDefinition.workerFactory` 可用，优先创建 Worker
-- Worker 不可用且允许降级时，回退到主线程同步编码
-- `dispose()` 负责释放 Worker 或主线程 encoder 实例
-
-## 15. 状态机
-
-控制器外部可见的状态机如下：
-
-```text
-idle -> ready -> recording -> paused -> recording -> stopped -> closed
+```mermaid
+flowchart LR
+    A[exportEncoded] --> B[requirePcmSnapshot]
+    B --> C[PcmBufferStore.getSnapshot]
+    C --> D[SnapshotEncoder.encode]
+    D --> E[Blob / ArrayBuffer]
 ```
 
-还有一个终态：
+特点：
+
+- 同步阻塞整段数据
+- 支持 WAV、PCM、MP3、G711、Opus、FLAC、AAC、AMR
+- 编码器由调用方显式注入
+
+### 14.2 实时流式导出
+
+通过 `StreamingExportPlugin` 实现（见 12.2 节）。
+
+## 15. 子路径导出结构
 
 ```text
-destroyed
+@csnight/audio-recorder               — 核心控制器、类型、工具
+@csnight/audio-recorder/codecs/base   — WAV / PCM 编码器
+@csnight/audio-recorder/codecs/mp3    — MP3 编码器（WASM）
+@csnight/audio-recorder/codecs/g711   — G711 编码器
+@csnight/audio-recorder/codecs/opus   — Opus/OGG/WebM 编码器（WASM）
+@csnight/audio-recorder/codecs/flac   — FLAC 编码器（WASM）
+@csnight/audio-recorder/codecs/aac    — AAC 编码器（WASM）
+@csnight/audio-recorder/codecs/amr    — AMR-NB/WB 编码器（WASM）
+@csnight/audio-recorder/plugins/level-meter       — 音量插件
+@csnight/audio-recorder/plugins/streaming-export  — 实时流导出插件
+@csnight/audio-recorder/plugins/asr-export        — ASR 导出插件
+@csnight/audio-recorder/storage/opfs              — OPFS 持久化后端
+@csnight/audio-recorder/storage/indexeddb         — IndexedDB 持久化后端
 ```
 
-状态约束由 `assertState()` 强制校验，不合法调用会直接抛错。
+## 16. Playground
 
-## 16. Playground 链路
+Playground 位于 `playground/`，是独立 Vite + Vue 3 应用。
 
-`playground/` 的职责不是开发源码调试页，而是验证“构建产物是否可用”。
+当前 playground 依赖 `dist/` 编译产物（而非 npm 包），通过 vite alias 将所有
+`@csnight/audio-recorder` 路径映射到 `../dist`。
 
-当前特征：
+这使 playground 成为库本身的直接集成测试环境：
 
-- 页面直接引入 `/dist/index.js`
-- Vue 通过 CDN ESM 运行
-- 支持麦克风与 external tone 两类输入源
-- 可以切换持久化模式和后端
-- 支持导出 PCM/WAV/MP3
+- 每次 `npm run build` 后刷新 playground 即可验证导出
+- 不需要发布到 npm 再验证
 
-功能测试 [`tests/functional/app.spec.ts`](/E:/ai-base-workspace/audio-recorder/tests/functional/app.spec.ts) 直接覆盖这条链路。
+## 17. 测试结构
 
-## 17. 代码定位索引
+```text
+tests/
+  unit/          — Vitest 单元测试（encoder、plugin 行为）
+  functional/    — Playwright 功能测试（浏览器环境真实录音链路）
+```
 
-核心入口：
-
-- [`src/index.ts`](/E:/ai-base-workspace/audio-recorder/src/index.ts)
-- [`src/types.ts`](/E:/ai-base-workspace/audio-recorder/src/types.ts)
-
-控制层：
-
-- [`src/core/recorder-controller.ts`](/E:/ai-base-workspace/audio-recorder/src/core/recorder-controller.ts)
-- [`src/core/event-bus.ts`](/E:/ai-base-workspace/audio-recorder/src/core/event-bus.ts)
-
-输入层：
-
-- [`src/input/browser-input-adapter.ts`](/E:/ai-base-workspace/audio-recorder/src/input/browser-input-adapter.ts)
-- [`src/input/browser-input-session.ts`](/E:/ai-base-workspace/audio-recorder/src/input/browser-input-session.ts)
-- [`src/input/backends/select.ts`](/E:/ai-base-workspace/audio-recorder/src/input/backends/select.ts)
-- [`src/input/backends/media-recorder-backend.ts`](/E:/ai-base-workspace/audio-recorder/src/input/backends/media-recorder-backend.ts)
-- [`src/input/backends/audio-worklet-backend.ts`](/E:/ai-base-workspace/audio-recorder/src/input/backends/audio-worklet-backend.ts)
-- [`src/input/backends/script-processor-backend.ts`](/E:/ai-base-workspace/audio-recorder/src/input/backends/script-processor-backend.ts)
-- [`src/input/webm-pcm-extractor.ts`](/E:/ai-base-workspace/audio-recorder/src/input/webm-pcm-extractor.ts)
-
-缓冲与导出：
-
-- [`src/pipeline/pcm-frame-pipeline.ts`](/E:/ai-base-workspace/audio-recorder/src/pipeline/pcm-frame-pipeline.ts)
-- [`src/buffer/pcm-buffer-store.ts`](/E:/ai-base-workspace/audio-recorder/src/buffer/pcm-buffer-store.ts)
-- [`src/codecs/base/index.ts`](/E:/ai-base-workspace/audio-recorder/src/codecs/base/index.ts)
-- [`src/codecs/mp3/index.ts`](/E:/ai-base-workspace/audio-recorder/src/codecs/mp3/index.ts)
-
-扩展能力：
-
-- [`src/plugins/plugin-host.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/plugin-host.ts)
-- [`src/plugins/level-meter/index.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/level-meter/index.ts)
-- [`src/plugins/streaming-export/plugin.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/streaming-export/plugin.ts)
-- [`src/storage/opfs/plugin.ts`](/E:/ai-base-workspace/audio-recorder/src/storage/opfs/plugin.ts)
-- [`src/storage/indexeddb/plugin.ts`](/E:/ai-base-workspace/audio-recorder/src/storage/indexeddb/plugin.ts)
-- [`src/workers/chunked-encoder-bridge.ts`](/E:/ai-base-workspace/audio-recorder/src/workers/chunked-encoder-bridge.ts)
+Playwright 测试依赖 Vite 开发服务器，通过真实浏览器环境验证采集、编码和导出链路。
