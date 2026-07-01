@@ -394,19 +394,63 @@ export interface ExportEncoderDefinition<
 
 ### 7.3 插件接口
 
-当前插件接口保持轻量：
+当前插件接口：
 
 ```ts
 export interface RecorderPlugin {
   name: string
+  /**
+   * 互斥声明：列出与本插件不能同时注册的插件 name。
+   * PluginHost 在 use() 时检测冲突并抛出错误。
+   */
+  exclusiveWith?: string[]
   setup?(context: RecorderPluginContext): void | Promise<void>
   onStart?(): void
+
+  /**
+   * 帧预处理 hook（Phase 6 新增）。
+   * 在帧进入 buffer / summary / onFrame 之前串联执行。
+   * 返回修改后的帧替换原帧；返回 null / undefined 表示丢弃该帧。
+   * 约束：
+   *   - 返回帧的 sampleRate / channels 必须与输入一致
+   *   - 返回帧的 durationMs 必须与 planar 实际采样数保持一致
+   *   - 不允许返回多帧（多帧输出场景走旁路插件，不走预处理 hook）
+   * 适用场景：DSP 滤波（高通/低通/噪声门）、增益调整等同步单帧处理。
+   */
+  onBeforeFrame?(frame: AudioFrame): AudioFrame | null | undefined
+
   onFrame?(frame: AudioFrame): void
   onPause?(): void
   onResume?(): void
+
+  /**
+   * stop 前冲刷 hook（Phase 6 新增）。
+   * 在控制器固化 SessionSummary 之前调用。
+   * 返回的帧会依次经过 buffer / summary 累计 / onFrame 广播，与正常帧处理完全一致。
+   * 适用场景：IIR 滤波器等有内部状态的处理器，在 stop 时将残余状态冲刷为最终帧。
+   */
+  onBeforeStop?(): AudioFrame[] | void
+
   onStop?(): void
   dispose?(): void | Promise<void>
 }
+```
+
+控制器 `handleFrame` 处理逻辑（Phase 6 起生效）：
+
+```
+原始帧
+  → [onBeforeFrame 串联管道]   ← DSP 插件在此修改帧
+  → 处理后帧进入 buffer / summary
+  → onFrame 广播               ← 所有插件收到已预处理的帧
+```
+
+`stop()` 扩展流程（Phase 6 起生效）：
+
+```
+1. 依次调用各插件的 onBeforeStop()，将返回帧送入同一 handleFrame 路径
+2. 固化 SessionSummary
+3. 调用各插件的 onStop()
 ```
 
 插件上下文负责提供：
@@ -898,14 +942,14 @@ streaming-export 插件当前只内置 PCM / WAV，MP3 通过 codec entry 注册
 
 ### 6.1 插件总览
 
-| 编号 | 插件名 | 子路径 | vendor 参照 | 优先级 |
-|------|--------|--------|-------------|--------|
-| ① | 流播放器（StreamPlayer） | `plugins/stream-player` | `extensions/buffer_stream.player.js` | 高 |
-| ② | 变速变调（Sonic） | `plugins/sonic` | `extensions/sonic.js` | 中 |
-| ③ | 频谱 FFT（FrequencyHistogram） | `plugins/frequency-histogram` | `extensions/frequency.histogram.view.js` + `extensions/lib.fft.js` | 中 |
-| ④ | DTMF 编解码 | `plugins/dtmf` | `extensions/dtmf.encode.js` + `extensions/dtmf.decode.js` | 中 |
-| ⑤ | 简谱转 PCM | `plugins/nmn2pcm` | `extensions/create-audio.nmn2pcm.js` | 低 |
-| ⑥ | DSP 滤波器 | `plugins/dsp` | 无直接参照（高通/低通/噪声门算法） | 中 |
+| 编号 | 插件名                        | 子路径                           | vendor 参照                                                          | 优先级 |
+|----|----------------------------|-------------------------------|--------------------------------------------------------------------|-----|
+| ①  | 流播放器（StreamPlayer）         | `plugins/stream-player`       | `extensions/buffer_stream.player.js`                               | 高   |
+| ②  | 变速变调导出（SonicExport）        | `plugins/sonic-export`        | `extensions/sonic.js` + `teach.sonic.transform.js`                 | 中   |
+| ③  | 频谱 FFT（FrequencyHistogram） | `plugins/frequency-histogram` | `extensions/frequency.histogram.view.js` + `extensions/lib.fft.js` | 中   |
+| ④  | DTMF 编解码                   | `plugins/dtmf`                | `extensions/dtmf.encode.js` + `extensions/dtmf.decode.js`          | 中   |
+| ⑤  | 简谱转 PCM                    | `plugins/nmn2pcm`             | `extensions/create-audio.nmn2pcm.js`                               | 低   |
+| ⑥  | DSP 滤波器                    | `plugins/dsp`                 | 无直接参照（高通/低通/噪声门算法）                                                 | 中   |
 
 ### 6.2 流播放器插件（StreamPlayer）
 
@@ -948,40 +992,129 @@ export function createStreamPlayerPlugin(options?: StreamPlayerOptions): Recorde
 - 不持有 `RecorderController` 引用，只通过 `RecorderPlugin` 回调接收数据
 - 发出自定义事件：`plugin:stream-player:state`（playing/paused/stopped）
 
-### 6.3 变速变调插件（Sonic）
+### 6.3 变速变调导出插件（SonicExport）
 
-**功能**：对录音 PCM 帧实时做变速（timeStretch）或变调（pitchShift）处理，处理后的帧继续传递给下游（其他插件或缓冲）。
+**功能**：对录音 PCM 做变速（timeStretch）或变调（pitchShift）处理，提供两种能力：
 
-**参照**：`vendor/Recorder-master/src/extensions/sonic.js`（Sonic 算法 JS 移植版）
+1. **离线转换**：录音完成后，对 PCM snapshot 或任意 PCM 数据做一次性 Sonic 处理，返回处理后的 PCM 供调用方编码导出。
+2. **实时推流**：在录音进行中，在旁路中对每帧 PCM 积累 → Sonic 处理 → 编码 → 通过 `plugin:stream` 事件对外推出变速音频流。
+
+**设计原则**：
+
+- Sonic 处理完全在旁路进行，`onFrame` 只读消费帧，**不修改主链路 buffer**，主录音结果始终是原始 PCM。
+- 与 `streaming-export` 互斥（两者都做实时推流，同时注册会产生重复流）。互斥通过 `exclusiveWith` 声明，`PluginHost` 在
+  `use()` 时校验。
+- 参照 vendor `teach.sonic.transform.js`：实时处理用 Sonic.Async（Worker），离线处理用同步切片模式，块大小建议 ≥ 200ms
+  以避免引入杂音。
+
+**参照**：`vendor/Recorder-master/src/extensions/sonic.js` + `assets/runtime-codes/teach.sonic.transform.js`
 
 目录结构：
 
 ```
-src/plugins/sonic/
-  index.ts
-  plugin.ts             ← createSonicPlugin()
-  sonic-processor.ts    ← Sonic 算法封装（参照 vendor sonic.js）
-  types.ts              ← SonicOptions
+src/plugins/sonic-export/
+  index.ts              ← 子路径导出入口
+  plugin.ts             ← createSonicExportPlugin()，实现 SonicExportPlugin
+  sonic-processor.ts    ← Sonic 算法封装（参照 vendor sonic.js 移植）
+  stream-bridge.ts      ← 帧积累 + Sonic 处理 + 编码推流逻辑
+  types.ts              ← SonicExportOptions / SonicTransformOptions / SonicExportPlugin
+  public.ts             ← 对外类型导出
 ```
 
 核心 API：
 
 ```ts
-export interface SonicOptions {
-  speed?: number    // 倍速，默认 1.0（0.5 = 半速，2.0 = 两倍速）
-  pitch?: number    // 音调倍数，默认 1.0
-  volume?: number   // 输出音量，默认 1.0
+export interface SonicTransformOptions {
+  speed?: number      // 变速不变调，默认 1.0
+  pitch?: number      // 变调不变速，默认 1.0
+  rate?: number       // 变速变调，默认 1.0
+  volume?: number     // 音量，默认 1.0
+  /** 每次送入 Sonic 的块大小（ms），建议 ≥ 200ms，默认 200 */
+  blockMs?: number
 }
 
-export function createSonicPlugin(options?: SonicOptions): RecorderPlugin
+export interface SonicExportOptions extends SonicTransformOptions {
+  /** 实时推流编码格式 */
+  format: "pcm" | "wav" | "mp3"
+  /** 流式编码器，必须显式传入（与 streaming-export 一致） */
+  encoders: StreamEncoderDefinition[]
+}
+
+/** SonicExportPlugin 同时是 RecorderPlugin 和对外工具方法的持有者 */
+export interface SonicExportPlugin extends RecorderPlugin {
+  name: "sonic-export"
+  exclusiveWith: ["streaming-export"]
+
+  /**
+   * 离线转换：对录音结果 PCM snapshot 做 Sonic 处理，返回处理后的 Int16Array。
+   * 调用方拿到 Int16Array 后自行传给编码器导出。
+   * 可独立于录音流程调用，不依赖当前录音状态。
+   */
+  transformSnapshot(
+    snapshot: PcmSnapshot,
+    options?: SonicTransformOptions
+  ): Promise<Int16Array>
+
+  /**
+   * 离线转换：对任意 PCM 数据做 Sonic 处理，返回处理后的 Int16Array。
+   */
+  transform(
+    pcm: Int16Array,
+    sampleRate: number,
+    options?: SonicTransformOptions
+  ): Promise<Int16Array>
+}
+
+export function createSonicExportPlugin(options: SonicExportOptions): SonicExportPlugin
 ```
 
 实现要点：
 
-- Sonic 算法完全参照 `vendor/sonic.js` 移植，不引入外部依赖
-- `onFrame` 时将帧数据送入 Sonic 处理器，输出处理后的 PCM
-- 处理后的 PCM 通过 `plugin:sonic:frame` 事件发出（供 StreamPlayer 或其他插件消费）
-- 变速变调只影响下游消费，不修改主链路 PCM buffer（插件不应改写核心缓冲区）
+- Sonic 算法完全参照 `vendor/sonic.js` 移植为 TypeScript，不引入外部依赖
+- `onFrame` 时将帧数据累积到内部缓冲，达到 `blockMs` 后送 Sonic 处理，处理结果送流式编码器，编码产物通过 `plugin:stream`
+  事件发出
+- `onStop` 时冲刷 Sonic 内部残余缓冲，发送最后一个 `isFinal: true` 的 chunk
+- `transformSnapshot` 内部将 snapshot 展平为 `Int16Array` 后调用 `transform`，`transform` 用同步切片 + Promise
+  模式实现，避免主线程卡顿
+- 离线转换方法可在录音开始前/录音中/录音后任意时刻调用，与插件生命周期解耦
+
+事件格式（与 `streaming-export` 的 `plugin:encoded-chunk` 对齐命名语义）：
+
+```ts
+recorder.on("plugin:stream", (chunk: EncodedStreamChunk) => {
+  chunk.data     // Uint8Array，编码后的音频数据
+  chunk.format   // "wav" | "mp3" | ...
+  chunk.isFinal  // true 表示录音已结束，这是最后一帧
+})
+```
+
+使用示例：
+
+```ts
+import { createSonicExportPlugin } from "audio-recorder/plugins/sonic-export"
+import { wavStreamEncoder } from "audio-recorder/codecs/base"
+
+const sonicPlugin = createSonicExportPlugin({
+  speed: 1.5,
+  format: "wav",
+  encoders: [wavStreamEncoder],
+  blockMs: 200,
+})
+
+await recorder.use(sonicPlugin)  // 注册，会检测与 streaming-export 互斥
+
+// 实时推流
+recorder.on("plugin:stream", ({ data, isFinal }) => {
+  socket.send(data)
+})
+
+await recorder.stop()
+
+// 离线转换（用同一插件实例）
+const snapshot = await recorder.getSnapshot()
+const processed = await sonicPlugin.transformSnapshot(snapshot, { speed: 0.8 })
+// processed 为 Int16Array，再自行编码导出
+```
 
 ### 6.4 频谱 FFT 插件（FrequencyHistogram）
 
@@ -1113,7 +1246,8 @@ export function nmn2pcm(score: string, options?: NmnConvertOptions): NmnConvertR
 
 ### 6.7 DSP 滤波器插件
 
-**功能**：可组合的 DSP 处理插件，在录音帧通过 pipeline 前对 PCM 做滤波处理。
+**功能**：可组合的 DSP 处理插件，通过 `onBeforeFrame` hook 在帧进入 buffer 前对 PCM 做滤波处理，处理结果直接影响主链路
+buffer 和最终录音导出。
 
 目录结构：
 
@@ -1130,7 +1264,7 @@ src/plugins/dsp/
 核心 API：
 
 ```ts
-// 各滤波器均返回 RecorderPlugin
+// 各滤波器均返回 RecorderPlugin，通过 onBeforeFrame 介入帧管线
 export function createHighpassPlugin(options?: { cutoffHz?: number }): RecorderPlugin
 export function createLowpassPlugin(options?: { cutoffHz?: number }): RecorderPlugin
 export function createNoiseGatePlugin(options?: { thresholdDb?: number; attackMs?: number; releaseMs?: number }): RecorderPlugin
@@ -1138,18 +1272,21 @@ export function createNoiseGatePlugin(options?: { thresholdDb?: number; attackMs
 
 实现要点：
 
-- 高通 / 低通：一阶 IIR 滤波器，公式参照 `y[n] = α * (y[n-1] + x[n] - x[n-1])`（高通）
-- 噪声门：计算当前帧 RMS 能量，低于阈值时将帧置零
-- `onFrame` 时直接修改 `frame.planar` 数据（帧数据为可修改 Int16Array，DSP 插件是唯一允许修改帧的场景）
-- 插件可独立启停：`plugin.enabled = false` 时 `onFrame` 直接跳过处理
-- 多个 DSP 插件按 `recorder.use()` 调用顺序串联
+- 高通 / 低通：实现 `onBeforeFrame`，内部维护 IIR 滤波器状态（`prevInput` / `prevOutput`），对 `frame.planar`
+  做原地滤波后返回修改后的帧。公式参照 `y[n] = α * (y[n-1] + x[n] - x[n-1])`（高通）
+- 噪声门：实现 `onBeforeFrame`，计算当前帧 RMS 能量，低于阈值时将 `frame.planar` 置零后返回帧（不丢帧，保持时间轴连续）
+- 高通 / 低通有内部跨帧状态（IIR 状态），需实现 `onBeforeStop` 以冲刷最后一帧的滤波残余
+- 插件可独立启停：`plugin.enabled = false` 时 `onBeforeFrame` 直接返回原帧，跳过处理
+- 多个 DSP 插件按 `recorder.use()` 调用顺序串联，前一个插件的输出是下一个插件的输入
 
 ### 6.8 构建配置新增 entry
 
 ```ts
 // vite.config.ts 新增
 "plugins/stream-player/index": fileURLToPath(new URL("./src/plugins/stream-player/index.ts", import.meta.url)),
-"plugins/sonic/index": fileURLToPath(new URL("./src/plugins/sonic/index.ts", import.meta.url)),
+  "plugins/sonic-export/index"
+:
+fileURLToPath(new URL("./src/plugins/sonic-export/index.ts", import.meta.url)),
 "plugins/frequency-histogram/index": fileURLToPath(new URL("./src/plugins/frequency-histogram/index.ts", import.meta.url)),
 "plugins/dtmf/index": fileURLToPath(new URL("./src/plugins/dtmf/index.ts", import.meta.url)),
 "plugins/nmn2pcm/index": fileURLToPath(new URL("./src/plugins/nmn2pcm/index.ts", import.meta.url)),
@@ -1165,12 +1302,25 @@ export function createNoiseGatePlugin(options?: { thresholdDb?: number; attackMs
 ### 验收标准
 
 - 流播放器：录音时可实时听到录音声音，暂停/恢复/停止行为正确
-- 变速变调：0.5x 速播放时时长约为原来 2 倍，音调不变
+- 变速变调导出（SonicExport）：
+    - **互斥检测**：`use(sonicExportPlugin)` 与 `use(streamingExportPlugin)` 同时注册时，`PluginHost` 在 `setup`
+      阶段抛出互斥错误，录音无法启动
+    - **实时流**：录音过程中 `plugin:stream` 事件持续触发，携带经 Sonic 处理后的编码分片（≥200ms 累积后推送）；停止录音时
+      `onStop` 刷出残余帧，最终分片正常发出
+    - **离线转换**：录音结束后调用 `transformSnapshot(snapshot, { speed: 0.5 })`，返回 `Int16Array` 时长约为原始时长 2
+      倍，音调保持不变（WSOLA 算法）；调用 `transform(pcm, sampleRate, { pitch: 1.5 })` 同样能独立工作
+    - **bypass 验证**：`SonicExportPlugin` 的 `onFrame` 不修改主缓冲区，录音核心的 `PcmSnapshot` 保存的是原始
+      PCM，与未挂载插件时完全一致
 - 频谱 FFT：录音时每帧可收到 `plugin:frequency-histogram:data` 事件，数组长度符合 `barCount`
 - DTMF 编码：`encodeDtmf(["1","2","3"])` 输出可被电话系统识别的 DTMF 音频
 - DTMF 解码：播放标准 DTMF 音频时插件能正确识别按键序列
 - 简谱转 PCM：`nmn2pcm("1234567")` 输出可播放的 PCM 数据
-- DSP：高通滤波后低频噪声明显衰减，噪声门静音段正确置零
+- DSP 滤波器：
+    - **onBeforeFrame 链路**：挂载高通滤波插件后，录音导出的 PCM/WAV/MP3 文件中低频噪声明显衰减（与未挂载对比可量化），而非仅影响监听播放
+    - **onBeforeStop 冲洗**：停止录音时 `onBeforeStop` 被调用，IIR 滤波器残余状态被正确冲洗并附加到末尾帧，导出文件结尾无截断失真
+    - **噪声门**：静音段（低于阈值）被正确置零，动态段正常通过；噪声门 `enabled=false` 时 `onBeforeFrame` 直接透传原帧，不产生任何副作用
+    - **多插件串联**：同时挂载高通 + 噪声门时，`onBeforeFrame` 按注册顺序依次调用，前一插件的输出帧作为下一插件的输入帧，最终写入缓冲的帧是经所有
+      DSP 处理后的结果
 - 所有插件独立启停，不影响核心控制器和其他插件
 - `npm run typecheck` 通过，`npm run build` 成功
 
