@@ -32,6 +32,28 @@ function makeDummyDecoder() {
   }
 }
 
+function makeDelayedDecoder(delayMs: number) {
+  return {
+    format: "pcm16",
+    decode: vi.fn(
+      async (_chunk: EncodedAudioChunk) =>
+        await new Promise<{
+          sampleRate: number
+          channels: number
+          planar: Float32Array[]
+        }>((resolve) => {
+          setTimeout(() => {
+            resolve({
+              sampleRate: 16000,
+              channels: 1,
+              planar: [new Float32Array(320)],
+            })
+          }, delayMs)
+        })
+    ),
+  }
+}
+
 function makeAudioContextMock() {
   const createBuffer = vi.fn(
     (channels: number, frameCount: number, sampleRate: number) => ({
@@ -171,6 +193,36 @@ describe("createStreamingPlayer", () => {
       p.destroy()
       await p.start()
       expect(p.state).toBe("stopped")
+    })
+
+    it("idle 阶段收到的历史包不会提前进入播放管线", async () => {
+      const decoder = makeDummyDecoder()
+      const p = await createStreamingPlayer(
+        makeOptions({ decoders: [decoder] })
+      )
+
+      for (let i = 0; i < 5; i++) p.push(makePacket(i))
+      await vi.advanceTimersByTimeAsync(100)
+
+      expect(p.bufferedMs).toBe(0)
+      expect(decoder.decode).not.toHaveBeenCalled()
+      p.destroy()
+    })
+
+    it("start() 只回灌最近一个启动垫片窗口，而不是整段 idle backlog", async () => {
+      const decoder = makeDummyDecoder()
+      const p = await createStreamingPlayer(
+        makeOptions({ decoders: [decoder], targetLatencyMs: 60 })
+      )
+
+      for (let i = 0; i < 10; i++) p.push(makePacket(i))
+      expect(p.storedMs).toBe(200)
+
+      await p.start()
+      await vi.advanceTimersByTimeAsync(40)
+
+      expect(decoder.decode).toHaveBeenCalledTimes(3)
+      p.destroy()
     })
   })
 
@@ -404,6 +456,23 @@ describe("createStreamingPlayer", () => {
       await p.start()
       for (let i = 0; i < 10; i++) p.push(makePacket(i))
       await vi.advanceTimersByTimeAsync(25)
+      expect(p.droppedPackets).toBeGreaterThan(0)
+      p.destroy()
+    })
+
+    it("纯乱序积压超出 maxBufferMs 时也会触发 onPacketDrop", async () => {
+      const onPacketDrop = vi.fn()
+      const p = await createStreamingPlayer(
+        makeOptions({ maxBufferMs: 100, onPacketDrop, targetLatencyMs: 300 })
+      )
+      await p.start()
+
+      // seq=0 缺失，所有包都先堆在 reorder buffer 中。
+      for (let i = 1; i <= 10; i++) p.push(makePacket(i))
+
+      await vi.advanceTimersByTimeAsync(25)
+
+      expect(onPacketDrop).toHaveBeenCalled()
       expect(p.droppedPackets).toBeGreaterThan(0)
       p.destroy()
     })
@@ -679,6 +748,47 @@ describe("createStreamingPlayer", () => {
       for (let i = 0; i < 5; i++) p.push(makePacket(i))
       await vi.advanceTimersByTimeAsync(200)
       expect(p.bufferedMs).toBeGreaterThanOrEqual(0)
+      p.destroy()
+    })
+
+    it("解码较慢时，bufferedMs 仍保留 pending decode 余量", async () => {
+      const decoder = makeDelayedDecoder(120)
+      const p = await createStreamingPlayer(
+        makeOptions({ decoders: [decoder], targetLatencyMs: 60 })
+      )
+      await p.start()
+
+      p.push(makePacket(0))
+      p.push(makePacket(1))
+      p.push(makePacket(2))
+
+      await vi.advanceTimersByTimeAsync(25)
+      expect(p.bufferedMs).toBeGreaterThan(0)
+
+      p.destroy()
+    })
+
+    it("收到 discontinuity 包后不再等待旧 seq 缺口超时", async () => {
+      const decoder = makeDummyDecoder()
+      const ctx = makeAudioContextMock()
+      const p = await createStreamingPlayer(
+        makeOptions({
+          decoders: [decoder],
+          targetLatencyMs: 0,
+          audioContext: ctx as unknown as AudioContext,
+        })
+      )
+      await p.start()
+
+      p.push(makePacket(0))
+      await vi.advanceTimersByTimeAsync(40)
+      expect(decoder.decode).toHaveBeenCalledTimes(1)
+
+      ctx.currentTime = 1
+      p.push({ ...makePacket(10), discontinuity: true })
+      await vi.advanceTimersByTimeAsync(40)
+      expect(decoder.decode).toHaveBeenCalledTimes(2)
+
       p.destroy()
     })
   })

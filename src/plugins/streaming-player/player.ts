@@ -11,9 +11,10 @@ import { IndexedDbPersistStore, MemoryPersistStore } from "./persist-store"
  * 数据流：
  *   push(packet)
  *     ├─→ persistStore（双写，始终写入，用于重播）
- *     └─→（未暂停时）ReorderBuffer → JitterBuffer → decode → AudioBufferSourceNode
+ *     └─→（playing / buffering / paused 恢复后）ReorderBuffer → JitterBuffer → decode → AudioBufferSourceNode
  *
- * 暂停时：push 只写 persistStore，不进入播放管线。
+ * idle / 暂停时：push 只写 persistStore，不进入播放管线。
+ * start() / resume()：从当前 live edge 重新缓冲；start() 会用最近一个小窗口的历史包作为启动垫片。
  * 重播：只能在暂停时调用，从 persistStore.recent() 取历史 packet 播放，播完保持暂停。
  */
 export async function createStreamingPlayer(
@@ -40,10 +41,8 @@ export async function createStreamingPlayer(
 
   // 播放器状态
   let _state: StreamingPlayerState = "idle"
-  // _bufferedMs 精确跟踪 JitterBuffer 中的缓冲量：
-  //   - reorderBuf.onRelease 时 += packet.durationMs（包进入 jitter 队列）
-  //   - jitterBuf.onRelease 时 -= packet.durationMs（包出队开始解码/播放）
-  //   - dropOld 时同步减少
+  // _bufferedMs 表示整条播放管线的总余量：
+  //   jitter 队列 + 等待解码/调度的包 + 已调度未播完的音频。
   let _bufferedMs = 0
   let _droppedPackets = 0
   let _paused = false
@@ -83,50 +82,96 @@ export async function createStreamingPlayer(
 
   // 串行解码队列：保证解码顺序与出队顺序一致，避免并发解码导致乱序调度
   let _decodeChain: Promise<void> = Promise.resolve()
+  // 已从 jitter 出队、但仍在等待解码/调度的时长。
+  let _pendingDecodeMs = 0
 
   // 已调度但尚未播完的 AudioBufferSourceNode，用于 destroy 时强制停止（外部 ctx 场景）
   const _activeSources = new Set<AudioBufferSourceNode>()
 
-  // JitterBuffer 释放的 packet：出队后直接从 jitterBuf 读取准确值
+  function getScheduledAheadMs(): number {
+    if (_scheduleTime <= 0) return 0
+    return Math.max(0, (_scheduleTime - audioCtx.currentTime) * 1000)
+  }
+
+  function syncBufferedMs(): void {
+    _bufferedMs = Math.max(
+      0,
+      reorderBuf.getBufferedMs() +
+        jitterBuf.getBufferedMs() +
+        _pendingDecodeMs +
+        getScheduledAheadMs()
+    )
+  }
+
+  function getStartupPadMs(): number {
+    return targetLatencyMs > 0 ? targetLatencyMs : 20
+  }
+
+  function enqueuePlaybackPacket(packet: StreamingPacketPayload): void {
+    // 明确不连续点后，丢弃旧的乱序等待状态，避免无意义地再等 200ms 缺口超时。
+    if (packet.discontinuity) {
+      reorderBuf.reset()
+    }
+    reorderBuf.push(packet)
+    enforceMaxBufferedPackets()
+    syncBufferedMs()
+  }
+
+  function emitPacketDrop(count: number): void {
+    if (count <= 0) return
+    _droppedPackets += count
+    onPacketDrop?.({ count, reason: "max-buffer-exceeded" })
+  }
+
+  /**
+   * live 模式只保留有限播放积压。
+   * 优先丢弃 jitter 中最旧的已排序数据；若仍超限，再丢弃 reorder 中等待重排的旧数据。
+   */
+  function enforceMaxBufferedPackets(): void {
+    let excess =
+      reorderBuf.getBufferedMs() + jitterBuf.getBufferedMs() - maxBufferMs
+    if (excess <= 0) return
+
+    const droppedFromJitter = jitterBuf.dropOld(excess)
+    emitPacketDrop(droppedFromJitter)
+
+    excess =
+      reorderBuf.getBufferedMs() + jitterBuf.getBufferedMs() - maxBufferMs
+    if (excess <= 0) return
+
+    const droppedFromReorder = reorderBuf.dropOld(excess)
+    emitPacketDrop(droppedFromReorder)
+  }
+
+  // JitterBuffer 释放的 packet：先进入串行解码队列，再调度到 AudioContext。
   jitterBuf.onRelease = (pkt) => {
-    _bufferedMs = jitterBuf.getBufferedMs()
+    _pendingDecodeMs += pkt.durationMs
+    syncBufferedMs()
     // 将每个包的解码任务追加到串行链，保证先出队的包先完成调度
     _decodeChain = _decodeChain.then(async () => {
       if (_destroyed || _paused) return
-      const buf = await decodePacket(pkt)
-      // 解码完成后再次检查状态，避免解码期间 pause/destroy 导致错误排队
-      if (!buf || _destroyed || _paused) return
-      scheduleAudioBuffer(buf)
-      if (!_playbackStarted) {
-        _playbackStarted = true
-        _playbackStartedAt = audioCtx.currentTime
-        setState("playing")
+      try {
+        const buf = await decodePacket(pkt)
+        // 解码完成后再次检查状态，避免解码期间 pause/destroy 导致错误排队
+        if (!buf || _destroyed || _paused) return
+        scheduleAudioBuffer(buf)
+        if (!_playbackStarted) {
+          _playbackStarted = true
+          _playbackStartedAt = audioCtx.currentTime
+          setState("playing")
+        }
+      } finally {
+        _pendingDecodeMs = Math.max(0, _pendingDecodeMs - pkt.durationMs)
+        syncBufferedMs()
       }
     })
   }
 
-  // JitterBuffer 启动时 drop-old 超出 targetLatencyMs 的包，统计到丢包计数
-  jitterBuf.onDropOld = (count) => {
-    if (count > 0) {
-      _droppedPackets += count
-      onPacketDrop?.({ count, reason: "max-buffer-exceeded" })
-    }
-  }
-
   // ReorderBuffer 排序后交给 JitterBuffer
   reorderBuf.onRelease = (ordered) => {
-    // 检查 jitter 积压是否超出 maxBufferMs，超出则 drop-old
-    const excess = jitterBuf.getBufferedMs() - maxBufferMs
-    if (excess > 0) {
-      const dropped = jitterBuf.dropOld(excess)
-      if (dropped > 0) {
-        _droppedPackets += dropped
-        onPacketDrop?.({ count: dropped, reason: "max-buffer-exceeded" })
-      }
-    }
     jitterBuf.push(ordered)
-    // 始终从 jitterBuf 读取准确值，避免手动加减累积误差
-    _bufferedMs = jitterBuf.getBufferedMs()
+    enforceMaxBufferedPackets()
+    syncBufferedMs()
   }
 
   // ──────────────────────────────────────────────────────────────────
@@ -155,6 +200,7 @@ export async function createStreamingPlayer(
   function resetPipeline(): void {
     reorderBuf.reset()
     jitterBuf.reset()
+    _pendingDecodeMs = 0
     _bufferedMs = 0
     _scheduleTime = 0
     _playbackStarted = false
@@ -211,14 +257,15 @@ export async function createStreamingPlayer(
 
       // 触发 reorderBuf 超时放行
       reorderBuf.drain()
-      // 触发 jitterBuf 出队（通过 onRelease 回调调度播放）
-      // drain 内部若超出 targetLatencyMs 会先 drop-old，并更新 jitter._bufferedMs
-      jitterBuf.drain()
-      // jitter drain 内部可能 drop-old，重新对齐
-      const jitterMs = jitterBuf.getBufferedMs()
-      if (jitterMs < _bufferedMs) {
-        _bufferedMs = jitterMs
+
+      // 只在已调度余量不足时释放 jitter，避免以固定 60ms/tick 的速度过快抽干缓冲。
+      const desiredAheadMs = targetLatencyMs > 0 ? targetLatencyMs : 20
+      const decodeAndScheduledMs = _pendingDecodeMs + getScheduledAheadMs()
+      const releaseBudgetMs = Math.max(0, desiredAheadMs - decodeAndScheduledMs)
+      if (releaseBudgetMs > 0) {
+        jitterBuf.drain(releaseBudgetMs)
       }
+      syncBufferedMs()
 
       // 欠载检测：需要至少 200ms 的播放宽限期，避免解码异步延迟导致误判
       const gracePeriod = 0.2 // 200ms 宽限期
@@ -226,6 +273,7 @@ export async function createStreamingPlayer(
         _playbackStarted &&
         _state === "playing" &&
         audioCtx.currentTime > _playbackStartedAt + gracePeriod &&
+        _bufferedMs <= 0 &&
         audioCtx.currentTime > _scheduleTime + 0.05
       ) {
         _bufferedMs = 0
@@ -247,10 +295,11 @@ export async function createStreamingPlayer(
     // 双写：始终写入 persistStore
     persistStore.push(packet)
 
-    // 暂停时不进入播放管线
-    if (_paused) return
+    // 仅在已开始实时播放后才进入播放管线。
+    // idle 阶段只保留历史，避免 start() 后永远从旧 backlog 慢速追赶。
+    if (_paused || _state === "idle") return
 
-    reorderBuf.push(packet)
+    enqueuePlaybackPacket(packet)
   }
 
   async function start(): Promise<void> {
@@ -258,7 +307,14 @@ export async function createStreamingPlayer(
     if (audioCtx.state === "suspended") {
       await audioCtx.resume()
     }
+
+    // 进入 live-edge 启动：丢弃 idle 期间的旧播放积压，只取最近一个小窗口作为起播垫片。
+    resetPipeline()
     setState("buffering")
+    const startupPackets = persistStore.recent(getStartupPadMs())
+    for (const packet of startupPackets) {
+      enqueuePlaybackPacket(packet)
+    }
     startDrainLoop()
   }
 

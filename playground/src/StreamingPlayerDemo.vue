@@ -39,7 +39,7 @@
               <p class="panel-kicker">Config</p>
               <h3 class="sp-section-title">创建配置</h3>
             </div>
-            <span class="badge" :class="player ? 'badge-accent' : ''">
+            <span :class="player ? 'badge-accent' : ''" class="badge">
               {{ player ? "Active" : "Not Created" }}
             </span>
           </div>
@@ -49,33 +49,33 @@
               <span>targetLatencyMs</span>
               <input
                 v-model.number="cfg.targetLatencyMs"
-                type="number"
-                min="50"
-                max="2000"
-                step="50"
                 :disabled="!!player"
+                max="2000"
+                min="50"
+                step="50"
+                type="number"
               />
             </div>
             <div class="field">
               <span>maxBufferMs</span>
               <input
                 v-model.number="cfg.maxBufferMs"
-                type="number"
-                min="500"
-                max="10000"
-                step="500"
                 :disabled="!!player"
+                max="10000"
+                min="500"
+                step="500"
+                type="number"
               />
             </div>
             <div class="field">
               <span>persistBufferMs</span>
               <input
                 v-model.number="cfg.persistBufferMs"
-                type="number"
-                min="1000"
-                max="60000"
-                step="1000"
                 :disabled="!!player"
+                max="60000"
+                min="1000"
+                step="1000"
+                type="number"
               />
             </div>
             <div class="field">
@@ -89,24 +89,28 @@
               <span>初始音量 {{ (cfg.volume * 100).toFixed(0) }}%</span>
               <input
                 v-model.number="cfg.volume"
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
                 :disabled="!!player"
+                max="1"
+                min="0"
+                step="0.05"
+                type="range"
               />
             </div>
           </div>
 
           <div class="sp-btn-row sp-actions">
             <button
-              @click="createPlayer"
               :disabled="!!player"
               class="sp-btn-primary"
+              @click="createPlayer"
             >
               createPlayer()
             </button>
-            <button @click="doDestroy" :disabled="!player" class="secondary-button">
+            <button
+              :disabled="!player"
+              class="secondary-button"
+              @click="doDestroy"
+            >
               destroy()
             </button>
           </div>
@@ -122,23 +126,23 @@
 
           <div class="sp-btn-row">
             <button
-              @click="doStart"
               :disabled="!player || state !== 'idle'"
               class="sp-btn-primary"
+              @click="doStart"
             >
               start()
             </button>
             <button
-              @click="doPause"
               :disabled="!player || state !== 'playing'"
               class="secondary-button"
+              @click="doPause"
             >
               pause()
             </button>
             <button
-              @click="doResume"
               :disabled="!player || state !== 'paused'"
               class="secondary-button"
+              @click="doResume"
             >
               resume()
             </button>
@@ -148,12 +152,12 @@
             <span>实时音量 {{ (liveVolume * 100).toFixed(0) }}%</span>
             <input
               v-model.number="liveVolume"
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              @input="doSetVolume"
               :disabled="!player"
+              max="1"
+              min="0"
+              step="0.05"
+              type="range"
+              @input="doSetVolume"
             />
           </div>
         </section>
@@ -172,17 +176,17 @@
               <span>重播时长（秒）</span>
               <input
                 v-model.number="replaySec"
-                type="number"
-                min="1"
-                max="60"
-                step="1"
                 :disabled="state !== 'paused'"
+                max="60"
+                min="1"
+                step="1"
+                type="number"
               />
             </div>
             <button
-              @click="doReplay"
               :disabled="state !== 'paused'"
               class="sp-btn-primary"
+              @click="doReplay"
             >
               replay({{ replaySec }}s)
             </button>
@@ -202,13 +206,17 @@
           </p>
 
           <div class="sp-btn-row">
-            <button @click="bindStateChange" :disabled="!player" class="secondary-button">
+            <button
+              :disabled="!player"
+              class="secondary-button"
+              @click="bindStateChange"
+            >
               bind callback
             </button>
             <button
-              @click="unbindStateChange"
               :disabled="!player"
               class="secondary-button"
+              @click="unbindStateChange"
             >
               unbind null
             </button>
@@ -222,7 +230,7 @@
             <p class="panel-kicker">Log</p>
             <h3 class="sp-section-title">事件日志</h3>
           </div>
-          <button @click="logs = []" class="secondary-button sp-clear-button">
+          <button class="secondary-button sp-clear-button" @click="logs = []">
             清空
           </button>
         </div>
@@ -238,13 +246,13 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script lang="ts" setup>
 import { onUnmounted, ref, watch } from "vue"
-import { createStreamingPlayer } from "@csnight/audio-recorder/plugins/streaming-player"
 import type {
   StreamingPlayerHandle,
   StreamingPlayerState,
 } from "@csnight/audio-recorder/plugins/streaming-player"
+import { createStreamingPlayer } from "@csnight/audio-recorder/plugins/streaming-player"
 import {
   pcmDecoderDefinition,
   wavDecoderDefinition,
@@ -288,15 +296,12 @@ function subscribeRecorder(recorderInstance: any) {
 
   if (!recorderInstance) return
 
-  const off = recorderInstance.on("plugin:stream", (event: any) => {
+  streamUnsub = recorderInstance.on("plugin:stream", (event: any) => {
     const packet = event?.payload
     if (!packet || !player.value) return
     rxCount.value += 1
     player.value.push(packet)
-    log(`packet seq=${packet.seq} fmt=${packet.format} ${packet.durationMs}ms`)
   })
-
-  streamUnsub = off
   log("subscribed recorder plugin:stream")
 }
 
@@ -461,26 +466,6 @@ onUnmounted(() => {
   overflow-wrap: anywhere;
   font-family: "Fira Code", "Cascadia Code", Consolas, monospace;
   font-size: 0.94rem;
-}
-
-.sp-state-idle {
-  color: var(--muted);
-}
-
-.sp-state-buffering {
-  color: var(--amber);
-}
-
-.sp-state-playing {
-  color: var(--accent);
-}
-
-.sp-state-paused {
-  color: var(--accent-2);
-}
-
-.sp-state-stopped {
-  color: var(--danger);
 }
 
 .sp-accent {

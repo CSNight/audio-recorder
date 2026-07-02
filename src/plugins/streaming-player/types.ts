@@ -56,32 +56,40 @@ export interface StreamingPlayerOptions {
 export interface StreamingPlayerHandle {
   /** 当前播放状态 */
   readonly state: StreamingPlayerState
-  /** JitterBuffer 中已缓冲的音频时长（毫秒） */
+  /** 当前整条播放管线的总余量（毫秒） */
   readonly bufferedMs: number
   /** 已丢弃的 packet 总数 */
   readonly droppedPackets: number
   /** 持久化存储中已存储的音频时长（毫秒），可用于显示可重播时长 */
   readonly storedMs: number
+  /** 状态变化回调，可在创建后直接赋值，null 表示不监听 */
+  onStateChange: ((state: StreamingPlayerState) => void) | null
+
   /**
    * 向 player 推送一个编码 packet。
    * 业务层在订阅 recorder / websocket 事件后调用此方法。
+   * idle / paused 时仅写入历史缓存；开始播放后才进入实时播放管线。
    */
   push(packet: StreamingPacketPayload): void
-  /** 开始播放（等待缓冲充足后自动切换 playing） */
+
+  /** 开始播放（默认从 live edge 起播，并用最近一个小窗口作为启动垫片） */
   start(): Promise<void>
+
   /** 暂停（暂停期间的 packet 只写入持久化存储，不进入播放管线） */
   pause(): void
+
   /** 恢复播放（清除积压，从当前时刻重新缓冲） */
   resume(): void
+
   /** 设置音量 [0, 1] */
   setVolume(volume: number): void
+
   /** 销毁 player，释放所有资源 */
   destroy(): void
+
   /**
    * 重播最近 N 秒的历史音频。
    * 只能在暂停状态下调用，播放完毕后保持暂停。
    */
   replay(seconds: number): void
-  /** 状态变化回调，可在创建后直接赋值，null 表示不监听 */
-  onStateChange: ((state: StreamingPlayerState) => void) | null
 }

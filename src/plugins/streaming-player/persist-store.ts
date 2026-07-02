@@ -20,9 +20,10 @@ export interface PersistStore {
  */
 export class MemoryPersistStore implements PersistStore {
   private queue: StreamingPacketPayload[] = []
-  private _storedMs = 0
 
   constructor(private readonly maxMs: number = 10_000) {}
+
+  private _storedMs = 0
 
   get storedMs(): number {
     return this._storedMs
@@ -64,7 +65,6 @@ export class MemoryPersistStore implements PersistStore {
  * push/drop-old 合并到单个事务异步写入（不阻塞调用方）。
  */
 export class IndexedDbPersistStore implements PersistStore {
-  private _storedMs = 0
   private _queue: StreamingPacketPayload[] = []
   private db: IDBDatabase | null = null
   private readonly dbName: string
@@ -80,25 +80,10 @@ export class IndexedDbPersistStore implements PersistStore {
     void this._open()
   }
 
+  private _storedMs = 0
+
   get storedMs(): number {
     return this._storedMs
-  }
-
-  private async _open(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const req = indexedDB.open(this.dbName, 1)
-      req.onupgradeneeded = (e) => {
-        const db = (e.target as IDBOpenDBRequest).result
-        if (!db.objectStoreNames.contains(this.storeName)) {
-          db.createObjectStore(this.storeName, { keyPath: "id" })
-        }
-      }
-      req.onsuccess = (e) => {
-        this.db = (e.target as IDBOpenDBRequest).result
-        resolve()
-      }
-      req.onerror = () => reject(req.error)
-    })
   }
 
   push(packet: StreamingPacketPayload): void {
@@ -146,5 +131,22 @@ export class IndexedDbPersistStore implements PersistStore {
       const tx = this.db.transaction(this.storeName, "readwrite")
       tx.objectStore(this.storeName).clear()
     }
+  }
+
+  private async _open(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(this.dbName, 1)
+      req.onupgradeneeded = (e) => {
+        const db = (e.target as IDBOpenDBRequest).result
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          db.createObjectStore(this.storeName, { keyPath: "id" })
+        }
+      }
+      req.onsuccess = (e) => {
+        this.db = (e.target as IDBOpenDBRequest).result
+        resolve()
+      }
+      req.onerror = () => reject(req.error)
+    })
   }
 }

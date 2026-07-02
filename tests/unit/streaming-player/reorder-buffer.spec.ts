@@ -223,4 +223,28 @@ describe("ReorderBuffer", () => {
     buf.drain()
     expect(released).toEqual([0, 1, 2])
   })
+
+  it("getBufferedMs 返回当前乱序队列累计时长", () => {
+    const buf = new ReorderBuffer()
+
+    buf.push(makePacket(0, 20))
+    buf.push(makePacket(2, 30))
+    expect(buf.getBufferedMs()).toBe(50)
+  })
+
+  it("dropOld 会丢弃最旧乱序包并前移 nextSeq", () => {
+    const buf = new ReorderBuffer(200)
+    const released: number[] = []
+    buf.onRelease = (p) => released.push(p.seq)
+
+    buf.push(makePacket(0, 20))
+    buf.push(makePacket(2, 20))
+    buf.push(makePacket(3, 20))
+
+    expect(buf.dropOld(40)).toBe(2)
+    expect(buf.getBufferedMs()).toBe(20)
+
+    buf.drain()
+    expect(released).toEqual([3])
+  })
 })

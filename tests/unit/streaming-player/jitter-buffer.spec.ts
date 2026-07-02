@@ -162,21 +162,19 @@ describe("JitterBuffer", () => {
     expect(released).toEqual([]) // 未达到 targetLatencyMs，不释放
   })
 
-  // ── 启动时 drop-old 超出部分 ──────────────────────────────────────────────
+  // ── 启动行为 ───────────────────────────────────────────────────────────────
 
-  it("积压超出 targetLatencyMs 时，首次 drain 先 drop-old 再释放", () => {
+  it("积压超出 targetLatencyMs 时，首次 drain 保留积压并按 releaseWindowMs 释放", () => {
     const buf = new JitterBuffer(60) // 目标 60ms
     const released: number[] = []
     buf.onRelease = (p) => released.push(p.seq)
 
-    // 推入 200ms，超出 targetLatencyMs 很多
+    // 推入 200ms，首次启动后不应把安全余量直接丢掉。
     for (let i = 0; i < 10; i++) buf.push(makePacket(i, 20))
 
-    buf.drain(60) // 触发 started，先 dropOld(140ms)=7包，再释放 60ms=3包
-    // 释放的是最新的包（旧包被 drop），seq 应从 7 开始
-    expect(released[0]).toBeGreaterThanOrEqual(7)
-    // 缓冲不超过 targetLatencyMs
-    expect(buf.getBufferedMs()).toBeLessThanOrEqual(60)
+    buf.drain(60)
+    expect(released).toEqual([0, 1, 2])
+    expect(buf.getBufferedMs()).toBe(140)
   })
 
   it("积压等于 targetLatencyMs 时，首次 drain 不 drop-old", () => {
