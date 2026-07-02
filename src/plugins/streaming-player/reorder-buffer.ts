@@ -18,6 +18,10 @@ export class ReorderBuffer {
       this.nextSeq = packet.seq
       this.initialized = true
     }
+    // 丢弃已过期的迟到包（seq < nextSeq），避免阻塞队列头或把 nextSeq 往回拨
+    if (packet.seq < this.nextSeq) return
+    // 丢弃重复包（seq 已在缓冲区内），避免同一 seq 被出队两次导致 JitterBuffer 收到重复数据
+    if (this.buffer.some((p) => p.seq === packet.seq)) return
     this.buffer.push(packet)
     this.buffer.sort((a, b) => a.seq - b.seq)
     this.scheduleTimeout()
@@ -28,6 +32,11 @@ export class ReorderBuffer {
       const packet = this.buffer.shift()!
       this.nextSeq = packet.seq + 1
       this.onRelease?.(packet)
+    }
+    // 队列已清空时取消 timer，使下次 push 能重新注册超时
+    if (this.buffer.length === 0 && this.timer !== null) {
+      clearTimeout(this.timer)
+      this.timer = null
     }
   }
 

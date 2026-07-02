@@ -1,10 +1,6 @@
 import { fileURLToPath, URL } from "node:url"
 import { defineConfig } from "vite"
 import vue from "@vitejs/plugin-vue"
-import { dirname, resolve } from "node:path"
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
-const distAssetsDir = resolve(__dirname, "../dist/assets")
 
 export default defineConfig({
   plugins: [vue()],
@@ -21,6 +17,12 @@ export default defineConfig({
         find: "@csnight/audio-recorder/plugins/streaming-export",
         replacement: fileURLToPath(
           new URL("../dist/plugins/streaming-export/index.js", import.meta.url)
+        ),
+      },
+      {
+        find: "@csnight/audio-recorder/plugins/streaming-player",
+        replacement: fileURLToPath(
+          new URL("../dist/plugins/streaming-player/index.js", import.meta.url)
         ),
       },
       {
@@ -83,12 +85,7 @@ export default defineConfig({
           new URL("../dist/codecs/amr/index.js", import.meta.url)
         ),
       },
-      {
-        find: "@csnight/audio-recorder/plugins/streaming-player",
-        replacement: fileURLToPath(
-          new URL("../dist/plugins/streaming-player/index.js", import.meta.url)
-        ),
-      },
+
       {
         find: "@csnight/audio-recorder",
         replacement: fileURLToPath(

@@ -78,6 +78,7 @@ const state = reactive({
   lastExportResult: null,
   microphoneDevices: [],
   selectedDeviceId: "",
+  diagnosticsRawView: false,
 })
 
 let recorder = createPlaygroundRecorder()
@@ -155,6 +156,139 @@ const summaryRows = computed(() =>
 )
 
 const storageRows = computed(() => toKvRows(state.storageDiagnostics))
+
+const hasExportResult = computed(() => state.lastExportResult !== null)
+
+const topMetrics = computed(() => [
+  {
+    label: "Recorder",
+    value: state.recorderState,
+    detail: state.pendingActionLabel || "Ready for the next action.",
+  },
+  {
+    label: "Runtime",
+    value:
+      state.runtimeInfo?.actualSampleRate ??
+      state.runtimeInfo?.requestedSampleRate ??
+      "-",
+    detail: `${
+      state.runtimeInfo?.actualChannelCount ??
+      state.runtimeInfo?.requestedChannelCount ??
+      "-"
+    } ch · ${state.runtimeInfo?.inputStrategy ?? state.inputStrategy}`,
+  },
+  {
+    label: "Stream",
+    value: `${state.realtimeChunkCount} chunk`,
+    detail: `${formatBytes(state.realtimeChunkBytes)} · ASR ${state.asrChunkCount}`,
+  },
+  {
+    label: "Persistence",
+    value:
+      state.storageMode === PLAYGROUND_STORAGE_MODE.memory
+        ? "Memory"
+        : getPersistenceBackendLabel(
+            state.activePersistenceBackend ?? state.persistenceBackend
+          ),
+    detail: `${formatBytes(state.storageDiagnostics?.bytes ?? 0)} stored · ${
+      state.storageDiagnostics?.persistedEntries ?? 0
+    } item(s)`,
+  },
+])
+
+const topSnapshotGroups = computed(() => [
+  {
+    label: "Runtime",
+    items: [
+      { label: "Source", value: getSourceModeLabel(state.sourceMode) },
+      { label: "State", value: state.recorderState },
+      { label: "Frames", value: String(state.frameCount) },
+      {
+        label: "Last Frame",
+        value:
+          state.lastFrameDurationMs > 0 ? `${state.lastFrameDurationMs} ms` : "-",
+      },
+    ],
+  },
+  {
+    label: "Capture",
+    items: [
+      {
+        label: "Sample Rate",
+        value:
+          state.runtimeInfo?.actualSampleRate ??
+          state.runtimeInfo?.requestedSampleRate ??
+          "-",
+      },
+      {
+        label: "Channels",
+        value:
+          state.runtimeInfo?.actualChannelCount ??
+          state.runtimeInfo?.requestedChannelCount ??
+          "-",
+      },
+      {
+        label: "Input",
+        value: state.runtimeInfo?.inputStrategy ?? state.inputStrategy,
+      },
+      { label: "Level", value: `${state.levelPercent}%` },
+    ],
+  },
+  {
+    label: "Storage",
+    items: [
+      { label: "Mode", value: getStorageModeLabel(state.storageMode) },
+      {
+        label: "Backend",
+        value:
+          state.storageMode === PLAYGROUND_STORAGE_MODE.memory
+            ? "Memory"
+            : getPersistenceBackendLabel(
+                state.activePersistenceBackend ?? state.persistenceBackend
+              ),
+      },
+      {
+        label: "Persisted",
+        value: String(state.storageDiagnostics?.persistedEntries ?? 0),
+      },
+      {
+        label: "Exported",
+        value: formatBytes(state.exportedBytes ?? 0),
+      },
+    ],
+  },
+])
+
+const exportStats = computed(() => {
+  if (!state.lastExportResult) return []
+
+  return [
+    {
+      label: "PCM",
+      value: formatBytes(state.lastExportResult.pcm.data.byteLength),
+    },
+    {
+      label: "WAV",
+      value: formatBytes(state.lastExportResult.wav.arrayBuffer.byteLength),
+    },
+    {
+      label: "Sample Rate",
+      value: `${state.lastExportResult.wav.sampleRate} Hz`,
+    },
+    {
+      label: "Channels / Bit Depth",
+      value: `${state.lastExportResult.wav.channels}ch / ${state.lastExportResult.wav.bitRate}bit`,
+    },
+    {
+      label: "FLAC",
+      value: formatBytes(state.lastExportResult.flac.data.byteLength),
+    },
+    {
+      label: "AAC",
+      value: formatBytes(state.lastExportResult.aac.data.byteLength),
+    },
+  ]
+})
 
 const canOpen = computed(
   () =>
@@ -678,6 +812,30 @@ function getPersistenceBackendLabel(backend) {
   return backend === PLAYGROUND_PERSISTENCE_BACKEND.opfs ? "OPFS" : "IndexedDB"
 }
 
+function formatBytes(bytes) {
+  if (bytes === null || bytes === undefined || Number.isNaN(bytes)) return "-"
+  if (bytes < 1024) return `${bytes} B`
+
+  const units = ["KB", "MB", "GB", "TB"]
+  let value = bytes / 1024
+  let unitIndex = 0
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024
+    unitIndex += 1
+  }
+
+  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`
+}
+
+function toStateClassName(value) {
+  return String(value).toLowerCase().replace(/[^a-z0-9]+/g, "-")
+}
+
+function getRecorderBadgeClass(value) {
+  return `badge-state-${toStateClassName(value)}`
+}
+
 function createPlaygroundStorageOptions(
   storageMode,
   memoryThresholdBytes,
@@ -869,244 +1027,308 @@ onBeforeUnmount(() => {
         <p class="eyebrow">Audio Recorder Lab</p>
         <div class="topbar-title-row">
           <h1>浏览器录音工作台</h1>
-          <span class="badge">{{ state.pendingActionLabel || "Ready" }}</span>
+          <div class="status-badges">
+            <span
+              :class="[
+                'badge',
+                getRecorderBadgeClass(state.recorderState),
+                state.pendingActionLabel ? 'badge-accent' : '',
+              ]"
+            >
+              {{ state.pendingActionLabel || state.recorderState }}
+            </span>
+          </div>
         </div>
         <p class="lede">
-          通过
-          <code>dist</code>
-          产物快速校验输入源、持久化、实时编码、播放器与导出链路。
+          通过 <code>dist</code> 产物快速校验输入源、持久化、实时编码、播放器与导出链路。
         </p>
+        <div class="hero-chip-row">
+          <span class="mini-chip">Source · {{ getSourceModeLabel(state.sourceMode) }}</span>
+          <span class="mini-chip">Storage · {{ getStorageModeLabel(state.storageMode) }}</span>
+          <span class="mini-chip">
+            Backend ·
+            {{
+              state.storageMode === PLAYGROUND_STORAGE_MODE.memory
+                ? "Memory"
+                : getPersistenceBackendLabel(state.persistenceBackend)
+            }}
+          </span>
+        </div>
       </div>
-      <div class="topbar-status" aria-label="实时录音状态概览">
-        <div class="status-strip">
-          <div class="status-item">
-            <span>Recorder</span>
-            <strong>{{ state.recorderState }}</strong>
-          </div>
-          <div class="status-item">
-            <span>Source</span>
-            <strong>{{ getSourceModeLabel(state.sourceMode) }}</strong>
-          </div>
-          <div class="status-item">
-            <span>Chunks</span>
-            <strong>{{ state.realtimeChunkCount }}</strong>
-          </div>
-          <div class="status-item">
-            <span>Frames</span>
-            <strong>{{ state.frameCount }}</strong>
-          </div>
+      <div class="topbar-status" aria-label="状态与运行时快照">
+        <div class="topbar-primary-strip">
+          <article
+            v-for="item in topMetrics"
+            :key="item.label"
+            class="top-status-tile"
+          >
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value }}</strong>
+          </article>
+        </div>
+        <div class="topbar-secondary-strip">
+          <section
+            v-for="group in topSnapshotGroups"
+            :key="group.label"
+            class="top-inline-group"
+          >
+            <p class="top-inline-group-label">{{ group.label }}</p>
+            <div class="top-inline-items">
+              <span
+                v-for="item in group.items"
+                :key="`${group.label}-${item.label}`"
+                class="top-inline-item"
+              >
+                <b>{{ item.label }}</b>
+                <i>{{ item.value }}</i>
+              </span>
+            </div>
+          </section>
         </div>
       </div>
     </section>
 
-    <section class="dashboard">
-      <div class="column">
-        <section class="panel panel-highlight">
-          <div class="panel-head">
+    <section class="workspace-grid">
+      <div class="primary-column">
+        <section class="panel panel-highlight control-stage">
+          <div class="panel-head panel-head-spread">
             <div>
-              <p class="panel-kicker">Recorder</p>
-              <h2>录音控制</h2>
+              <p class="panel-kicker">Control Stage</p>
+              <h2>配置与操作</h2>
             </div>
-            <span class="badge">{{ state.pendingActionLabel || "Ready" }}</span>
+            <p class="panel-note panel-note-compact">
+              先完成输入源和存储策略，再执行 open / start / stop 流程。
+            </p>
           </div>
 
-          <div class="form-grid">
-            <label class="field">
-              <span>输入来源</span>
-              <select
-                v-model="state.sourceMode"
-                @change="handleSourceModeChange"
-              >
-                <option :value="PLAYGROUND_SOURCE_MODE.microphone">
-                  麦克风
-                </option>
-                <option :value="PLAYGROUND_SOURCE_MODE.externalTone">
-                  外部音调流
-                </option>
-              </select>
-            </label>
+          <div class="control-stage-grid">
+            <div class="control-stack">
+              <section class="control-block">
+                <div class="subpanel-head">
+                  <div>
+                    <p class="panel-kicker">Input</p>
+                    <h3>输入源</h3>
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <label class="field">
+                    <span>输入来源</span>
+                    <select
+                      v-model="state.sourceMode"
+                      @change="handleSourceModeChange"
+                    >
+                      <option :value="PLAYGROUND_SOURCE_MODE.microphone">
+                        麦克风
+                      </option>
+                      <option :value="PLAYGROUND_SOURCE_MODE.externalTone">
+                        外部音调流
+                      </option>
+                    </select>
+                  </label>
 
-            <label
-              v-if="state.sourceMode === PLAYGROUND_SOURCE_MODE.microphone"
-              class="field"
-            >
-              <span>麦克风设备</span>
-              <div class="inline-field">
-                <select v-model="state.selectedDeviceId">
-                  <option value="">默认麦克风</option>
-                  <option
-                    v-for="device in state.microphoneDevices"
-                    :key="device.deviceId"
-                    :value="device.deviceId"
+                  <label
+                    v-if="state.sourceMode === PLAYGROUND_SOURCE_MODE.microphone"
+                    class="field"
                   >
-                    {{
-                      device.label || `麦克风 ${device.deviceId.slice(0, 8)}…`
-                    }}
-                  </option>
-                </select>
-                <button class="ghost-button" @click="refreshMicrophoneDevices">
-                  刷新
-                </button>
-              </div>
-            </label>
+                    <span>麦克风设备</span>
+                    <div class="inline-field">
+                      <select v-model="state.selectedDeviceId">
+                        <option value="">默认麦克风</option>
+                        <option
+                          v-for="device in state.microphoneDevices"
+                          :key="device.deviceId"
+                          :value="device.deviceId"
+                        >
+                          {{
+                            device.label || `麦克风 ${device.deviceId.slice(0, 8)}…`
+                          }}
+                        </option>
+                      </select>
+                      <button
+                        class="ghost-button"
+                        @click="refreshMicrophoneDevices"
+                      >
+                        刷新
+                      </button>
+                    </div>
+                  </label>
+                </div>
+              </section>
 
-            <label class="field">
-              <span>期望声道</span>
-              <select v-model.number="state.requestedChannelCount">
-                <option :value="1">单声道</option>
-                <option :value="2">双声道</option>
-              </select>
-            </label>
+              <section class="control-block">
+                <div class="subpanel-head">
+                  <div>
+                    <p class="panel-kicker">Capture</p>
+                    <h3>采集参数</h3>
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <label class="field">
+                    <span>期望声道</span>
+                    <select v-model.number="state.requestedChannelCount">
+                      <option :value="1">单声道</option>
+                      <option :value="2">双声道</option>
+                    </select>
+                  </label>
 
-            <label class="field">
-              <span>采集策略</span>
-              <select v-model="state.inputStrategy">
-                <option value="auto">自动</option>
-                <option value="media-recorder">MediaRecorder</option>
-                <option value="audio-worklet">AudioWorklet</option>
-                <option value="script-processor">ScriptProcessor</option>
-              </select>
-            </label>
+                  <label class="field">
+                    <span>采集策略</span>
+                    <select v-model="state.inputStrategy">
+                      <option value="auto">自动</option>
+                      <option value="media-recorder">MediaRecorder</option>
+                      <option value="audio-worklet">AudioWorklet</option>
+                      <option value="script-processor">ScriptProcessor</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
 
-            <label class="field">
-              <span>存储模式</span>
-              <select
-                v-model="state.storageMode"
-                :disabled="!canChangeStorageMode"
-                @change="handleStorageModeChange"
-              >
-                <option :value="PLAYGROUND_STORAGE_MODE.memory">纯内存</option>
-                <option :value="PLAYGROUND_STORAGE_MODE.persistent">
-                  持久化
-                </option>
-                <option :value="PLAYGROUND_STORAGE_MODE.auto">自动切换</option>
-              </select>
-            </label>
+              <section class="control-block">
+                <div class="subpanel-head">
+                  <div>
+                    <p class="panel-kicker">Storage</p>
+                    <h3>缓存与持久化</h3>
+                  </div>
+                </div>
+                <div class="form-grid">
+                  <label class="field">
+                    <span>存储模式</span>
+                    <select
+                      v-model="state.storageMode"
+                      :disabled="!canChangeStorageMode"
+                      @change="handleStorageModeChange"
+                    >
+                      <option :value="PLAYGROUND_STORAGE_MODE.memory">
+                        纯内存
+                      </option>
+                      <option :value="PLAYGROUND_STORAGE_MODE.persistent">
+                        持久化
+                      </option>
+                      <option :value="PLAYGROUND_STORAGE_MODE.auto">
+                        自动切换
+                      </option>
+                    </select>
+                  </label>
 
-            <label class="field">
-              <span>持久化后端</span>
-              <select
-                v-model="state.persistenceBackend"
-                :disabled="
-                  !canChangeStorageMode ||
-                  state.storageMode === PLAYGROUND_STORAGE_MODE.memory
-                "
-                @change="handleStorageModeChange"
-              >
-                <option :value="PLAYGROUND_PERSISTENCE_BACKEND.indexeddb">
-                  IndexedDB
-                </option>
-                <option :value="PLAYGROUND_PERSISTENCE_BACKEND.opfs">
-                  OPFS
-                </option>
-              </select>
-            </label>
+                  <label class="field">
+                    <span>持久化后端</span>
+                    <select
+                      v-model="state.persistenceBackend"
+                      :disabled="
+                        !canChangeStorageMode ||
+                        state.storageMode === PLAYGROUND_STORAGE_MODE.memory
+                      "
+                      @change="handleStorageModeChange"
+                    >
+                      <option :value="PLAYGROUND_PERSISTENCE_BACKEND.indexeddb">
+                        IndexedDB
+                      </option>
+                      <option :value="PLAYGROUND_PERSISTENCE_BACKEND.opfs">
+                        OPFS
+                      </option>
+                    </select>
+                  </label>
 
-            <label class="field field-span">
-              <span>自动溢写阈值</span>
-              <input
-                v-model.number="state.memoryThresholdBytes"
-                :disabled="
-                  !canChangeStorageMode ||
-                  state.storageMode !== PLAYGROUND_STORAGE_MODE.auto
-                "
-                min="1"
-                step="1"
-                type="number"
-              />
-            </label>
-          </div>
+                  <label class="field field-span">
+                    <span>自动溢写阈值</span>
+                    <input
+                      v-model.number="state.memoryThresholdBytes"
+                      :disabled="
+                        !canChangeStorageMode ||
+                        state.storageMode !== PLAYGROUND_STORAGE_MODE.auto
+                      "
+                      min="1"
+                      step="1"
+                      type="number"
+                    />
+                  </label>
+                </div>
+                <p class="panel-note">{{ storageHint }}</p>
+              </section>
+            </div>
 
-          <p class="panel-note">{{ storageHint }}</p>
+            <div class="operations-stack">
+              <section class="operation-console">
+                <div class="subpanel-head">
+                  <div>
+                    <p class="panel-kicker">Action Console</p>
+                    <h3>录音流程</h3>
+                  </div>
+                  <span
+                    :class="[
+                      'badge',
+                      getRecorderBadgeClass(state.recorderState),
+                      state.pendingActionLabel ? 'badge-accent' : '',
+                    ]"
+                  >
+                    {{ state.pendingActionLabel || state.recorderState }}
+                  </span>
+                </div>
 
-          <div class="action-grid">
-            <button :disabled="!canOpen" @click="openRecorder">打开</button>
-            <button :disabled="!canStart" @click="startRecorder">开始</button>
-            <button :disabled="!canPause" @click="pauseRecorder">暂停</button>
-            <button :disabled="!canResume" @click="resumeRecorder">恢复</button>
-            <button :disabled="!canStop" @click="stopRecorder">停止</button>
-            <button :disabled="!canClose" @click="closeRecorder">关闭</button>
+                <div class="operation-summary-grid">
+                  <article class="stat-card">
+                    <span>Frames</span>
+                    <strong>{{ state.frameCount }}</strong>
+                  </article>
+                  <article class="stat-card">
+                    <span>Realtime</span>
+                    <strong>{{ formatBytes(state.realtimeChunkBytes) }}</strong>
+                  </article>
+                  <article class="stat-card">
+                    <span>ASR</span>
+                    <strong>{{ formatBytes(state.asrChunkBytes) }}</strong>
+                  </article>
+                  <article class="stat-card">
+                    <span>Export</span>
+                    <strong>{{
+                      hasExportResult ? formatBytes(state.exportedBytes ?? 0) : "Pending"
+                    }}</strong>
+                  </article>
+                </div>
+
+                <div class="meter-card">
+                  <div class="player-meter-head">
+                    <span>输入电平</span>
+                    <span>{{ state.levelPercent }}%</span>
+                  </div>
+                  <div class="meter-shell">
+                    <div
+                      :style="{ width: `${state.levelPercent}%` }"
+                      class="meter-fill"
+                    ></div>
+                  </div>
+                </div>
+                <div class="action-grid">
+                  <button :disabled="!canOpen" @click="openRecorder">打开</button>
+                  <button :disabled="!canStart" @click="startRecorder">开始</button>
+                  <button :disabled="!canPause" @click="pauseRecorder">暂停</button>
+                  <button :disabled="!canResume" @click="resumeRecorder">恢复</button>
+                  <button :disabled="!canStop" @click="stopRecorder">停止</button>
+                  <button :disabled="!canClose" @click="closeRecorder">关闭</button>
+                </div>
+              </section>
+            </div>
           </div>
         </section>
 
         <section class="panel">
-          <div class="panel-head">
-            <div>
-              <p class="panel-kicker">Live Telemetry</p>
-              <h2>实时状态</h2>
-            </div>
-          </div>
-          <div class="stats-grid">
-            <article class="stat-card">
-              <span>采样率</span>
-              <strong>{{
-                state.runtimeInfo?.actualSampleRate ??
-                state.runtimeInfo?.requestedSampleRate ??
-                "-"
-              }}</strong>
-            </article>
-            <article class="stat-card">
-              <span>声道</span>
-              <strong>{{
-                state.runtimeInfo?.actualChannelCount ??
-                state.runtimeInfo?.requestedChannelCount ??
-                "-"
-              }}</strong>
-            </article>
-            <article class="stat-card">
-              <span>采集链路</span>
-              <strong>{{ state.runtimeInfo?.inputStrategy ?? "-" }}</strong>
-            </article>
-            <article class="stat-card">
-              <span>持久化后端</span>
-              <strong>{{ state.activePersistenceBackend ?? "-" }}</strong>
-            </article>
-            <article class="stat-card">
-              <span>实时 chunk</span>
-              <strong
-                >{{ state.realtimeChunkCount }} /
-                {{ state.realtimeChunkBytes }}</strong
-              >
-            </article>
-            <article class="stat-card">
-              <span>ASR Chunk</span>
-              <strong
-                >{{ state.asrChunkCount }} / {{ state.asrChunkBytes }}</strong
-              >
-            </article>
-          </div>
-          <div class="meter-block">
-            <div class="player-meter-head">
-              <span>输入电平</span>
-              <span>{{ state.levelPercent }}%</span>
-            </div>
-            <div class="meter-shell">
-              <div
-                :style="{ width: `${state.levelPercent}%` }"
-                class="meter-fill"
-              ></div>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      <div class="column">
-        <section class="panel">
-          <div class="panel-head">
+          <div class="panel-head panel-head-spread">
             <div>
               <p class="panel-kicker">Export</p>
               <h2>导出与下载</h2>
             </div>
-            <span class="badge">{{ state.amrBandMode.toUpperCase() }}</span>
+            <label class="field field-inline-compact">
+              <span>AMR 模式</span>
+              <select v-model="state.amrBandMode">
+                <option value="nb">NB</option>
+                <option value="wb">WB</option>
+              </select>
+            </label>
           </div>
 
-          <label class="field field-inline">
-            <span>AMR 模式</span>
-            <select v-model="state.amrBandMode">
-              <option value="nb">NB</option>
-              <option value="wb">WB</option>
-            </select>
-          </label>
+          <p class="panel-note">
+            停止录音后自动生成完整导出快照，下载区仅展示最终产物。
+          </p>
 
           <div class="download-grid">
             <button :disabled="!state.lastExportResult" @click="downloadPCM">
@@ -1127,10 +1349,7 @@ onBeforeUnmount(() => {
             <button :disabled="!state.lastExportResult" @click="downloadAMR">
               AMR
             </button>
-            <button
-              :disabled="!state.lastExportResult"
-              @click="downloadOpusOgg"
-            >
+            <button :disabled="!state.lastExportResult" @click="downloadOpusOgg">
               Opus OGG
             </button>
             <button
@@ -1144,54 +1363,44 @@ onBeforeUnmount(() => {
             </button>
           </div>
 
-          <div v-if="state.lastExportResult" class="stats-grid compact">
-            <article class="stat-card">
-              <span>PCM</span>
-              <strong
-                >{{ state.lastExportResult.pcm.data.byteLength }} byte</strong
-              >
-            </article>
-            <article class="stat-card">
-              <span>WAV</span>
-              <strong
-                >{{
-                  state.lastExportResult.wav.arrayBuffer.byteLength
-                }}
-                byte</strong
-              >
-            </article>
-            <article class="stat-card">
-              <span>采样率</span>
-              <strong>{{ state.lastExportResult.wav.sampleRate }} Hz</strong>
-            </article>
-            <article class="stat-card">
-              <span>声道 / 位深</span>
-              <strong
-                >{{ state.lastExportResult.wav.channels }}ch /
-                {{ state.lastExportResult.wav.bitRate }}bit</strong
-              >
-            </article>
-            <article class="stat-card">
-              <span>FLAC</span>
-              <strong
-                >{{ state.lastExportResult.flac.data.byteLength }} byte</strong
-              >
-            </article>
-            <article class="stat-card">
-              <span>AAC</span>
-              <strong
-                >{{ state.lastExportResult.aac.data.byteLength }} byte</strong
-              >
+          <div v-if="exportStats.length" class="stats-grid compact export-stats">
+            <article
+              v-for="item in exportStats"
+              :key="item.label"
+              class="stat-card"
+            >
+              <span>{{ item.label }}</span>
+              <strong>{{ item.value }}</strong>
             </article>
           </div>
-          <p v-else class="panel-note">停止录音后会自动生成完整导出快照。</p>
+          <div v-else class="empty-state">
+            <strong>导出结果待生成</strong>
+            <p>执行一次 stop() 后，这里会出现各编码格式的快照和下载入口。</p>
+          </div>
         </section>
 
         <section class="panel">
-          <div class="panel-head">
+          <div class="panel-head panel-head-spread">
+            <div>
+              <p class="panel-kicker">Streaming Player</p>
+              <h2>实时播放链路</h2>
+            </div>
+            <p class="panel-note panel-note-compact">
+              复用录音实时流，验证播放器缓存、重播和状态同步。
+            </p>
+          </div>
+          <div class="player-section-shell">
+            <StreamingPlayerDemo :recorder="recorderRef" />
+          </div>
+        </section>
+      </div>
+
+      <aside class="side-column">
+        <section class="panel">
+          <div class="panel-head panel-head-spread">
             <div>
               <p class="panel-kicker">Diagnostics</p>
-              <h2>运行时快照</h2>
+              <h2>深度诊断</h2>
             </div>
             <button
               class="ghost-button"
@@ -1201,81 +1410,74 @@ onBeforeUnmount(() => {
             </button>
           </div>
 
-          <template v-if="state.diagnosticsRawView">
-            <pre class="json">{{ runtimeJson }}</pre>
-            <pre class="json">{{ summaryJson }}</pre>
-            <pre class="json">{{ storageJson }}</pre>
-          </template>
+          <div class="diagnostics-panel-body">
+            <template v-if="state.diagnosticsRawView">
+              <pre class="json">{{ runtimeJson }}</pre>
+              <pre class="json">{{ summaryJson }}</pre>
+              <pre class="json">{{ storageJson }}</pre>
+            </template>
 
-          <template v-else>
-            <div class="diagnostics-stack">
-              <section class="diagnostics-group">
-                <div class="diagnostics-group-head">
-                  <p class="diagnostics-group-label">Runtime</p>
-                  <span>{{ runtimeRows.length }} items</span>
-                </div>
-                <dl class="kv-grid">
-                  <template v-for="row in runtimeRows" :key="row.label">
-                    <dt>{{ row.label }}</dt>
-                    <dd>{{ row.value }}</dd>
-                  </template>
-                </dl>
-              </section>
+            <template v-else>
+              <div class="diagnostics-stack">
+                <section class="diagnostics-group">
+                  <div class="diagnostics-group-head">
+                    <p class="diagnostics-group-label">Summary</p>
+                    <span>{{ summaryRows.length }} items</span>
+                  </div>
+                  <dl class="kv-grid">
+                    <template v-for="row in summaryRows" :key="row.label">
+                      <dt>{{ row.label }}</dt>
+                      <dd>{{ row.value }}</dd>
+                    </template>
+                  </dl>
+                </section>
 
-              <section class="diagnostics-group">
-                <div class="diagnostics-group-head">
-                  <p class="diagnostics-group-label">Summary</p>
-                  <span>{{ summaryRows.length }} items</span>
-                </div>
-                <dl class="kv-grid">
-                  <template v-for="row in summaryRows" :key="row.label">
-                    <dt>{{ row.label }}</dt>
-                    <dd>{{ row.value }}</dd>
-                  </template>
-                </dl>
-              </section>
-
-              <section class="diagnostics-group">
-                <div class="diagnostics-group-head">
-                  <p class="diagnostics-group-label">Storage</p>
-                  <span>{{ storageRows.length }} items</span>
-                </div>
-                <dl v-if="storageRows.length" class="kv-grid">
-                  <template v-for="row in storageRows" :key="row.label">
-                    <dt>{{ row.label }}</dt>
-                    <dd>{{ row.value }}</dd>
-                  </template>
-                </dl>
-                <p v-else class="panel-note">尚无存储诊断数据。</p>
-              </section>
-            </div>
-          </template>
+                <section class="diagnostics-group">
+                  <div class="diagnostics-group-head">
+                    <p class="diagnostics-group-label">Storage</p>
+                    <span>{{ storageRows.length }} items</span>
+                  </div>
+                  <dl v-if="storageRows.length" class="kv-grid">
+                    <template v-for="row in storageRows" :key="row.label">
+                      <dt>{{ row.label }}</dt>
+                      <dd>{{ row.value }}</dd>
+                    </template>
+                  </dl>
+                  <p v-else class="panel-note">尚无存储诊断数据。</p>
+                </section>
+              </div>
+            </template>
+          </div>
         </section>
 
-        <StreamingPlayerDemo :recorder="recorderRef" />
-
         <section class="panel">
-          <div class="panel-head">
+          <div class="panel-head panel-head-spread">
             <div>
               <p class="panel-kicker">Logs</p>
               <h2>事件日志</h2>
             </div>
+            <button class="ghost-button" @click="state.logs = []">清空</button>
           </div>
-          <ul class="log-list">
-            <li
-              v-for="item in state.logs"
-              :key="`${item.time}-${item.message}`"
-              class="log-item"
-            >
-              <div class="log-head">
-                <span class="log-time">{{ item.time }}</span>
-                <span :class="['log-type', item.type]">{{ item.type }}</span>
-              </div>
-              <p class="log-message">{{ item.message }}</p>
-            </li>
-          </ul>
+          <div class="log-panel-body">
+            <ul class="log-list">
+              <li
+                v-for="item in state.logs"
+                :key="`${item.time}-${item.message}`"
+                class="log-item"
+              >
+                <div class="log-head">
+                  <span class="log-time">{{ item.time }}</span>
+                  <span :class="['log-type', item.type]">{{ item.type }}</span>
+                </div>
+                <p class="log-message">{{ item.message }}</p>
+              </li>
+              <li v-if="state.logs.length === 0" class="log-item log-item-empty">
+                <p class="log-message">暂无日志，操作录音器后会在这里展示事件流。</p>
+              </li>
+            </ul>
+          </div>
         </section>
-      </div>
+      </aside>
     </section>
   </main>
 </template>

@@ -44,7 +44,6 @@ describe("ReorderBuffer", () => {
     const released: number[] = []
     buf.onRelease = (p) => released.push(p.seq)
 
-    // 先推 seq=0 让 nextSeq 初始化为 0，再推乱序包
     buf.push(makePacket(0))
     buf.push(makePacket(2))
     buf.push(makePacket(1))
@@ -120,7 +119,7 @@ describe("ReorderBuffer", () => {
     buf.reset()
     vi.advanceTimersByTime(300)
 
-    // reset 后 timer 已清，不应该触发任何 release
+    // reset 后 timer 已清，不应该触发任何后续 release
     expect(released).toEqual([0])
   })
 
@@ -161,11 +160,67 @@ describe("ReorderBuffer", () => {
     const released: number[] = []
     buf.onRelease = (p) => released.push(p.seq)
 
-    // 先推 seq=0 以初始化 nextSeq=0，再推乱序其余包
     const seqs = [0, 4, 1, 3, 2, 7, 5, 6, 9, 8]
     for (const s of seqs) buf.push(makePacket(s))
     buf.drain()
 
     expect(released).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+  })
+
+  // ── 新增：drain 后队列清空时 timer 被取消 ──────────────────────────────
+
+  it("drain 消费完所有包后 timer 被清除，下次 push 可重新注册超时", () => {
+    const buf = new ReorderBuffer(200)
+    const released: number[] = []
+    buf.onRelease = (p) => released.push(p.seq)
+
+    // 第一批：正常推入并消费
+    buf.push(makePacket(0))
+    buf.push(makePacket(1))
+    buf.drain() // 全部释放，队列清空，timer 应被清除
+
+    expect(released).toEqual([0, 1])
+
+    // 第二批：新推入一个缺口包，应该能重新注册 timer
+    buf.push(makePacket(3)) // seq=2 缺失，触发 timer
+    buf.drain()
+    expect(released).toEqual([0, 1]) // seq=3 被 hold 住
+
+    // 经过 200ms，timer 触发强制释放
+    vi.advanceTimersByTime(200)
+    expect(released).toEqual([0, 1, 3])
+  })
+
+  it("drain 消费部分包后队列非空时 timer 继续有效", () => {
+    const buf = new ReorderBuffer(200)
+    const released: number[] = []
+    buf.onRelease = (p) => released.push(p.seq)
+
+    buf.push(makePacket(0))
+    buf.push(makePacket(2)) // seq=1 缺失
+    buf.drain() // 仅释放 seq=0，队列仍有 seq=2
+
+    expect(released).toEqual([0])
+
+    // 200ms 超时，强制释放 seq=2
+    vi.advanceTimersByTime(200)
+    expect(released).toEqual([0, 2])
+  })
+
+  it("drain 清空队列后立刻再 push 能立即释放连续包", () => {
+    const buf = new ReorderBuffer(200)
+    const released: number[] = []
+    buf.onRelease = (p) => released.push(p.seq)
+
+    // 第一批
+    buf.push(makePacket(0))
+    buf.drain()
+    expect(released).toEqual([0])
+
+    // 第二批连续包，不需要 timer 就能立即释放
+    buf.push(makePacket(1))
+    buf.push(makePacket(2))
+    buf.drain()
+    expect(released).toEqual([0, 1, 2])
   })
 })

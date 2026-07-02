@@ -15,6 +15,7 @@ TypeScript browser audio recorder library for microphone and `MediaStream` input
 - [`level-meter`](#level-meter)
 - [`streaming-export`](#streaming-export)
 - [`asr-export`](#asr-export)
+- [`streaming-player`](#streaming-player)
 - [Storage](#storage)
 - [`storage/opfs`](#storageopfs)
 - [`storage/indexeddb`](#storageindexeddb)
@@ -359,6 +360,7 @@ Returns:
 | `@csnight/audio-recorder/plugins/level-meter` | `createLevelMeterPlugin()` |
 | `@csnight/audio-recorder/plugins/streaming-export` | `createStreamingExportPlugin()` |
 | `@csnight/audio-recorder/plugins/asr-export` | `createAsrExportPlugin()` |
+| `@csnight/audio-recorder/plugins/streaming-player` | `createStreamingPlayer()` |
 | `@csnight/audio-recorder/storage/opfs` | `createOpfsPersistencePlugin()` |
 | `@csnight/audio-recorder/storage/indexeddb` | `createIndexedDbPersistencePlugin()` |
 
@@ -663,6 +665,95 @@ Event payload: `plugin:asr:chunk`
 | `sampleRate`  | `number`         | Output sample rate    |
 | `channels`    | `1`              | Always mono           |
 | `isFinal`     | `boolean`        | Final chunk flag      |
+
+### `streaming-player`
+
+#### Introduction
+
+Standalone streaming audio playback engine. Receives `StreamingPacketPayload` packets from any source (WebSocket, recorder plugin, etc.), buffers them through a reorder and jitter pipeline, decodes them via caller-supplied decoders, and schedules continuous playback on an `AudioContext`.
+
+Key behaviors:
+
+- **Double-write**: every `push()` writes to a persist-store for replay history AND feeds the playback pipeline
+- **Pause/resume without delay**: on `resume()` the pipeline is reset so backlogged packets are discarded; fresh packets flow immediately
+- **Replay**: only available while paused; plays back the last N seconds from the persist-store and returns to paused state when done
+- **Persist-store modes**: `persistMode: "memory"` (default) or `"indexeddb"`; the IndexedDB mode writes packets to IndexedDB but replay still reads from the in-memory history of the current player instance
+- **Drop-old backlog policy**: when buffered audio exceeds `maxBufferMs`, oldest packets are dropped to keep latency stable
+
+#### Quick Start
+
+```ts
+import { createStreamingPlayer } from "@csnight/audio-recorder/plugins/streaming-player"
+import { pcmDecoderDefinition } from "@csnight/audio-recorder/codecs/base"
+
+const player = await createStreamingPlayer({
+  decoders: [pcmDecoderDefinition],
+  targetLatencyMs: 300,
+  onStateChange: (s) => console.log("state →", s),
+})
+
+await player.start()
+
+// Feed packets from any source
+websocket.onmessage = ({ data }) => player.push(JSON.parse(data))
+
+// Controls
+player.pause()
+player.resume()
+player.replay(5)        // replay last 5 seconds (paused state only)
+player.setVolume(0.8)
+player.destroy()
+```
+
+#### API
+
+Exports from `@csnight/audio-recorder/plugins/streaming-player`:
+
+| Export | Description |
+|---|---|
+| `createStreamingPlayer(options)` | Create and initialize a streaming player |
+| `StreamingPlayerOptions` | Player creation options |
+| `StreamingPlayerHandle` | Returned player control handle |
+| `StreamingPlayerState` | Player state union type |
+| `PersistMode` | Persist-store mode union type: `"memory" \| "indexeddb"` |
+
+Options: `StreamingPlayerOptions`
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `decoders` | `AudioDecoderDefinition[]` | **required** | Decoder definitions; each maps a `format` string to a decode function |
+| `targetLatencyMs` | `number` | `300` | Jitter buffer target depth before playback starts |
+| `maxBufferMs` | `number` | `3000` | Maximum buffered audio; excess triggers drop-old |
+| `volume` | `number` | `1.0` | Initial gain `[0, 1]` |
+| `persistMode` | `"memory" \| "indexeddb"` | `"memory"` | Select the built-in persist-store backend |
+| `persistBufferMs` | `number` | `10000` | Max history depth retained by the built-in persist-store |
+| `audioContext` | `AudioContext` | auto | External `AudioContext`; if omitted one is created internally |
+| `onUnderrun` | `(detail: { bufferedMs: number }) => void` | `-` | Called when the decode queue empties during playback |
+| `onPacketDrop` | `(detail: { count: number; reason: string }) => void` | `-` | Called when packets are dropped due to backlog |
+| `onStateChange` | `(state: StreamingPlayerState) => void` | `-` | Called on every state transition |
+
+`persistMode: "indexeddb"` note:
+
+- Packets are mirrored into IndexedDB as a side write.
+- `replay()` still reads from the current in-memory history only.
+- Rebuilding the player instance does not restore replay history from IndexedDB.
+
+Handle: `StreamingPlayerHandle`
+
+| Member | Type | Description |
+|---|---|---|
+| `state` | `StreamingPlayerState` | Current state: `idle \| buffering \| playing \| paused \| stopped` |
+| `bufferedMs` | `number` | Current pipeline buffer depth in milliseconds |
+| `droppedPackets` | `number` | Cumulative dropped packet count |
+| `storedMs` | `number` | Audio duration currently held in the persist-store (available for replay) |
+| `push(packet)` | `void` | Feed a `StreamingPacketPayload`; always writes to persist-store, skips pipeline while paused |
+| `start()` | `Promise<void>` | Transition from `idle` to `buffering`; begins accumulating packets |
+| `pause()` | `void` | Stop pipeline and active sources; if the player created its own `AudioContext`, it also suspends it |
+| `resume()` | `void` | Reset pipeline backlog and resume from fresh packets |
+| `setVolume(v)` | `void` | Adjust gain `[0, 1]` at any time |
+| `replay(seconds)` | `void` | Play back the last N seconds from persist-store; only valid when paused |
+| `destroy()` | `void` | Release all resources |
+| `onStateChange` | `((state) => void) \| null` | Assignable after creation; `null` to unsubscribe |
 
 ## Storage
 

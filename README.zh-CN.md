@@ -14,6 +14,7 @@
 - [`level-meter`](#level-meter)
 - [`streaming-export`](#streaming-export)
 - [`asr-export`](#asr-export)
+- [`streaming-player`](#streaming-player)
 - [存储](#存储)
 - [`storage/opfs`](#storageopfs)
 - [`storage/indexeddb`](#storageindexeddb)
@@ -358,6 +359,7 @@ import {
 | `@csnight/audio-recorder/plugins/level-meter` | `createLevelMeterPlugin()` |
 | `@csnight/audio-recorder/plugins/streaming-export` | `createStreamingExportPlugin()` |
 | `@csnight/audio-recorder/plugins/asr-export` | `createAsrExportPlugin()` |
+| `@csnight/audio-recorder/plugins/streaming-player` | `createStreamingPlayer()` |
 | `@csnight/audio-recorder/storage/opfs` | `createOpfsPersistencePlugin()` |
 | `@csnight/audio-recorder/storage/indexeddb` | `createIndexedDbPersistencePlugin()` |
 
@@ -661,6 +663,90 @@ Event payload: `plugin:asr:chunk`
 | `sampleRate`  | `number`         | 输出采样率         |
 | `channels`    | `1`              | 固定单声道         |
 | `isFinal`     | `boolean`        | 是否为最终 chunk   |
+
+### `streaming-player`
+
+#### Introduction
+
+独立流式音频播放引擎。接收来自任意来源（WebSocket、录音插件等）的 `StreamingPacketPayload` 数据包，经重排与抖动缓冲管线处理后，通过调用方提供的解码器解码，并在 `AudioContext` 上调度连续播放。
+
+主要特性：
+
+- **双写**：每次 `push()` 同时写入持久化存储（供历史重播）和播放管线
+- **暂停/恢复无延迟**：`resume()` 时重置管线，丢弃积压数据包，新数据包立即生效
+- **重播**：仅在暂停状态下可用；从持久化存储播放最近 N 秒，完成后保持暂停
+- **持久化存储后端**：`MemoryPersistStore`（默认，内存环形缓冲）或 `IndexedDbPersistStore`（跨刷新持久化）
+- **丢弃旧数据策略**：缓冲量超过 `maxBufferMs` 时自动丢弃最旧的数据包以稳定延迟
+
+#### Quick Start
+
+```ts
+import { createStreamingPlayer } from "@csnight/audio-recorder/plugins/streaming-player"
+import { pcmDecoderDefinition } from "@csnight/audio-recorder/codecs/base"
+
+const player = await createStreamingPlayer({
+  decoders: [pcmDecoderDefinition],
+  targetLatencyMs: 300,
+  onStateChange: (s) => console.log("state →", s),
+})
+
+await player.start()
+
+// 从任意来源推入数据包
+websocket.onmessage = ({ data }) => player.push(JSON.parse(data))
+
+// 控制
+player.pause()
+player.resume()
+player.replay(5)        // 重播最近 5 秒（仅暂停状态下可用）
+player.setVolume(0.8)
+player.destroy()
+```
+
+#### API
+
+`@csnight/audio-recorder/plugins/streaming-player` 导出：
+
+| 导出 | 说明 |
+|---|---|
+| `createStreamingPlayer(options)` | 创建并初始化流式播放器 |
+| `MemoryPersistStore` | 内存环形缓冲持久化存储（默认） |
+| `IndexedDbPersistStore` | IndexedDB 持久化存储，支持跨刷新历史 |
+| `StreamingPlayerOptions` | 播放器创建选项 |
+| `StreamingPlayerHandle` | 播放器控制句柄 |
+| `StreamingPlayerState` | 播放器状态联合类型 |
+
+选项：`StreamingPlayerOptions`
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `decoders` | `AudioDecoderDefinition[]` | **必填** | 解码器定义列表，每项将 `format` 字符串映射到解码函数 |
+| `targetLatencyMs` | `number` | `300` | 开始播放前抖动缓冲的目标深度（毫秒） |
+| `maxBufferMs` | `number` | `3000` | 最大缓冲时长，超出后触发丢弃旧数据 |
+| `volume` | `number` | `1.0` | 初始增益 `[0, 1]` |
+| `persistStore` | `PersistStore` | 自动 | 自定义持久化存储实例；未传则自动创建 `MemoryPersistStore` |
+| `persistBufferMs` | `number` | `10000` | 使用默认 `MemoryPersistStore` 时的最大历史时长（毫秒） |
+| `audioContext` | `AudioContext` | 自动 | 外部 `AudioContext`；未传则内部创建 |
+| `onUnderrun` | `(detail: { bufferedMs: number }) => void` | `-` | 解码队列在播放中变空时触发 |
+| `onPacketDrop` | `(detail: { count: number; reason: string }) => void` | `-` | 数据包因积压被丢弃时触发 |
+| `onStateChange` | `(state: StreamingPlayerState) => void` | `-` | 每次状态变化时触发 |
+
+句柄：`StreamingPlayerHandle`
+
+| 成员 | 类型 | 说明 |
+|---|---|---|
+| `state` | `StreamingPlayerState` | 当前状态：`idle \| buffering \| playing \| paused \| stopped` |
+| `bufferedMs` | `number` | 当前管线缓冲深度（毫秒） |
+| `droppedPackets` | `number` | 累计丢弃数据包数量 |
+| `storedMs` | `number` | 持久化存储中的音频时长（毫秒），可用于展示可重播时长 |
+| `push(packet)` | `void` | 推入一个 `StreamingPacketPayload`；始终写入持久化存储，暂停时跳过播放管线 |
+| `start()` | `Promise<void>` | 从 `idle` 切换到 `buffering`，开始积累数据包 |
+| `pause()` | `void` | 暂停 `AudioContext` 并停止管线；新数据包仍写入持久化存储 |
+| `resume()` | `void` | 重置管线积压并从新数据包恢复播放 |
+| `setVolume(v)` | `void` | 随时调整增益 `[0, 1]` |
+| `replay(seconds)` | `void` | 从持久化存储播放最近 N 秒；仅暂停状态下有效 |
+| `destroy()` | `void` | 释放所有资源 |
+| `onStateChange` | `((state) => void) \| null` | 创建后可直接赋值；`null` 表示取消监听 |
 
 ## 存储
 

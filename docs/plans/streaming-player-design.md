@@ -1,52 +1,59 @@
 # Streaming Player 落地方案
 
-更新时间：2026-07-01
+更新时间：2026-07-02
 
 ---
 
 ## 一、功能点清单
 
-| #  | 功能           | 实现方式                                                          |
-|----|--------------|---------------------------------------------------------------|
-| 1  | **接收音频包**    | 注册 source，每次 `plugin:stream` 事件推入一个 `StreamingPacketPayload`  |
-| 2  | **乱序重排**     | 按 `seq` 维护优先队列，超时后强制放行                                        |
-| 3  | **抖动缓冲**     | 维护目标缓冲量 `targetLatencyMs`（默认 300ms），缓冲足够才开始出队                 |
-| 4  | **解码**       | Worker 内解码（PCM/WAV 同步即可，后续 WASM codec 异步），返回 `Float32Array[]` |
-| 5  | **连续播放**     | AudioWorklet + SharedArrayBuffer ring buffer，与主线程完全解耦         |
-| 6  | **欠载保护**     | ring buffer 空时 AudioWorklet 输出静音，主线程收到 `onUnderrun` 回调        |
-| 7  | **积压处理**     | 缓冲超 `maxBufferMs` 时按策略丢旧包或等待                                  |
-| 8  | **回放最近 N 秒** | 内存环形存储最近 packet，调用 `replay(seconds)` 重新入队                     |
-| 9  | **音量控制**     | AudioWorklet 内对 PCM 乘以增益系数                                    |
-| 10 | **暂停 / 恢复**  | 暂停：停止出队；恢复：继续出队                                               |
-| 11 | **停止 / 销毁**  | 关闭 AudioContext，释放 Worker，清空缓冲                                |
-| 12 | **状态上报**     | 暴露响应式 `state`：`idle / buffering / playing / paused / stopped` |
-| 13 | **指标回调**     | `onUnderrun`、`onPacketDrop`、`bufferedMs` getter               |
+| #  | 功能               | 实现方式                                                                       |
+|----|------------------|----------------------------------------------------------------------------|
+| 1  | **接收音频包**        | 调用 `player.push(packet)` 推入 `StreamingPacketPayload`                       |
+| 2  | **双写持久化**        | 每次 `push()` 同时写入 persistStore（无论是否暂停）                                      |
+| 3  | **乱序重排**         | `ReorderBuffer`：按 `seq` 排序，超时后强制放行，通过 `onRelease` 回调输出                     |
+| 4  | **抖动缓冲**         | `JitterBuffer`：累积至 `targetLatencyMs` 后开始出队，通过 `onRelease` 回调输出             |
+| 5  | **解码**           | 主线程异步解码，`AudioDecoderDefinition.decode(EncodedAudioChunk) → DecodedAudioChunk` |
+| 6  | **连续播放**         | `AudioBufferSourceNode` 链式调度（`scheduleAudioBuffer`），`GainNode` 控制音量         |
+| 7  | **欠载保护**         | 定时检测 `audioCtx.currentTime > _scheduleTime`，超出则触发 `onUnderrun` 并回到 buffering |
+| 8  | **积压处理**         | 缓冲超 `maxBufferMs` 时丢旧包（`jitterBuf.dropOld`），触发 `onPacketDrop`              |
+| 9  | **暂停（无延时恢复）**    | 暂停：停止推入管线并停止已调度 source，内部创建的 `audioCtx` 会 suspend；恢复：清空积压并 `audioCtx.resume()` |
+| 10 | **重播最近 N 秒**     | `replay(seconds)`：只能在暂停状态调用，从 persistStore 取历史包解码并调度，播完保持暂停             |
+| 11 | **持久化存储选择**      | `persistMode: "memory"` 或 `"indexeddb"`；当前 `indexeddb` 为旁路写入，不支持跨刷新读回      |
+| 12 | **storedMs 指标**  | `player.storedMs` 实时读取 persistStore 的已存储时长                                 |
+| 13 | **音量控制**         | `setVolume(v)` 动态修改 `GainNode.gain.value`                                  |
+| 14 | **停止 / 销毁**      | 停止 drain 循环，关闭 AudioContext，清空缓冲                                           |
+| 15 | **状态上报**         | `state`：`idle / buffering / playing / paused / stopped`；`onStateChange` 回调 |
+| 16 | **动态 onStateChange** | 可在创建后直接赋值 `player.onStateChange = fn`，设为 null 停止监听                    |
 
 ---
 
 ## 二、核心链路
 
 ```
-StreamingPacketSource
-  └─ push(packet)
+push(packet)
+  ├─→ persistStore.push(packet)        // 双写：始终写入，用于重播
+  │
+  └─→ （未暂停时）
        │
        ▼
-  reorder-buffer          // 按 seq 排序，超时放行
+  ReorderBuffer                        // 按 seq 排序，onRelease 回调
        │
        ▼
-  jitter-buffer           // 攒够 targetLatencyMs 再开始出队
+  JitterBuffer                         // 累积 targetLatencyMs，onRelease 回调
        │
        ▼
-  decoder (Worker)        // EncodedAudioChunk → Float32Array[]
+  decodePacket()                       // EncodedAudioChunk → DecodedAudioChunk → AudioBuffer
        │
        ▼
-  ring-buffer             // SharedArrayBuffer，主线程写 / Worklet 读
+  scheduleAudioBuffer()                // AudioBufferSourceNode 链式调度
        │
        ▼
-  AudioWorklet            // 持续渲染，输出到 AudioContext.destination
+  AudioContext.destination             // 浏览器音频输出
 ```
 
-`isFinal=true` 的包出队后，标记本 session 完成；不关闭 player，可继续接收下一 session。
+**暂停时**：`push()` 只写 persistStore，不进入管线。
+
+**重播时**：`persistStore.recent(ms)` → 逐包解码 → 链式调度 → 播完后 `audioCtx.suspend()`。
 
 ---
 
@@ -54,43 +61,54 @@ StreamingPacketSource
 
 ### 输入
 
-```
-通过push(packet);
-接入，业务侧可事件接入, 可websocket接入;
-
+```ts
+player.push(packet)  // StreamingPacketPayload（直接复用现有类型）
 ```
 
-`StreamingPacketPayload` 直接复用现有类型，不改字段。
+业务层可从 WebSocket、录音事件等来源推包，与播放器完全解耦。
 
 ### 输出
 
 ```ts
-// 创建 player
 const player = await createStreamingPlayer({
-  source,                        // 必填
-  decoders: [pcmStreamDecoder, wavStreamDecoder],  // 必填
-  targetLatencyMs: 300,          // 可选，默认 300
-  maxBufferMs: 3000,             // 可选，默认 3000
-  backlogPolicy: "drop-old",     // 可选，默认 drop-old
-  autoPlay: true,                // 可选，默认 true
-  volume: 1.0,                   // 可选
-  onUnderrun: ({ bufferedMs }) => {
-  },
-  onPacketDrop: ({ count, reason }) => {
-  },
+  // 必填：解码器列表
+  decoders: [pcm16Decoder],
+
+  // 可选
+  targetLatencyMs: 300,         // 默认 300ms
+  maxBufferMs: 3000,            // 默认 3000ms，超出丢旧包
+  volume: 1.0,                  // 默认 1.0
+
+  // 持久化存储
+  persistMode: "memory",        // 或 "indexeddb"
+  persistBufferMs: 10_000,      // 默认 10000ms
+
+  // 可选：复用已有 AudioContext
+  audioContext: existingCtx,
+
+  // 回调
+  onUnderrun: ({ bufferedMs }) => {},
+  onPacketDrop: ({ count, reason }) => {},
+  onStateChange: (state) => {},
 })
 
 // 控制
-player.pause()
-player.resume()
-player.replay(5)       // 重播最近 5 秒
-player.setVolume(0.8)
-player.destroy()
+await player.start()            // idle → buffering（等缓冲充足后自动切 playing）
+player.pause()                  // 暂停（推包只写 persistStore）
+player.resume()                 // 恢复（清空积压，重新缓冲）
+player.replay(5)                // 重播最近 5 秒（仅限暂停状态）
+player.setVolume(0.8)           // 动态音量
+player.destroy()                // 销毁
 
-// 状态（响应式 getter，可直接绑 Vue 模板）
-player.state            // "idle" | "buffering" | "playing" | "paused" | "stopped"
-player.bufferedMs       // 当前缓冲量（毫秒）
-player.droppedPackets   // 已丢弃包数
+// 动态回调赋值
+player.onStateChange = (s) => console.log(s)
+player.onStateChange = null     // 停止监听
+
+// 只读 getter
+player.state           // StreamingPlayerState
+player.bufferedMs      // 管线中已缓冲时长（ms）
+player.droppedPackets  // 已丢弃包总数
+player.storedMs        // persistStore 已存储时长（ms），即最大可重播时长
 ```
 
 ---
@@ -98,112 +116,116 @@ player.droppedPackets   // 已丢弃包数
 ## 四、目录结构
 
 ```
-src/plugin/streaming-player/
-  types.ts               // 所有公共接口定义
-  player.ts              // createStreamingPlayer 入口
-  reorder-buffer.ts      // 按 seq 排序
-  jitter-buffer.ts       // 抖动缓冲
-  ring-buffer.ts         // 环形缓冲工具
-  worklet/
-    player-processor.ts  // AudioWorkletProcessor 实现
-  source/
-    memory-source.ts
-    websocket-source.ts
-    recorder-event-source.ts
-  codec/
-    types.ts             // StreamingDecoderDefinition
-    pcm-decoder.ts       // PCM 解码（直接转 Float32）
-    wav-decoder.ts       // WAV header 剥离 + PCM 转换
-  store/
-    memory-ring-store.ts // 最近 N 秒 packet 环形存储（用于 replay）
+src/plugins/streaming-player/
+  index.ts                  // 公开导出入口
+  types.ts                  // StreamingPlayerOptions / Handle / State
+  player.ts                 // createStreamingPlayer 主实现
+  reorder-buffer.ts         // 按 seq 排序（onRelease 回调，reset()）
+  jitter-buffer.ts          // 抖动缓冲（onRelease 回调，reset()，dropOld()）
+  persist-store.ts          // 内置 persist store：memory / indexeddb
 ```
-
-> `codec/` 只有这一个目录，decoder 运行在 Worker 内，通过 `WorkerDecoder` 包装。
 
 ---
 
-## 五、界面交互适配
+## 五、关键设计决策
 
-### Vue 响应式绑定
+### 5.1 为什么去掉 autoPlay / backlogPolicy wait
 
-`player.state` 和 `player.bufferedMs` 是普通 getter，用 `ref` + 定时轮询（或 event 驱动）包一层即可：
+- `autoPlay: false` 无效：`start()` 会立即启动 drain 循环，不存在"延迟自动播放"语义。
+- `backlogPolicy: 'wait'` 无法实现无感恢复：暂停后积压的旧包进入队列，恢复时会先播旧包，产生与暂停等长的延时。
+- **现方案**：`resume()` 调用 `resetPipeline()` 清空 reorder/jitter 缓冲，从当前时刻重新缓冲，延时仅为 `targetLatencyMs`。
+
+### 5.2 双写持久化 vs 单写管线
+
+- 管线（ReorderBuffer + JitterBuffer）只服务于当前播放，暂停时完全旁路。
+- persistStore 始终接收每个 packet，保证历史可重播，与播放状态解耦。
+- `indexeddb` 模式当前只做旁路写入，`recent()` 仍基于当前实例的内存镜像。
+
+### 5.3 replay() 只在暂停时可用
+
+- 重播期间 AudioContext 需要先 resume，播完后再 suspend，期间不接受新的调度包。
+- 在 playing 状态下调用会与正在播放的包产生调度冲突。
+- replay 播完后保持 paused 状态，业务层可选择继续 resume 或再次 replay。
+
+### 5.4 persist-store 的当前边界
+
+- `memory` 模式是默认路径，重播历史完全来自当前实例内存。
+- `indexeddb` 模式会将包异步写入 IndexedDB，但当前不会在新实例中读回。
+- 因此“跨页面刷新后继续 replay”不属于当前能力边界。
+
+---
+
+## 六、解码器接口
 
 ```ts
-// composable: useStreamingPlayer.ts
-import { ref, onUnmounted } from "vue"
+// 传入 createStreamingPlayer({ decoders })
+interface AudioDecoderDefinition {
+  format: string
+  decode(chunk: EncodedAudioChunk): Promise<DecodedAudioChunk>
+}
 
-export function useStreamingPlayer(options) {
-  const state = ref("idle")
-  const bufferedMs = ref(0)
-  const droppedPackets = ref(0)
+interface EncodedAudioChunk {
+  format: string
+  sampleRate: number
+  channels: number
+  chunk: Uint8Array   // 原始编码字节
+}
 
-  let player
-
-  async function init() {
-    player = await createStreamingPlayer({
-      ...options,
-      onUnderrun: (d) => {
-        bufferedMs.value = d.bufferedMs
-      },
-      onPacketDrop: (d) => {
-        droppedPackets.value += d.count
-      },
-    })
-    // player 内部在状态变化时调用 onStateChange
-    player.onStateChange = (s) => {
-      state.value = s
-    }
-  }
-
-  onUnmounted(() => player?.destroy())
-
-  return {
-    state, bufferedMs, droppedPackets, init,
-    pause: () => player?.pause(),
-    resume: () => player?.resume(),
-    replay: (s) => player?.replay(s),
-    setVolume: (v) => player?.setVolume(v)
-  }
+interface DecodedAudioChunk {
+  sampleRate: number
+  channels: number
+  planar: Float32Array[]  // planar[ch][frame]，非 interleaved
 }
 ```
 
-### 模板示例
+PCM-16 解码示例：
 
-```html
-
-<button @click="pause" :disabled="state !== 'playing'">暂停</button>
-<button @click="resume" :disabled="state !== 'paused'">继续</button>
-<button @click="replay(5)">回放最近 5 秒</button>
-<input type="range" min="0" max="1" step="0.01" @input="setVolume($event.target.value)" />
-<span>状态：{{ state }} | 缓冲：{{ bufferedMs }}ms | 丢包：{{ droppedPackets }}</span>
+```ts
+const pcm16Decoder: AudioDecoderDefinition = {
+  format: 'pcm16',
+  async decode({ sampleRate, channels, chunk }) {
+    const i16 = new Int16Array(chunk.buffer, chunk.byteOffset, chunk.byteLength / 2)
+    const samplesPerChannel = i16.length / channels
+    const planar = Array.from({ length: channels }, (_, ch) => {
+      const plane = new Float32Array(samplesPerChannel)
+      for (let i = 0; i < samplesPerChannel; i++) {
+        plane[i] = (i16[i * channels + ch] ?? 0) / 32768
+      }
+      return plane
+    })
+    return { sampleRate, channels, planar }
+  },
+}
 ```
-
----
-
-## 六、v1 范围
-
-**做：**
-
-- PCM / WAV 解码
-- memory-source、websocket-source、recorder-event-source
-- AudioWorklet 播放 + ring buffer
-- reorder + jitter buffer
-- replay 最近 N 秒
-- pause / resume / volume / destroy
-- Vue composable 示例
-
-**不做（v2+）：**
-
-- MP3 / Opus / FLAC 等 WASM 解码
-- IndexedDB / OPFS 持久化存储
-- MediaStream 导出
-- speed-up 时间拉伸
 
 ---
 
 ## 七、与现有代码衔接
 
-- `StreamingPacketPayload` 不改字段，直接用
-- `createStreamingExportPlugin()` 不动，通过 `createRecorderEventSource(recorder)` 桥接到 player
-- `pcmStreamEncoder` / `wavStreamEncoder` 已有，decoder 是其逆操作，直接参考现有类型实现
-- 子路径导出：新增 `@csnight/audio-recorder/streaming-player` 入口
+- `StreamingPacketPayload` 不改字段，直接复用。
+- `createStreamingExportPlugin()` 不动；播放层通过订阅 `plugin:stream` 事件获取 packet，手动调用 `player.push(payload)`。
+- ReorderBuffer / JitterBuffer 使用 `onRelease` 回调模式（非 2-参数 push，非数组返回的 drain）。
+- 子路径导出：`@csnight/audio-recorder/plugins/streaming-player`。
+
+---
+
+## 八、v1 已交付 / v2+ 待做
+
+**v1 已交付：**
+
+- PCM-16 等自定义解码器接口
+- MemoryPersistStore + IndexedDbPersistStore
+- reorder + jitter buffer（onRelease 回调，reset()）
+- AudioBufferSourceNode 链式调度
+- pause/resume 无延时（resetPipeline on resume）
+- replay() 暂停时重播
+- storedMs / bufferedMs / droppedPackets 指标
+- 动态 onStateChange 赋值
+- Vue 3 playground 完整演示
+
+**v2+ 待做：**
+
+- WASM 解码器（Opus、AAC、MP3）
+- AudioWorklet + SharedArrayBuffer ring buffer 替代 AudioBufferSourceNode
+- 速度拉伸（追赶积压时 1.05× playback rate）
+- MediaStream 导出

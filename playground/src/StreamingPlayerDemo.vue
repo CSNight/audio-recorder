@@ -1,287 +1,647 @@
-<script setup>
-import { computed, onBeforeUnmount, ref } from "vue"
+<template>
+  <div class="sp-wrap">
+    <div class="sp-statusbar">
+      <div class="sp-stat">
+        <span>State</span>
+        <strong :class="`sp-state-${state}`">{{ state }}</strong>
+      </div>
+      <div class="sp-stat">
+        <span>Buffered</span>
+        <strong>{{ bufferedMs }} ms</strong>
+      </div>
+      <div class="sp-stat">
+        <span>Stored</span>
+        <strong>{{ storedMs }} ms</strong>
+      </div>
+      <div class="sp-stat">
+        <span>Dropped</span>
+        <strong :class="{ 'sp-danger': droppedPackets > 0 }">
+          {{ droppedPackets }}
+        </strong>
+      </div>
+      <div class="sp-stat">
+        <span>Packets</span>
+        <strong class="sp-accent">{{ rxCount }}</strong>
+      </div>
+      <div class="sp-stat">
+        <span>Source</span>
+        <strong :class="recorder ? 'sp-accent-2' : ''">
+          {{ recorder ? "recorder attached" : "not bound" }}
+        </strong>
+      </div>
+    </div>
+
+    <div class="sp-layout">
+      <div class="sp-main-grid">
+        <section class="panel sp-panel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">Config</p>
+              <h3 class="sp-section-title">创建配置</h3>
+            </div>
+            <span class="badge" :class="player ? 'badge-accent' : ''">
+              {{ player ? "Active" : "Not Created" }}
+            </span>
+          </div>
+
+          <div class="form-grid">
+            <div class="field">
+              <span>targetLatencyMs</span>
+              <input
+                v-model.number="cfg.targetLatencyMs"
+                type="number"
+                min="50"
+                max="2000"
+                step="50"
+                :disabled="!!player"
+              />
+            </div>
+            <div class="field">
+              <span>maxBufferMs</span>
+              <input
+                v-model.number="cfg.maxBufferMs"
+                type="number"
+                min="500"
+                max="10000"
+                step="500"
+                :disabled="!!player"
+              />
+            </div>
+            <div class="field">
+              <span>persistBufferMs</span>
+              <input
+                v-model.number="cfg.persistBufferMs"
+                type="number"
+                min="1000"
+                max="60000"
+                step="1000"
+                :disabled="!!player"
+              />
+            </div>
+            <div class="field">
+              <span>persistMode</span>
+              <select v-model="cfg.persistMode" :disabled="!!player">
+                <option value="memory">memory</option>
+                <option value="indexeddb">indexeddb</option>
+              </select>
+            </div>
+            <div class="field field-span">
+              <span>初始音量 {{ (cfg.volume * 100).toFixed(0) }}%</span>
+              <input
+                v-model.number="cfg.volume"
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                :disabled="!!player"
+              />
+            </div>
+          </div>
+
+          <div class="sp-btn-row sp-actions">
+            <button
+              @click="createPlayer"
+              :disabled="!!player"
+              class="sp-btn-primary"
+            >
+              createPlayer()
+            </button>
+            <button @click="doDestroy" :disabled="!player" class="secondary-button">
+              destroy()
+            </button>
+          </div>
+        </section>
+
+        <section class="panel sp-panel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">Playback</p>
+              <h3 class="sp-section-title">播放控制</h3>
+            </div>
+          </div>
+
+          <div class="sp-btn-row">
+            <button
+              @click="doStart"
+              :disabled="!player || state !== 'idle'"
+              class="sp-btn-primary"
+            >
+              start()
+            </button>
+            <button
+              @click="doPause"
+              :disabled="!player || state !== 'playing'"
+              class="secondary-button"
+            >
+              pause()
+            </button>
+            <button
+              @click="doResume"
+              :disabled="!player || state !== 'paused'"
+              class="secondary-button"
+            >
+              resume()
+            </button>
+          </div>
+
+          <div class="field sp-volume-field">
+            <span>实时音量 {{ (liveVolume * 100).toFixed(0) }}%</span>
+            <input
+              v-model.number="liveVolume"
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              @input="doSetVolume"
+              :disabled="!player"
+            />
+          </div>
+        </section>
+
+        <section class="panel sp-panel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">Replay</p>
+              <h3 class="sp-section-title">重播历史音频</h3>
+            </div>
+            <span class="badge">Paused Only</span>
+          </div>
+
+          <div class="inline-field sp-inline-actions">
+            <div class="field">
+              <span>重播时长（秒）</span>
+              <input
+                v-model.number="replaySec"
+                type="number"
+                min="1"
+                max="60"
+                step="1"
+                :disabled="state !== 'paused'"
+              />
+            </div>
+            <button
+              @click="doReplay"
+              :disabled="state !== 'paused'"
+              class="sp-btn-primary"
+            >
+              replay({{ replaySec }}s)
+            </button>
+          </div>
+        </section>
+
+        <section class="panel sp-panel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">Events</p>
+              <h3 class="sp-section-title">动态事件绑定</h3>
+            </div>
+          </div>
+
+          <p class="panel-note sp-panel-note">
+            测试创建后动态赋值 <code>onStateChange</code>
+          </p>
+
+          <div class="sp-btn-row">
+            <button @click="bindStateChange" :disabled="!player" class="secondary-button">
+              bind callback
+            </button>
+            <button
+              @click="unbindStateChange"
+              :disabled="!player"
+              class="secondary-button"
+            >
+              unbind null
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <section class="panel sp-log-panel">
+        <div class="panel-head">
+          <div>
+            <p class="panel-kicker">Log</p>
+            <h3 class="sp-section-title">事件日志</h3>
+          </div>
+          <button @click="logs = []" class="secondary-button sp-clear-button">
+            清空
+          </button>
+        </div>
+
+        <ul class="log-list sp-log-list">
+          <li v-for="(entry, index) in logs" :key="index" class="sp-log-item">
+            {{ entry }}
+          </li>
+          <li v-if="logs.length === 0" class="sp-log-empty">暂无日志</li>
+        </ul>
+      </section>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { onUnmounted, ref, watch } from "vue"
 import { createStreamingPlayer } from "@csnight/audio-recorder/plugins/streaming-player"
+import type {
+  StreamingPlayerHandle,
+  StreamingPlayerState,
+} from "@csnight/audio-recorder/plugins/streaming-player"
 import {
   pcmDecoderDefinition,
   wavDecoderDefinition,
 } from "@csnight/audio-recorder/codecs/base"
 
-const props = defineProps({
-  recorder: {
-    type: Object,
-    default: null,
-  },
+const props = defineProps<{
+  recorder?: any | null
+}>()
+
+const cfg = ref({
+  targetLatencyMs: 300,
+  maxBufferMs: 3000,
+  volume: 1.0,
+  persistMode: "memory" as "memory" | "indexeddb",
+  persistBufferMs: 10000,
 })
 
-const playerState = ref("idle")
+const player = ref<StreamingPlayerHandle | null>(null)
+const state = ref<StreamingPlayerState>("idle")
 const bufferedMs = ref(0)
 const droppedPackets = ref(0)
-const underrunCount = ref(0)
-const volume = ref(1.0)
-const targetLatencyMs = ref(300)
-const logs = ref([])
+const storedMs = ref(0)
+const rxCount = ref(0)
+const replaySec = ref(5)
+const liveVolume = ref(1.0)
+const logs = ref<string[]>([])
 
-let playerHandle = null
-let streamUnsubscribe = null
-let statsTimer = null
+let statusTimer: ReturnType<typeof setInterval> | null = null
+let streamUnsub: (() => void) | null = null
 
-function appendLog(type, message) {
-  logs.value = [
-    {
-      type,
-      time: new Date().toLocaleTimeString("zh-CN", { hour12: false }),
-      message,
-    },
-    ...logs.value,
-  ].slice(0, 40)
+function log(message: string) {
+  logs.value.unshift(`[${new Date().toLocaleTimeString()}] ${message}`)
+  if (logs.value.length > 200) logs.value.length = 200
 }
 
-const replaySeconds = ref(5)
-
-const canStart = computed(
-  () => playerState.value === "idle" && props.recorder !== null
-)
-const canStop = computed(() =>
-  ["buffering", "playing", "paused"].includes(playerState.value)
-)
-const canPause = computed(() => playerState.value === "playing")
-const canResume = computed(() => playerState.value === "paused")
-const canReplay = computed(() =>
-  ["buffering", "playing", "paused"].includes(playerState.value)
-)
-
-async function startPlayer() {
-  const recorder = props.recorder?.value ?? props.recorder
-  if (!recorder) {
-    appendLog("error", "Recorder 未就绪，请先打开录音器。")
-    return
+function subscribeRecorder(recorderInstance: any) {
+  if (streamUnsub) {
+    streamUnsub()
+    streamUnsub = null
   }
+
+  if (!recorderInstance) return
+
+  const off = recorderInstance.on("plugin:stream", (event: any) => {
+    const packet = event?.payload
+    if (!packet || !player.value) return
+    rxCount.value += 1
+    player.value.push(packet)
+    log(`packet seq=${packet.seq} fmt=${packet.format} ${packet.durationMs}ms`)
+  })
+
+  streamUnsub = off
+  log("subscribed recorder plugin:stream")
+}
+
+watch(
+  () => props.recorder,
+  (recorderInstance) => {
+    subscribeRecorder(recorderInstance)
+  },
+  { immediate: true }
+)
+
+async function createPlayer() {
+  if (player.value) return
 
   try {
-    playerHandle = await createStreamingPlayer({
-      decoders: [wavDecoderDefinition, pcmDecoderDefinition],
-      targetLatencyMs: targetLatencyMs.value,
-      maxBufferMs: 3000,
-      backlogPolicy: "drop-old",
-      volume: volume.value,
-      onStateChange(state) {
-        playerState.value = state
-        appendLog("info", `播放状态: ${state}`)
+    const instance = await createStreamingPlayer({
+      decoders: [pcmDecoderDefinition, wavDecoderDefinition],
+      targetLatencyMs: cfg.value.targetLatencyMs,
+      maxBufferMs: cfg.value.maxBufferMs,
+      volume: cfg.value.volume,
+      persistMode: cfg.value.persistMode,
+      persistBufferMs: cfg.value.persistBufferMs,
+      onStateChange: (nextState) => {
+        state.value = nextState
+        log(`onStateChange -> ${nextState}`)
       },
-      onUnderrun({ bufferedMs: ms }) {
-        underrunCount.value++
-        appendLog("warn", `欠载 (buffered=${ms}ms)`)
-      },
-      onPacketDrop({ count, reason }) {
-        droppedPackets.value += count
-        appendLog("warn", `丢包 count=${count} reason=${reason}`)
-      },
+      onUnderrun: (detail) => log(`underrun bufferedMs=${detail.bufferedMs}`),
+      onPacketDrop: (detail) =>
+        log(`packetDrop ${detail.count} ${detail.reason}`),
     })
 
-    await playerHandle.start()
+    player.value = instance
+    liveVolume.value = cfg.value.volume
+    state.value = instance.state
 
-    // 订阅 recorder 的流式 packet 事件，推送给 player
-    // recorder.on("plugin:stream") 回调收到的是 RecorderPluginEventContext，
-    // 真实的 StreamingPacketPayload 在 event.payload 中
-    streamUnsubscribe = recorder.on("plugin:stream", (event) => {
-      playerHandle?.push(event.payload)
-    })
-
-    appendLog("info", "播放器已启动，等待数据...")
-
-    statsTimer = setInterval(() => {
-      if (playerHandle) {
-        bufferedMs.value = playerHandle.bufferedMs
-        droppedPackets.value = playerHandle.droppedPackets
-      }
+    statusTimer = setInterval(() => {
+      if (!player.value) return
+      bufferedMs.value = player.value.bufferedMs
+      droppedPackets.value = player.value.droppedPackets
+      storedMs.value = player.value.storedMs
     }, 200)
-  } catch (err) {
-    appendLog("error", `启动播放器失败: ${err?.message ?? err}`)
+
+    log(`player created mode=${cfg.value.persistMode}`)
+  } catch (error: any) {
+    log(`createStreamingPlayer failed: ${error?.message ?? error}`)
   }
 }
 
-function pausePlayer() {
-  playerHandle?.pause()
+async function doStart() {
+  if (!player.value) return
+
+  try {
+    await player.value.start()
+    log("start()")
+  } catch (error: any) {
+    log(`start() failed: ${error?.message ?? error}`)
+  }
 }
 
-function resumePlayer() {
-  playerHandle?.resume()
+function doPause() {
+  player.value?.pause()
+  log("pause()")
 }
 
-function stopPlayer() {
-  if (streamUnsubscribe) {
-    streamUnsubscribe()
-    streamUnsubscribe = null
-  }
-  if (statsTimer) {
-    clearInterval(statsTimer)
-    statsTimer = null
-  }
-  if (playerHandle) {
-    playerHandle.destroy()
-    playerHandle = null
-  }
-  playerState.value = "idle"
+function doResume() {
+  player.value?.resume()
+  log("resume()")
+}
+
+function doSetVolume() {
+  player.value?.setVolume(liveVolume.value)
+}
+
+function doReplay() {
+  if (!player.value) return
+  player.value.replay(replaySec.value)
+  log(`replay(${replaySec.value}s)`)
+}
+
+function doDestroy() {
+  if (!player.value) return
+
+  player.value.destroy()
+  player.value = null
+  state.value = "idle"
   bufferedMs.value = 0
   droppedPackets.value = 0
-  underrunCount.value = 0
-  appendLog("info", "播放器已停止")
+  storedMs.value = 0
+  rxCount.value = 0
+
+  if (statusTimer) {
+    clearInterval(statusTimer)
+    statusTimer = null
+  }
+
+  log("destroy()")
 }
 
-function setVolume() {
-  playerHandle?.setVolume(volume.value)
+function bindStateChange() {
+  if (!player.value) return
+
+  player.value.onStateChange = (nextState) => {
+    state.value = nextState
+    log(`dynamic onStateChange -> ${nextState}`)
+  }
+
+  log("onStateChange rebound")
 }
 
-onBeforeUnmount(() => {
-  stopPlayer()
+function unbindStateChange() {
+  if (!player.value) return
+
+  player.value.onStateChange = null
+  log("onStateChange cleared")
+}
+
+onUnmounted(() => {
+  if (streamUnsub) streamUnsub()
+  if (statusTimer) clearInterval(statusTimer)
+  player.value?.destroy()
 })
 </script>
 
-<template>
-  <section class="panel">
-    <div class="panel-head">
-      <div>
-        <p class="panel-kicker">Streaming Player</p>
-        <h2>实时流式播放演示</h2>
-      </div>
-    </div>
-    <div class="panel-body">
-      <!-- 状态 -->
-      <div class="sp-status">
-        状态：<strong>{{ playerState }}</strong> &nbsp;|&nbsp; 缓冲：<strong
-          >{{ bufferedMs }} ms</strong
-        >
-        &nbsp;|&nbsp; 丢包：<strong>{{ droppedPackets }}</strong> &nbsp;|&nbsp;
-        欠载：<strong>{{ underrunCount }}</strong>
-      </div>
-
-      <!-- 控制 -->
-      <div class="sp-controls">
-        <button :disabled="!canStart" @click="startPlayer">启动播放器</button>
-        <button :disabled="!canPause" @click="pausePlayer">暂停</button>
-        <button :disabled="!canResume" @click="resumePlayer">恢复</button>
-        <button :disabled="!canStop" @click="stopPlayer">停止</button>
-      </div>
-
-      <!-- 参数 -->
-      <div class="sp-params">
-        <label>
-          目标延迟 (ms)：
-          <input
-            v-model.number="targetLatencyMs"
-            :disabled="!canStart"
-            max="2000"
-            min="50"
-            step="50"
-            type="number"
-          />
-        </label>
-        <label>
-          音量：
-          <input
-            v-model.number="volume"
-            max="1"
-            min="0"
-            step="0.05"
-            type="range"
-            @input="setVolume"
-          />
-          {{ Math.round(volume * 100) }}%
-        </label>
-      </div>
-
-      <!-- 用法提示 -->
-      <p class="sp-hint">
-        先开启录音（选择含 streaming-export
-        插件的配置），再点击"启动播放器"。<br />
-        播放器订阅 <code>plugin:stream</code> 事件，收到 packet
-        后解码并实时播放。
-      </p>
-
-      <!-- 日志 -->
-      <ul class="sp-log">
-        <li
-          v-for="(item, i) in logs"
-          :key="i"
-          :class="`sp-log-item sp-log-${item.type}`"
-        >
-          <span class="sp-log-time">{{ item.time }}</span>
-          <span class="sp-log-msg">{{ item.message }}</span>
-        </li>
-      </ul>
-    </div>
-  </section>
-</template>
-
 <style scoped>
-.sp-status {
-  margin-bottom: 12px;
-  font-size: 14px;
+.sp-wrap {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
 }
-.sp-controls {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
+
+.sp-statusbar {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.028);
+  overflow: hidden;
 }
-.sp-controls button {
-  padding: 6px 14px;
-  cursor: pointer;
-}
-.sp-controls button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-.sp-params {
-  display: flex;
-  gap: 24px;
-  margin-bottom: 12px;
-  font-size: 14px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.sp-params label {
-  display: flex;
-  align-items: center;
+
+.sp-stat {
+  min-width: 0;
+  display: grid;
   gap: 6px;
+  padding: 12px 14px;
+  border-right: 1px solid rgba(148, 163, 184, 0.12);
 }
-.sp-params input[type="number"] {
-  width: 80px;
+
+.sp-stat:last-child {
+  border-right: 0;
 }
-.sp-hint {
-  font-size: 13px;
-  color: #666;
-  margin-bottom: 12px;
-  line-height: 1.6;
+
+.sp-stat span {
+  display: block;
+  color: var(--muted);
+  font-family: "Fira Code", "Cascadia Code", Consolas, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
-.sp-log {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  max-height: 180px;
-  overflow-y: auto;
-  font-size: 12px;
-  font-family: monospace;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  background: #fafafa;
+
+.sp-stat strong {
+  overflow-wrap: anywhere;
+  font-family: "Fira Code", "Cascadia Code", Consolas, monospace;
+  font-size: 0.94rem;
 }
-.sp-log-item {
+
+.sp-state-idle {
+  color: var(--muted);
+}
+
+.sp-state-buffering {
+  color: var(--amber);
+}
+
+.sp-state-playing {
+  color: var(--accent);
+}
+
+.sp-state-paused {
+  color: var(--accent-2);
+}
+
+.sp-state-stopped {
+  color: var(--danger);
+}
+
+.sp-accent {
+  color: var(--accent);
+}
+
+.sp-accent-2 {
+  color: var(--accent-2);
+}
+
+.sp-danger {
+  color: var(--danger);
+}
+
+.sp-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 12px;
+  align-items: start;
+  min-height: 0;
+}
+
+.sp-main-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  min-height: 0;
+}
+
+.sp-panel,
+.sp-log-panel {
+  min-width: 0;
+  min-height: 0;
+}
+
+.sp-section-title {
+  margin: 4px 0 0;
+  font-size: 0.98rem;
+  letter-spacing: -0.02em;
+}
+
+.sp-panel-note {
+  margin-bottom: 10px;
+  font-size: 0.82rem;
+}
+
+.sp-btn-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  padding: 2px 8px;
-  border-bottom: 1px solid #f0f0f0;
 }
-.sp-log-time {
-  color: #999;
-  flex-shrink: 0;
+
+.sp-actions,
+.sp-volume-field {
+  margin-top: 12px;
 }
-.sp-log-info .sp-log-msg {
-  color: #333;
+
+.sp-inline-actions {
+  align-items: end;
+  gap: 10px;
 }
-.sp-log-warn .sp-log-msg {
-  color: #b45309;
+
+.sp-inline-actions .field {
+  flex: 1;
 }
-.sp-log-error .sp-log-msg {
-  color: #dc2626;
+
+.sp-btn-primary {
+  border-color: rgba(53, 240, 159, 0.38) !important;
+  background: #163328 !important;
+  color: #dff8ee !important;
+}
+
+.sp-btn-primary:hover:not(:disabled) {
+  border-color: rgba(53, 240, 159, 0.6) !important;
+  background: #1d3e31 !important;
+}
+
+.sp-btn-primary:disabled {
+  border-color: rgba(222, 232, 244, 0.08) !important;
+  background: #202633 !important;
+  color: #718094 !important;
+}
+
+.sp-log-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: stretch;
+  block-size: clamp(320px, 44vh, 520px);
+  overflow: hidden;
+}
+
+.sp-clear-button {
+  min-height: 30px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+}
+
+.sp-log-list {
+  block-size: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 10px;
+  list-style: none;
+  border: 1px solid rgba(73, 182, 255, 0.14);
+  border-radius: 12px;
+  background: #080c12;
+  font-family: "Fira Code", "Cascadia Code", Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.7;
+}
+
+.sp-log-item {
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.07);
+  color: var(--ink);
+  word-break: break-all;
+}
+
+.sp-log-item:first-child {
+  color: var(--accent);
+}
+
+.sp-log-item:last-child {
+  border-bottom: 0;
+}
+
+.sp-log-empty {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+@media (max-width: 1180px) {
+  .sp-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .sp-statusbar,
+  .sp-main-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sp-stat {
+    border-right: 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  }
+
+  .sp-stat:last-child {
+    border-bottom: 0;
+  }
+
+  .sp-inline-actions {
+    display: grid;
+  }
+
+  .sp-log-panel {
+    block-size: 320px;
+  }
 }
 </style>
