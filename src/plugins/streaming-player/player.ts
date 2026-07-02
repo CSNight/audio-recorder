@@ -1,4 +1,8 @@
-import type { StreamingPlayerHandle, StreamingPlayerOptions, StreamingPlayerState, } from "./types"
+import type {
+  StreamingPlayerHandle,
+  StreamingPlayerOptions,
+  StreamingPlayerState,
+} from "./types"
 import type { StreamingPacketPayload } from "@/plugins/streaming-export/types"
 import { ReorderBuffer } from "./reorder-buffer"
 import { JitterBuffer } from "./jitter-buffer"
