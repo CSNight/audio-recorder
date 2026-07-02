@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { createStreamingPlayer } from "@/plugins/streaming-player/player"
 import type { StreamingPlayerOptions } from "@/plugins/streaming-player/types"
+import type { PersistStore } from "@/plugins/streaming-player/persist-store"
 import type { StreamingPacketPayload } from "@/plugins/streaming-export/types"
 import type { EncodedAudioChunk } from "@/types"
 
@@ -125,6 +126,42 @@ function makeOptions(
   }
 }
 
+function makeCustomPersistStore(initialPackets: StreamingPacketPayload[] = []) {
+  const queue = [...initialPackets]
+  let storedMs = queue.reduce((total, packet) => total + packet.durationMs, 0)
+
+  const pushMock = vi.fn((packet: StreamingPacketPayload) => {
+    queue.push(packet)
+    storedMs += packet.durationMs
+  })
+  const recentMock = vi.fn((durationMs: number) => {
+    const result: StreamingPacketPayload[] = []
+    let total = 0
+    for (let i = queue.length - 1; i >= 0; i--) {
+      const packet = queue[i]!
+      total += packet.durationMs
+      result.unshift(packet)
+      if (total >= durationMs) break
+    }
+    return result
+  })
+  const clearMock = vi.fn(() => {
+    queue.length = 0
+    storedMs = 0
+  })
+
+  const store: PersistStore = {
+    get storedMs() {
+      return storedMs
+    },
+    push: pushMock,
+    recent: recentMock,
+    clear: clearMock,
+  }
+
+  return { store, pushMock, recentMock, clearMock }
+}
+
 // ── 测试套件 ────────────────────────────────────────────────────────────────
 
 describe("createStreamingPlayer", () => {
@@ -223,6 +260,111 @@ describe("createStreamingPlayer", () => {
 
       expect(decoder.decode).toHaveBeenCalledTimes(3)
       p.destroy()
+    })
+  })
+
+  // ── custom persist-store ──────────────────────────────────────────────────
+
+  describe("custom persist-store", () => {
+    it("persistMode=custom 未 use() 时 push() 直接报错", async () => {
+      const p = await createStreamingPlayer(
+        makeOptions({ persistMode: "custom" })
+      )
+
+      expect(() => p.push(makePacket(0))).toThrow(
+        'persistMode "custom" requires player.use(store)'
+      )
+      p.destroy()
+    })
+
+    it("persistMode=custom 未 use() 时 start() 直接报错", async () => {
+      const p = await createStreamingPlayer(
+        makeOptions({ persistMode: "custom" })
+      )
+
+      await expect(p.start()).rejects.toThrow(
+        'persistMode "custom" requires player.use(store)'
+      )
+      p.destroy()
+    })
+
+    it("use() 仅允许在 persistMode=custom 时调用", async () => {
+      const p = await createStreamingPlayer(makeOptions())
+      const { store } = makeCustomPersistStore()
+
+      expect(() => p.use(store)).toThrow(
+        'player.use(store) is only available when persistMode is "custom".'
+      )
+      p.destroy()
+    })
+
+    it("use() 后 push()/start() 会走自定义 PersistStore", async () => {
+      const decoder = makeDummyDecoder()
+      const p = await createStreamingPlayer(
+        makeOptions({
+          decoders: [decoder],
+          persistMode: "custom",
+          targetLatencyMs: 60,
+        })
+      )
+      const { store, pushMock, recentMock } = makeCustomPersistStore()
+
+      p.use(store)
+      p.push(makePacket(0))
+      p.push(makePacket(1))
+      p.push(makePacket(2))
+      expect(pushMock).toHaveBeenCalledTimes(3)
+      expect(p.storedMs).toBe(60)
+
+      await p.start()
+      await vi.advanceTimersByTimeAsync(40)
+
+      expect(recentMock).toHaveBeenCalledWith(60)
+      expect(decoder.decode).toHaveBeenCalledTimes(3)
+      p.destroy()
+    })
+
+    it("use() 只能注册一次", async () => {
+      const p = await createStreamingPlayer(
+        makeOptions({ persistMode: "custom" })
+      )
+      const { store } = makeCustomPersistStore()
+      const { store: anotherStore } = makeCustomPersistStore()
+
+      p.use(store)
+      expect(() => p.use(anotherStore)).toThrow(
+        "Custom PersistStore has already been registered."
+      )
+      p.destroy()
+    })
+
+    it("use() 必须在首次 start() 前调用", async () => {
+      const p = await createStreamingPlayer(
+        makeOptions({ persistMode: "custom" })
+      )
+      const { store } = makeCustomPersistStore()
+      const { store: anotherStore } = makeCustomPersistStore()
+
+      p.use(store)
+      await p.start()
+
+      expect(() => p.use(anotherStore)).toThrow(
+        "Custom PersistStore has already been registered."
+      )
+      p.destroy()
+    })
+
+    it("destroy() 不会自动 clear 自定义 PersistStore", async () => {
+      const p = await createStreamingPlayer(
+        makeOptions({ persistMode: "custom" })
+      )
+      const { store, clearMock } = makeCustomPersistStore()
+
+      p.use(store)
+      p.push(makePacket(0))
+      p.destroy()
+
+      expect(clearMock).not.toHaveBeenCalled()
     })
   })
 

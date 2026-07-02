@@ -18,3 +18,5 @@ export type {
   StreamingPlayerState,
   PersistMode,
 } from "./types"
+
+export type { PersistStore } from "./persist-store"

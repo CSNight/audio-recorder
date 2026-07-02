@@ -2,7 +2,7 @@ import type { StreamingPacketPayload } from "@/plugins/streaming-export/types"
 
 /**
  * PersistStore 接口：历史 packet 存储，用于重播。
- * - push：写入 packet（超出时间上限自动 drop-old）
+ * - push：写入 packet（是否限长、何时淘汰由具体实现决定）
  * - recent：取最近 durationMs 内的 packet（旧→新顺序）
  * - storedMs：当前已存储的音频时长（毫秒）
  * - clear：清空

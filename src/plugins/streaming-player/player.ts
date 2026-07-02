@@ -37,20 +37,24 @@ export async function createStreamingPlayer(
     onStateChange,
   } = options
 
-  // 根据 persistMode 内部创建持久化存储，不对外暴露具体实现
-  const persistStore: PersistStore =
-    persistMode === "indexeddb"
-      ? new IndexedDbPersistStore(persistBufferMs)
-      : new MemoryPersistStore(persistBufferMs)
+  // 默认走内置 persist-store；custom 模式下必须由调用方通过 use() 显式注册。
+  let persistStore: PersistStore | null =
+    persistMode === "custom"
+      ? null
+      : persistMode === "indexeddb"
+        ? new IndexedDbPersistStore(persistBufferMs)
+        : new MemoryPersistStore(persistBufferMs)
+  const ownsPersistStore = persistMode !== "custom"
 
   // 播放器状态
   let _state: StreamingPlayerState = "idle"
   // _bufferedMs 表示整条播放管线的总余量：
-  //   jitter 队列 + 等待解码/调度的包 + 已调度未播完的音频。
+  //   reorder 队列 + jitter 队列 + 等待解码/调度的包 + 已调度未播完的音频。
   let _bufferedMs = 0
   let _droppedPackets = 0
   let _paused = false
   let _destroyed = false
+  let _hasSeenPacket = false
 
   // 调度状态
   let _scheduleTime = 0
@@ -65,6 +69,13 @@ export async function createStreamingPlayer(
   function setState(s: StreamingPlayerState): void {
     _state = s
     _onStateChange?.(s)
+  }
+
+  function requirePersistStore(): PersistStore {
+    if (persistStore) return persistStore
+    throw new Error(
+      'Streaming player persistMode "custom" requires player.use(store) before push(), start(), or replay().'
+    )
   }
 
   // AudioContext + GainNode
@@ -296,8 +307,11 @@ export async function createStreamingPlayer(
   function push(packet: StreamingPacketPayload): void {
     if (_destroyed) return
 
+    const store = requirePersistStore()
+    _hasSeenPacket = true
+
     // 双写：始终写入 persistStore
-    persistStore.push(packet)
+    store.push(packet)
 
     // 仅在已开始实时播放后才进入播放管线。
     // idle 阶段只保留历史，避免 start() 后永远从旧 backlog 慢速追赶。
@@ -308,6 +322,7 @@ export async function createStreamingPlayer(
 
   async function start(): Promise<void> {
     if (_destroyed || _state !== "idle") return
+    const store = requirePersistStore()
     if (audioCtx.state === "suspended") {
       await audioCtx.resume()
     }
@@ -315,7 +330,7 @@ export async function createStreamingPlayer(
     // 进入 live-edge 启动：丢弃 idle 期间的旧播放积压，只取最近一个小窗口作为起播垫片。
     resetPipeline()
     setState("buffering")
-    const startupPackets = persistStore.recent(getStartupPadMs())
+    const startupPackets = store.recent(getStartupPadMs())
     for (const packet of startupPackets) {
       enqueuePlaybackPacket(packet)
     }
@@ -356,7 +371,7 @@ export async function createStreamingPlayer(
   function replay(seconds: number): void {
     if (_destroyed || !_paused) return
 
-    const packets = persistStore.recent(seconds * 1000)
+    const packets = requirePersistStore().recent(seconds * 1000)
     if (packets.length === 0) return
 
     void (async () => {
@@ -404,7 +419,9 @@ export async function createStreamingPlayer(
     if (_destroyed) return
     _destroyed = true
     stopDrainLoop()
-    persistStore.clear()
+    if (ownsPersistStore) {
+      persistStore?.clear()
+    }
     reorderBuf.reset()
     jitterBuf.reset()
     // 外部 ctx 场景下无法 close()，强制停止所有已调度但未播完的 source
@@ -426,13 +443,29 @@ export async function createStreamingPlayer(
       return _droppedPackets
     },
     get storedMs() {
-      return persistStore.storedMs
+      return persistStore?.storedMs ?? 0
     },
     get onStateChange() {
       return _onStateChange
     },
     set onStateChange(fn: ((state: StreamingPlayerState) => void) | null) {
       _onStateChange = fn
+    },
+    use(store: PersistStore) {
+      if (persistMode !== "custom") {
+        throw new Error(
+          'player.use(store) is only available when persistMode is "custom".'
+        )
+      }
+      if (persistStore !== null) {
+        throw new Error("Custom PersistStore has already been registered.")
+      }
+      if (_state !== "idle" || _hasSeenPacket) {
+        throw new Error(
+          "Custom PersistStore must be registered before the first push() or start()."
+        )
+      }
+      persistStore = store
     },
     push,
     start,

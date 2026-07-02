@@ -3,6 +3,7 @@
  */
 
 import type { StreamingPacketPayload } from "@/plugins/streaming-export/types"
+import type { PersistStore } from "./persist-store"
 import type { AudioDecoderDefinition } from "@/types"
 
 export type { StreamingPacketPayload, AudioDecoderDefinition }
@@ -16,7 +17,7 @@ export type StreamingPlayerState =
   | "stopped"
 
 /** 持久化模式 */
-export type PersistMode = "memory" | "indexeddb"
+export type PersistMode = "memory" | "indexeddb" | "custom"
 
 /** createStreamingPlayer 选项 */
 export interface StreamingPlayerOptions {
@@ -35,11 +36,12 @@ export interface StreamingPlayerOptions {
    * - "memory"：使用内存环形缓冲（MemoryPersistStore）
    * - "indexeddb"：旁路写入 IndexedDB；当前 recent() 仍只读内存镜像，
    *   因此不支持跨页面刷新后读回重播
+   * - "custom"：由调用方通过 `player.use(store)` 显式注册自定义 PersistStore
    */
   persistMode?: PersistMode
   /**
    * 持久化存储最大时长（毫秒），默认 10000。
-   * 超出后自动 drop-old 丢弃最旧包。
+   * 仅对内置 `"memory"` / `"indexeddb"` 生效；`"custom"` 模式下由用户自行控制。
    */
   persistBufferMs?: number
   /** AudioContext，不传则内部创建 */
@@ -64,6 +66,12 @@ export interface StreamingPlayerHandle {
   readonly storedMs: number
   /** 状态变化回调，可在创建后直接赋值，null 表示不监听 */
   onStateChange: ((state: StreamingPlayerState) => void) | null
+
+  /**
+   * 注册自定义 PersistStore。
+   * 仅 `persistMode === "custom"` 时可用，且必须在首次 `push()` / `start()` 前调用一次。
+   */
+  use(store: PersistStore): void
 
   /**
    * 向 player 推送一个编码 packet。
