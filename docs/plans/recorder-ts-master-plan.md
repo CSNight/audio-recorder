@@ -944,53 +944,148 @@ streaming-export 插件当前只内置 PCM / WAV，MP3 通过 codec entry 注册
 
 | 编号 | 插件名                        | 子路径                           | vendor 参照                                                          | 优先级 |
 |----|----------------------------|-------------------------------|--------------------------------------------------------------------|-----|
-| ①  | 流播放器（StreamPlayer）         | `plugins/stream-player`       | `extensions/buffer_stream.player.js`                               | 高   |
+| ①  | 流播放器（StreamingPlayer）      | `plugins/streaming-player`    | `extensions/buffer_stream.player.js`                               | 高   |
 | ②  | 变速变调导出（SonicExport）        | `plugins/sonic-export`        | `extensions/sonic.js` + `teach.sonic.transform.js`                 | 中   |
 | ③  | 频谱 FFT（FrequencyHistogram） | `plugins/frequency-histogram` | `extensions/frequency.histogram.view.js` + `extensions/lib.fft.js` | 中   |
 | ④  | DTMF 编解码                   | `plugins/dtmf`                | `extensions/dtmf.encode.js` + `extensions/dtmf.decode.js`          | 中   |
 | ⑤  | 简谱转 PCM                    | `plugins/nmn2pcm`             | `extensions/create-audio.nmn2pcm.js`                               | 低   |
 | ⑥  | DSP 滤波器                    | `plugins/dsp`                 | 无直接参照（高通/低通/噪声门算法）                                                 | 中   |
 
-### 6.2 流播放器插件（StreamPlayer）
+### 6.2 流播放器插件（StreamingPlayer）
 
-**功能**：接收录音过程中的实时 PCM 帧（或已编码 chunk），通过 Web Audio API 实时回放，形成录制 + 边录边听闭环。
+**功能**：接收任意来源的 `StreamingPacketPayload`，经乱序重排、抖动缓冲、解码和 `AudioContext` 调度后连续播放。当前实现已落地为独立子路径
+`@csnight/audio-recorder/plugins/streaming-player`，不是挂在 `RecorderPlugin` 生命周期里的 `onFrame` 型插件。
 
 **参照**：`vendor/Recorder-master/src/extensions/buffer_stream.player.js`
 
 目录结构：
 
-```
-src/plugins/stream-player/
-  index.ts              ← 子路径导出入口
-  plugin.ts             ← createStreamPlayerPlugin()
-  audio-queue.ts        ← AudioBufferSourceNode 队列调度
-  types.ts              ← StreamPlayerOptions / StreamPlayerEvents
-  public.ts             ← 对外类型导出
+```text
+src/plugins/streaming-player/
+  index.ts            // 子路径导出入口
+  player.ts           // createStreamingPlayer 主实现
+  types.ts            // StreamingPlayerOptions / Handle / State
+  reorder-buffer.ts   // 按 seq 排序，缺包超时后强制放行
+  jitter-buffer.ts    // 抖动缓冲，达到 targetLatencyMs 后按需释放
+  persist-store.ts    // 历史缓存：memory / indexeddb
 ```
 
-核心设计：
+核心 API：
 
 ```ts
-export interface StreamPlayerOptions {
-  /** 播放目标采样率，默认与录音采样率一致 */
-  playbackSampleRate?: number
-  /** 播放音量 0-1，默认 1 */
-  volume?: number
-  /** 是否自动开始播放（onStart 时），默认 true */
-  autoPlay?: boolean
+export interface PersistStore {
+  readonly storedMs: number
+  push(packet: StreamingPacketPayload): void
+  recent(durationMs: number): StreamingPacketPayload[]
+  clear(): void
 }
 
-export function createStreamPlayerPlugin(options?: StreamPlayerOptions): RecorderPlugin
+export interface StreamingPlayerOptions {
+  decoders: AudioDecoderDefinition[]
+  targetLatencyMs?: number
+  maxBufferMs?: number
+  volume?: number
+  persistMode?: "memory" | "indexeddb" | "custom"
+  persistBufferMs?: number
+  audioContext?: AudioContext
+  onUnderrun?: (detail: { bufferedMs: number }) => void
+  onPacketDrop?: (detail: { count: number; reason: string }) => void
+  onStateChange?: (state: StreamingPlayerState) => void
+}
+
+export interface StreamingPlayerHandle {
+  readonly state: "idle" | "buffering" | "playing" | "paused" | "stopped"
+  readonly bufferedMs: number
+  readonly droppedPackets: number
+  readonly storedMs: number
+  use(store: PersistStore): void
+  push(packet: StreamingPacketPayload): void
+  start(): Promise<void>
+  pause(): void
+  resume(): void
+  replay(seconds: number): void
+  setVolume(volume: number): void
+  destroy(): void
+  onStateChange: ((state: StreamingPlayerState) => void) | null
+}
+
+export function createStreamingPlayer(
+  options: StreamingPlayerOptions
+): Promise<StreamingPlayerHandle>
 ```
 
-实现要点：
+当前落地链路：
 
-- `onFrame` 回调中将 PCM `planar` 数据转为 `AudioBuffer`，通过 `AudioBufferSourceNode` 连接 `AudioContext.destination` 播放
-- 维护一个播放队列，按时序排列 `AudioBufferSourceNode`，避免播放断裂
-- `onPause` 时挂起播放队列，`onResume` 时恢复
-- `onStop` 时冲刷剩余队列并结束播放
-- 不持有 `RecorderController` 引用，只通过 `RecorderPlugin` 回调接收数据
-- 发出自定义事件：`plugin:stream-player:state`（playing/paused/stopped）
+```text
+push(packet)
+  -> persistStore.push(packet)                       // 始终双写，用于历史重播
+  -> (仅 buffering / playing 时)
+     ReorderBuffer
+       -> JitterBuffer
+         -> decodePacket()
+           -> scheduleAudioBuffer()
+             -> AudioContext.destination
+```
+
+当前行为与设计决策：
+
+1. **live-edge start**
+
+- `idle` 阶段 `push()` 只写历史缓存，不进入播放管线。
+- `start()` 会先清空旧播放积压，再从 `persistStore.recent(targetLatencyMs)` 回灌最近一个小窗口作为启动垫片。
+- 这样不会因为“创建播放器后迟迟不 `start()`”而永久落后于实时流。
+
+2. **暂停 / 恢复**
+
+- `pause()` 停止 drainLoop 和所有已调度但未播完的 source。
+- `resume()` 清空旧 live backlog，从新的 live 数据重新缓冲，而不是追赶暂停期间积累的旧包。
+- 暂停期间新包仍会写入 `persistStore`，供后续 `replay()` 使用。
+
+3. **乱序 + 抖动缓冲**
+
+- `ReorderBuffer` 负责按 `seq` 排序；缺包时等待 `timeoutMs`，超时后强制放行。
+- `JitterBuffer` 在累计到 `targetLatencyMs` 后开始出队，不再按固定速率抽干，而是按当前调度余量按需释放。
+- `packet.discontinuity` 会重置旧的 reorder 等待状态，避免在明确断点后再白等缺口超时。
+
+4. **缓冲与欠载口径**
+
+- `bufferedMs` 表示整条播放管线的总余量：`reorder + jitter + pending decode + scheduled audio`。
+- `onUnderrun` 只在整条播放管线确实见底时触发，而不是仅凭单个子缓冲为空就误判。
+
+5. **maxBufferMs 的真实含义**
+
+- `maxBufferMs` 约束的是 `ReorderBuffer + JitterBuffer` 的总 live 积压，而不是只约束 `JitterBuffer`。
+- 超限时优先丢弃 `JitterBuffer` 中最旧的已排序数据；若仍超限，再丢弃 `ReorderBuffer` 中最旧的乱序数据。
+- 这样 `droppedPackets` / `onPacketDrop` 反映的是整条 live 管线的真实过载，而不是某一个局部缓冲的偶然状态。
+
+6. **历史重播边界**
+
+- `replay(seconds)` 只能在暂停状态下调用。
+- `persistMode: "memory"` 为默认路径，重播历史完全来自当前实例内存。
+- `persistMode: "indexeddb"` 当前只是旁路写入 IndexedDB；`replay()` 仍只读取当前实例内存镜像，不支持跨页面刷新恢复历史。
+
+7. **custom persist-store**
+
+- `persistMode: "custom"` 时，播放器不会自动创建内置 store。
+- 调用方必须在首次 `push()` / `start()` 之前通过 `player.use(store)` 显式注册一个实现了 `PersistStore` 接口的外部 store。
+- `persistBufferMs` 对 custom store 不生效；保留时长、容量上限、淘汰策略全部由用户自己控制。
+- `destroy()` 不会自动 `clear()` custom store，生命周期由调用方自己管理。
+
+与现有录音链路的衔接方式：
+
+- `createStreamingExportPlugin()` 负责产出 `StreamingPacketPayload`。
+- 业务层通过 `recorder.on("plugin:stream", ...)` 或 WebSocket 等来源拿到 packet。
+- 将 packet 传给 `player.push(payload)` 即可，不需要 `StreamingPlayer` 直接持有 `RecorderController`。
+
+当前交付状态：
+
+- 已实现 `memory / indexeddb` 历史缓存
+- 已实现 `custom` 外部 PersistStore 注入
+- 已实现 `reorder + jitter + decode + AudioBufferSourceNode` 连续调度
+- 已实现 `live-edge start + startup pad`
+- 已实现 `pause / resume / replay / setVolume / destroy`
+- 已实现 `storedMs / bufferedMs / droppedPackets / onPacketDrop / onUnderrun / onStateChange`
+- 已提供 `playground/src/StreamingPlayerDemo.vue` 作为演示页
 
 ### 6.3 变速变调导出插件（SonicExport）
 
@@ -1283,7 +1378,7 @@ export function createNoiseGatePlugin(options?: { thresholdDb?: number; attackMs
 
 ```ts
 // vite.config.ts 新增
-"plugins/stream-player/index": fileURLToPath(new URL("./src/plugins/stream-player/index.ts", import.meta.url)),
+"plugins/streaming-player/index": fileURLToPath(new URL("./src/plugins/streaming-player/index.ts", import.meta.url)),
   "plugins/sonic-export/index"
 :
 fileURLToPath(new URL("./src/plugins/sonic-export/index.ts", import.meta.url)),
@@ -1407,7 +1502,7 @@ recorder-ts/
     decoders/
     plugins/
       level-meter/
-      stream-player/
+      streaming-player/
       dsp/
     registry/
     workers/

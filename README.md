@@ -674,11 +674,12 @@ Standalone streaming audio playback engine. Receives `StreamingPacketPayload` pa
 
 Key behaviors:
 
-- **Double-write**: every `push()` writes to a persist-store for replay history AND feeds the playback pipeline
-- **Pause/resume without delay**: on `resume()` the pipeline is reset so backlogged packets are discarded; fresh packets flow immediately
+- **Double-write with live-edge playback**: every `push()` writes to a persist-store; packets only enter the playback pipeline while the player is actively buffering or playing
+- **Live-edge start with startup pad**: while `state === "idle"`, packets accumulate only in the persist-store; `start()` resets old pipeline state and primes playback with only the most recent startup window (normally `targetLatencyMs`)
+- **Pause/resume without delay**: on `resume()` the pipeline is reset so backlogged live packets are discarded; fresh packets flow immediately
 - **Replay**: only available while paused; plays back the last N seconds from the persist-store and returns to paused state when done
-- **Persist-store modes**: `persistMode: "memory"` (default) or `"indexeddb"`; the IndexedDB mode writes packets to IndexedDB but replay still reads from the in-memory history of the current player instance
-- **Drop-old backlog policy**: when buffered audio exceeds `maxBufferMs`, oldest packets are dropped to keep latency stable
+- **Persist-store modes**: `persistMode: "memory"` (default), `"indexeddb"`, or `"custom"`; the custom mode requires `player.use(store)` before `push()` / `start()`
+- **Drop-old backlog policy**: when the combined live backlog in `ReorderBuffer + JitterBuffer` exceeds `maxBufferMs`, oldest packets are dropped and `onPacketDrop` fires
 
 #### Quick Start
 
@@ -712,23 +713,24 @@ Exports from `@csnight/audio-recorder/plugins/streaming-player`:
 | Export | Description |
 |---|---|
 | `createStreamingPlayer(options)` | Create and initialize a streaming player |
+| `PersistStore` | Public history-store interface for custom persist-store implementations |
 | `StreamingPlayerOptions` | Player creation options |
 | `StreamingPlayerHandle` | Returned player control handle |
 | `StreamingPlayerState` | Player state union type |
-| `PersistMode` | Persist-store mode union type: `"memory" \| "indexeddb"` |
+| `PersistMode` | Persist-store mode union type: `"memory" \| "indexeddb" \| "custom"` |
 
 Options: `StreamingPlayerOptions`
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `decoders` | `AudioDecoderDefinition[]` | **required** | Decoder definitions; each maps a `format` string to a decode function |
-| `targetLatencyMs` | `number` | `300` | Jitter buffer target depth before playback starts |
-| `maxBufferMs` | `number` | `3000` | Maximum buffered audio; excess triggers drop-old |
+| `targetLatencyMs` | `number` | `300` | Startup pad and jitter target depth before playback starts |
+| `maxBufferMs` | `number` | `3000` | Maximum live backlog across `ReorderBuffer + JitterBuffer`; excess triggers drop-old |
 | `volume` | `number` | `1.0` | Initial gain `[0, 1]` |
-| `persistMode` | `"memory" \| "indexeddb"` | `"memory"` | Select the built-in persist-store backend |
-| `persistBufferMs` | `number` | `10000` | Max history depth retained by the built-in persist-store |
+| `persistMode` | `"memory" \| "indexeddb" \| "custom"` | `"memory"` | Select the built-in persist-store backend, or require an external one via `player.use(store)` |
+| `persistBufferMs` | `number` | `10000` | Max history depth retained by the built-in persist-store; ignored in `"custom"` mode |
 | `audioContext` | `AudioContext` | auto | External `AudioContext`; if omitted one is created internally |
-| `onUnderrun` | `(detail: { bufferedMs: number }) => void` | `-` | Called when the decode queue empties during playback |
+| `onUnderrun` | `(detail: { bufferedMs: number }) => void` | `-` | Called when the total playback pipeline runs dry during playback |
 | `onPacketDrop` | `(detail: { count: number; reason: string }) => void` | `-` | Called when packets are dropped due to backlog |
 | `onStateChange` | `(state: StreamingPlayerState) => void` | `-` | Called on every state transition |
 
@@ -738,18 +740,26 @@ Options: `StreamingPlayerOptions`
 - `replay()` still reads from the current in-memory history only.
 - Rebuilding the player instance does not restore replay history from IndexedDB.
 
+`persistMode: "custom"` note:
+
+- Call `player.use(store)` exactly once before the first `push()` or `start()`.
+- The custom store must implement the exported `PersistStore` interface.
+- Retention, eviction, and storage limits are fully controlled by user code.
+- `destroy()` does not call `clear()` on a custom store.
+
 Handle: `StreamingPlayerHandle`
 
 | Member | Type | Description |
 |---|---|---|
 | `state` | `StreamingPlayerState` | Current state: `idle \| buffering \| playing \| paused \| stopped` |
-| `bufferedMs` | `number` | Current pipeline buffer depth in milliseconds |
+| `bufferedMs` | `number` | Total playback headroom in milliseconds (`ReorderBuffer + JitterBuffer + pending decode + scheduled audio`) |
 | `droppedPackets` | `number` | Cumulative dropped packet count |
 | `storedMs` | `number` | Audio duration currently held in the persist-store (available for replay) |
-| `push(packet)` | `void` | Feed a `StreamingPacketPayload`; always writes to persist-store, skips pipeline while paused |
-| `start()` | `Promise<void>` | Transition from `idle` to `buffering`; begins accumulating packets |
+| `use(store)` | `void` | Register a custom `PersistStore`; only valid when `persistMode === "custom"` and before the first `push()` / `start()` |
+| `push(packet)` | `void` | Feed a `StreamingPacketPayload`; always writes to persist-store and only enters the playback pipeline while buffering/playing |
+| `start()` | `Promise<void>` | Transition from `idle` to `buffering`; start from the live edge and prime playback with the recent startup pad |
 | `pause()` | `void` | Stop pipeline and active sources; if the player created its own `AudioContext`, it also suspends it |
-| `resume()` | `void` | Reset pipeline backlog and resume from fresh packets |
+| `resume()` | `void` | Reset pipeline backlog and resume from fresh live-edge packets |
 | `setVolume(v)` | `void` | Adjust gain `[0, 1]` at any time |
 | `replay(seconds)` | `void` | Play back the last N seconds from persist-store; only valid when paused |
 | `destroy()` | `void` | Release all resources |

@@ -5,7 +5,7 @@
 相关文档：
 
 - 总索引：[`docs/README.md`](../README.md)
-- Streaming Player 设计方案：[`docs/plans/streaming-player-design.md`](../plans/streaming-player-design.md)
+- Streaming Player 设计方案：[`docs/plans/recorder-ts-master-plan.md`](../plans/recorder-ts-master-plan.md) 中的 `6.2 流播放器插件（StreamingPlayer）`
 
 ---
 
@@ -418,6 +418,39 @@ flowchart LR
 ### 14.2 实时流式导出
 
 通过 `StreamingExportPlugin` 实现（见 12.2 节）。
+
+### 14.3 流式播放
+
+`streaming-player` 是独立于录音主链路的消费端，入口位于
+[`src/plugins/streaming-player/player.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/streaming-player/player.ts)。
+
+当前落地行为：
+
+- `push(packet)` 始终双写到 `persistStore`
+- `idle / paused` 时只保留历史，不进入实时播放管线
+- `start()` 采用 **live-edge start**：先清空旧播放积压，再从 `persistStore.recent(targetLatencyMs)` 回灌最近一个小窗口作为启动垫片
+- `resume()` 也会清空旧 live backlog，从新的 live 数据重新缓冲
+- `maxBufferMs` 约束的是 `ReorderBuffer + JitterBuffer` 的总 live 积压，而不是单个子缓冲
+- `persistMode: "custom"` 时不会自动创建 store，必须先通过 `player.use(store)` 注册外部 `PersistStore`
+
+链路如下：
+
+```mermaid
+flowchart LR
+  A[push packet] --> B[persistStore]
+  A -->|state=buffering/playing| C[ReorderBuffer]
+  C --> D[JitterBuffer]
+  D --> E[decode queue]
+  E --> F[AudioBufferSourceNode schedule]
+  F --> G[AudioContext.destination]
+```
+
+几个设计点：
+
+- `persistStore` 负责历史重播和启动垫片，不承担实时播放调度。
+- 内置 `memory / indexeddb` store 仍受 `persistBufferMs` 控制；custom store 的保留和淘汰策略完全由调用方实现控制。
+- `bufferedMs` 表示整条播放管线的总余量：`reorder + jitter + pending decode + scheduled audio`。
+- `onPacketDrop` 表示 live 管线真实过载；如果只是长期未 `start()`，不会再因为历史 backlog 误触发 drop。
 
 ## 15. 子路径导出结构
 
