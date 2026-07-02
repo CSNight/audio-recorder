@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import type { PcmBufferSnapshot } from "@/buffer/types"
 import { lowPassFilter, resample } from "@/utils/resample"
 
@@ -441,6 +441,21 @@ describe("lowPassFilter", () => {
     for (const v of filtered) {
       expect(v).toBeGreaterThanOrEqual(-32768)
       expect(v).toBeLessThanOrEqual(32767)
+    }
+  })
+
+  it("退化核（kernelSum≈0）时抛出错误", () => {
+    // mock Math.sin 和 Math.cos 使所有 sinc/window 系数为 0，强制 kernelSum=0
+    const sinSpy = vi.spyOn(Math, "sin").mockReturnValue(0)
+    const cosSpy = vi.spyOn(Math, "cos").mockReturnValue(1) // win = 0.5*(1-1) = 0
+    try {
+      const input = new Int16Array([100, 200, 300, 400])
+      expect(() => lowPassFilter(input, 48_000, 8_000, 32)).toThrow(
+        "lowPassFilter produced a degenerate kernel (kernelSum≈0)"
+      )
+    } finally {
+      sinSpy.mockRestore()
+      cosSpy.mockRestore()
     }
   })
 })

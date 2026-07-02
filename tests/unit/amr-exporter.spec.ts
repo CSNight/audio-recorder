@@ -72,4 +72,21 @@ describe("amrExportEncoder", () => {
     expect(result.channels).toBe(1)
     expect(result.data.byteLength).toBeGreaterThan(6)
   })
+
+  it("最后一帧不足 frameSize 时补零 padding 后正常编码", () => {
+    // AMR-NB frameSize=160, 使用 170 个样本 → 最后 10 个样本需要 padding
+    const snapshot = makeSnapshot(170, 1, 8000)
+    const result = exportAmrSnapshot(snapshot, { bandMode: "nb" })
+
+    // 应当正常返回，数据长度大于 header
+    expect(result.data.byteLength).toBeGreaterThan(6)
+    expect(result.channels).toBe(1)
+    expect(result.sampleRate).toBe(8000)
+  })
+
+  it("amrExportEncoder.export 代理到 exportAmrSnapshot", () => {
+    const snapshot = makeSnapshot(160, 1, 8000)
+    const result = amrExportEncoder.export(snapshot, { bandMode: "nb" })
+    expect(result.mimeType).toBe("audio/amr")
+  })
 })

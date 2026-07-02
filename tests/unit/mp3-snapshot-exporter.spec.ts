@@ -94,6 +94,15 @@ describe("mp3ExportEncoder", () => {
     await mp3ExportEncoder.preload?.()
     expect(preloadMp3Module).toHaveBeenCalledTimes(1)
   })
+
+  it("export() delegates to exportMp3Snapshot", () => {
+    // 直接调用 mp3ExportEncoder.export()，覆盖 line 164 的箭头函数
+    const snapshot = makeSnapshot(1152, 1)
+    const result = mp3ExportEncoder.export(snapshot, {})
+    expect(result.sampleRate).toBe(44100)
+    expect(result.channels).toBe(1)
+    expect(result.data).toBeInstanceOf(Uint8Array)
+  })
 })
 
 describe("exportMp3Snapshot", () => {
@@ -187,5 +196,17 @@ describe("exportMp3Snapshot", () => {
   it("always frees the encoder", () => {
     exportMp3Snapshot(makeSnapshot(1152, 1))
     expect(mockFree).toHaveBeenCalledTimes(1)
+  })
+
+  it("跳过 encode 返回空字节的帧（encoded.length === 0 分支）", () => {
+    // 第一帧返回空，第二帧返回数据 → 只有第二帧 + flush 进入 chunks
+    mockEncode
+      .mockReturnValueOnce(new Uint8Array(0)) // 第一帧：空，不 push
+      .mockReturnValue(new Uint8Array([7, 8, 9])) // 后续帧：有数据
+    mockFlush.mockReturnValue(new Uint8Array(0)) // flush 也空
+
+    const result = exportMp3Snapshot(makeSnapshot(1152 * 2, 1))
+    // 第一帧跳过，第二帧 [7,8,9]，flush 空 → data = [7,8,9]
+    expect(Array.from(result.data)).toEqual([7, 8, 9])
   })
 })

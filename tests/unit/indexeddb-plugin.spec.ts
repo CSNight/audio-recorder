@@ -97,6 +97,34 @@ class MockIdbObjectStore {
           return
         }
 
+        if (this.database.failNextPutWithBothErrors) {
+          const error = this.database.failNextPutWithBothErrors
+          this.database.failNextPutWithBothErrors = null
+          // Fire request.fail() which schedules request.onerror via queueMicrotask,
+          // then also schedule transaction.onerror in a subsequent microtask.
+          // Both fire after the source code attaches handlers synchronously.
+          // First call: rejectOnce → rejected=true, reject(error) [lines 262-264]
+          // Second call: rejectOnce → if (rejected) return [line 262 guard]
+          request.fail(error)
+          queueMicrotask(() => {
+            this.transaction.error = error
+            this.transaction.onerror?.({} as Event)
+          })
+          return
+        }
+
+        if (this.database.failNextPutWithNullError) {
+          this.database.failNextPutWithNullError = false
+          // Fire transaction.onerror with transaction.error=null to hit the
+          // ?? fallback: reject(null ?? new Error("IndexedDB transaction failed."))
+          // This covers the right-hand side of the ?? on line 264.
+          this.transaction.error = null
+          queueMicrotask(() => {
+            this.transaction.onerror?.({} as Event)
+          })
+          return
+        }
+
         this.store.set(key, value)
         request.succeed(key)
         this.transaction.complete()
@@ -144,6 +172,16 @@ class MockIdbObjectStore {
           return
         }
 
+        if (this.database.failNextGetAllWithNullResults) {
+          // Return null result to cover the `?? []` fallback on lines 173-175
+          // Don't call succeed/fail — let getAll() drive oncomplete
+          ;(request as unknown as { result: null }).result = null
+          queueMicrotask(() => {
+            request.onsuccess?.({} as Event)
+          })
+          return
+        }
+
         request.succeed(Array.from(this.store.keys()))
       } catch (error) {
         const failure = toError(error, "Failed to list IndexedDB keys.")
@@ -165,6 +203,28 @@ class MockIdbObjectStore {
           this.database.failNextGetWith = null
           request.fail(error)
           this.transaction.fail(error)
+          return
+        }
+
+        if (this.database.failNextGetAllWithNullResults) {
+          this.database.failNextGetAllWithNullResults = false
+          // Return null result to cover the `?? []` fallback on lines 174-175
+          ;(request as unknown as { result: null }).result = null
+          queueMicrotask(() => {
+            request.onsuccess?.({} as Event)
+            // Complete the transaction so oncomplete fires
+            this.transaction.complete()
+          })
+          return
+        }
+
+        if (this.database.failNextGetAllTransactionWithNullError) {
+          this.database.failNextGetAllTransactionWithNullError = false
+          // Fire transaction.onerror with null error to cover line 190
+          this.transaction.error = null
+          queueMicrotask(() => {
+            this.transaction.onerror?.({} as Event)
+          })
           return
         }
 
@@ -193,6 +253,17 @@ class MockIdbObjectStore {
           return
         }
 
+        if (this.database.failNextDeleteTransactionWithNullError) {
+          this.database.failNextDeleteTransactionWithNullError = false
+          request.succeed(undefined)
+          // fire onerror with transaction.error=null to test the ?? fallback
+          this.transaction.error = null
+          queueMicrotask(() => {
+            this.transaction.onerror?.({} as Event)
+          })
+          return
+        }
+
         this.store.delete(key)
         request.succeed(undefined)
         this.transaction.complete()
@@ -212,7 +283,12 @@ class MockIdbDatabase {
   failNextGetAllKeysWith: Error | null = null
   failNextGetWith: Error | null = null
   failNextPutRequestWith: Error | null = null
+  failNextPutWithBothErrors: Error | null = null
+  failNextPutWithNullError = false
   failNextDeleteTransactionWith: Error | null = null
+  failNextDeleteTransactionWithNullError = false
+  failNextGetAllWithNullResults = false
+  failNextGetAllTransactionWithNullError = false
   private readonly stores = new Map<string, Map<IDBValidKey, unknown>>()
 
   get objectStoreNames(): Pick<DOMStringList, "contains"> {
@@ -253,6 +329,7 @@ class MockIdbDatabase {
 
 class MockIndexedDbFactory {
   failNextOpenWith: Error | null = null
+  failNextOpenWithNullError = false
   private readonly databases = new Map<string, MockIdbDatabase>()
 
   open(name: string): IDBOpenDBRequest {
@@ -263,6 +340,16 @@ class MockIndexedDbFactory {
         const error = this.failNextOpenWith
         this.failNextOpenWith = null
         request.fail(error)
+        return
+      }
+
+      if (this.failNextOpenWithNullError) {
+        this.failNextOpenWithNullError = false
+        // Fire onerror with request.error=null to cover the ?? fallback on line 71
+        request.error = null
+        queueMicrotask(() => {
+          request.onerror?.({} as Event)
+        })
         return
       }
 
@@ -443,6 +530,23 @@ describe("createIndexedDbPersistencePlugin", () => {
     ).rejects.toThrow("open failed")
   })
 
+  it("rejects createSession with fallback message when open request.error is null", async () => {
+    const indexedDbFactory = new MockIndexedDbFactory()
+    indexedDbFactory.failNextOpenWithNullError = true
+    vi.stubGlobal("indexedDB", {
+      open: indexedDbFactory.open.bind(indexedDbFactory),
+    })
+
+    const plugin = createIndexedDbPersistencePlugin()
+
+    await expect(
+      plugin.createSession({
+        sessionId: "session-open-null-error",
+        startedAt: 3,
+      })
+    ).rejects.toThrow("Failed to open IndexedDB.")
+  })
+
   it("rejects readSnapshots when listing keys or reading buffers fails", async () => {
     const indexedDbFactory = new MockIndexedDbFactory()
     indexedDbFactory.seedStore(DATABASE_NAME, STORE_NAME, [
@@ -473,6 +577,47 @@ describe("createIndexedDbPersistencePlugin", () => {
     await expect(session.readSnapshots()).rejects.toThrow("get failed")
   })
 
+  it("resolveNextChunkIndex returns 0 when session has no existing chunks", async () => {
+    const indexedDbFactory = new MockIndexedDbFactory()
+    vi.stubGlobal("indexedDB", {
+      open: indexedDbFactory.open.bind(indexedDbFactory),
+    })
+
+    const plugin = createIndexedDbPersistencePlugin()
+    // 全新 session，无任何 chunk → resolveNextChunkIndex 走 !lastKey → return 0
+    const session = await plugin.createSession({
+      sessionId: "brand-new-session",
+      startedAt: 10,
+    })
+    // 第一次写入的 key 应以 00000000 结尾
+    await session.appendSnapshot(createSnapshot([1, 2]))
+    expect(getStoreKeys(indexedDbFactory)).toEqual([
+      "brand-new-session::chunk::00000000",
+    ])
+  })
+
+  it("cleanupStaleSessions skips keys without CHUNK_KEY_SEPARATOR", async () => {
+    const indexedDbFactory = new MockIndexedDbFactory()
+    // 预置一个不含分隔符的 key（纯数字 key 等），不应被删除
+    indexedDbFactory.seedStore(DATABASE_NAME, STORE_NAME, [
+      ["no-separator-key", new ArrayBuffer(0)],
+      ["stale::chunk::00000000", serializePcmSnapshot(createSnapshot([1, 2]))],
+    ])
+    vi.stubGlobal("indexedDB", {
+      open: indexedDbFactory.open.bind(indexedDbFactory),
+    })
+
+    const plugin = createIndexedDbPersistencePlugin()
+    await plugin.createSession({ sessionId: "current", startedAt: 11 })
+
+    // stale::chunk::00000000 应被删除，no-separator-key 不含分隔符应保留
+    const remainingKeys = Array.from(
+      indexedDbFactory.getDatabase(DATABASE_NAME).getStore(STORE_NAME).keys()
+    )
+    expect(remainingKeys).not.toContain("stale::chunk::00000000")
+    expect(remainingKeys).toContain("no-separator-key")
+  })
+
   it("rejects write and delete operations when IndexedDB requests or transactions fail", async () => {
     const indexedDbFactory = new MockIndexedDbFactory()
     indexedDbFactory.seedStore(DATABASE_NAME, STORE_NAME, [
@@ -501,5 +646,128 @@ describe("createIndexedDbPersistencePlugin", () => {
     indexedDbFactory.getDatabase(DATABASE_NAME).failNextDeleteTransactionWith =
       new Error("delete failed")
     await expect(session.clear()).rejects.toThrow("delete failed")
+  })
+
+  it("deleteKeys: rejects with fallback message when transaction.error is null", async () => {
+    const indexedDbFactory = new MockIndexedDbFactory()
+    indexedDbFactory.seedStore(DATABASE_NAME, STORE_NAME, [
+      [
+        "del-session::chunk::00000000",
+        serializePcmSnapshot(createSnapshot([1, 2])),
+      ],
+    ])
+    vi.stubGlobal("indexedDB", {
+      open: indexedDbFactory.open.bind(indexedDbFactory),
+    })
+
+    const plugin = createIndexedDbPersistencePlugin()
+    const session = await plugin.createSession({
+      sessionId: "del-session",
+      startedAt: 1,
+    })
+
+    // 触发 transaction.error=null 路径，期望使用 fallback 消息
+    indexedDbFactory.getDatabase(
+      DATABASE_NAME
+    ).failNextDeleteTransactionWithNullError = true
+    await expect(session.clear()).rejects.toThrow(
+      "Failed to delete IndexedDB snapshots."
+    )
+  })
+
+  it("runTransaction: rejectOnce prevents double-rejection when both request.onerror and transaction.onerror fire", async () => {
+    // 使 put request 失败（request.onerror 触发），同时 mock 触发 transaction.onerror
+    // 验证 rejectOnce 防重入不会导致未捕获的 rejection
+    const indexedDbFactory = new MockIndexedDbFactory()
+    vi.stubGlobal("indexedDB", {
+      open: indexedDbFactory.open.bind(indexedDbFactory),
+    })
+
+    const plugin = createIndexedDbPersistencePlugin()
+    const session = await plugin.createSession({
+      sessionId: "rejectonce-session",
+      startedAt: 1,
+    })
+
+    // failNextPutWithBothErrors 同时触发 request.onerror 和 transaction.onerror
+    // 第一次调用 rejectOnce → rejected=true，reject(error)
+    // 第二次调用 rejectOnce → if (rejected) return  ← 覆盖 lines 262-264
+    indexedDbFactory.getDatabase(DATABASE_NAME).failNextPutWithBothErrors =
+      new Error("put-and-txn-fail")
+    await expect(
+      session.appendSnapshot(createSnapshot([9, 8]))
+    ).rejects.toThrow("put-and-txn-fail")
+  })
+
+  it("runTransaction: rejectOnce uses fallback message when transaction.error is null", async () => {
+    // 触发 transaction.onerror 且 transaction.error=null，覆盖 line 264 的 ?? 右侧分支
+    const indexedDbFactory = new MockIndexedDbFactory()
+    vi.stubGlobal("indexedDB", {
+      open: indexedDbFactory.open.bind(indexedDbFactory),
+    })
+
+    const plugin = createIndexedDbPersistencePlugin()
+    const session = await plugin.createSession({
+      sessionId: "rejectonce-null-session",
+      startedAt: 1,
+    })
+
+    indexedDbFactory.getDatabase(DATABASE_NAME).failNextPutWithNullError = true
+    await expect(
+      session.appendSnapshot(createSnapshot([7, 8]))
+    ).rejects.toThrow("IndexedDB transaction failed.")
+  })
+
+  it("getAllEntries: handles null getAllKeys/getAll results (covers ?? [] fallback on lines 173-175)", async () => {
+    const indexedDbFactory = new MockIndexedDbFactory()
+    indexedDbFactory.seedStore(DATABASE_NAME, STORE_NAME, [
+      [
+        "null-results-session::chunk::00000000",
+        serializePcmSnapshot(createSnapshot([1, 2])),
+      ],
+    ])
+    vi.stubGlobal("indexedDB", {
+      open: indexedDbFactory.open.bind(indexedDbFactory),
+    })
+
+    const plugin = createIndexedDbPersistencePlugin()
+    const session = await plugin.createSession({
+      sessionId: "null-results-session",
+      startedAt: 1,
+    })
+
+    // Mock returns null for both getAllKeys and getAll results — fallback to []
+    indexedDbFactory.getDatabase(DATABASE_NAME).failNextGetAllWithNullResults =
+      true
+    // readSnapshots calls getAllEntries which uses ?? [] on null results
+    const snapshots = await session.readSnapshots()
+    expect(snapshots).toEqual([])
+  })
+
+  it("getAllEntries: rejects with fallback message when transaction.error is null (covers line 190)", async () => {
+    const indexedDbFactory = new MockIndexedDbFactory()
+    indexedDbFactory.seedStore(DATABASE_NAME, STORE_NAME, [
+      [
+        "txn-null-error-session::chunk::00000000",
+        serializePcmSnapshot(createSnapshot([1, 2])),
+      ],
+    ])
+    vi.stubGlobal("indexedDB", {
+      open: indexedDbFactory.open.bind(indexedDbFactory),
+    })
+
+    const plugin = createIndexedDbPersistencePlugin()
+    const session = await plugin.createSession({
+      sessionId: "txn-null-error-session",
+      startedAt: 1,
+    })
+
+    // Mock fires transaction.onerror with transaction.error=null → ?? fallback
+    indexedDbFactory.getDatabase(
+      DATABASE_NAME
+    ).failNextGetAllTransactionWithNullError = true
+    await expect(session.readSnapshots()).rejects.toThrow(
+      "Failed to read IndexedDB store."
+    )
   })
 })

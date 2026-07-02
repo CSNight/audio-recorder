@@ -174,4 +174,148 @@ describe("createAsrExportPlugin", () => {
 
     expect(finals).toEqual([true])
   })
+
+  it("ignores empty frames (mono.length === 0)", async () => {
+    const adapter = new FakeAsrInputAdapter()
+    const recorder = new RecorderController({
+      inputAdapter: adapter,
+      storageOptions: undefined,
+    })
+    const chunks: unknown[] = []
+
+    recorder.on("plugin:asr:chunk", (event) => {
+      chunks.push(event)
+    })
+
+    await recorder.use(
+      createAsrExportPlugin({
+        format: "pcm",
+        encoders: [pcmExportEncoder],
+        sampleRate: 16000,
+        chunkDurationMs: 20,
+      })
+    )
+    await recorder.open()
+    await recorder.start()
+
+    // 传入长度为 0 的帧 → downmixToMono 返回空 Int16Array → 不进入 emitBufferedChunks
+    adapter.session?.emitFrame(
+      createAudioFrame([new Float32Array(0)], 16000, 20)
+    )
+    await recorder.stop()
+
+    // 没有触发任何 chunk（buffer 为空，stop 时 bufferedMono.length === 0）
+    expect(chunks).toHaveLength(0)
+  })
+
+  it("resamples frames when sampleRate !== targetSampleRate", async () => {
+    const adapter = new FakeAsrInputAdapter()
+    const recorder = new RecorderController({
+      inputAdapter: adapter,
+      storageOptions: undefined,
+    })
+    const chunks: Array<{ sampleRate: number; byteLength: number }> = []
+
+    recorder.on("plugin:asr:chunk", (event) => {
+      const { payload } = event as RecorderPluginEventContext<AsrChunkPayload>
+      chunks.push({
+        sampleRate: payload.sampleRate,
+        byteLength: payload.chunk.byteLength,
+      })
+    })
+
+    await recorder.use(
+      createAsrExportPlugin({
+        format: "pcm",
+        encoders: [pcmExportEncoder],
+        sampleRate: 8000, // 目标采样率 8kHz
+        chunkDurationMs: 20, // 20ms @ 8kHz = 160 samples
+      })
+    )
+    await recorder.open()
+    await recorder.start()
+
+    // 传入 16kHz 数据 → 触发重采样到 8kHz 路径 (lines 175-183)
+    // 320 samples @ 16kHz = 20ms → 重采样后 160 samples @ 8kHz
+    adapter.session?.emitFrame(
+      createAudioFrame([new Float32Array(320)], 16000, 20)
+    )
+    await recorder.stop()
+
+    // 应该有 chunk 并且 sampleRate 是 8000
+    expect(chunks.length).toBeGreaterThanOrEqual(1)
+    expect(chunks[0]?.sampleRate).toBe(8000)
+  })
+
+  it("throws when encoder for format is not found (resolveAsrEncoder)", async () => {
+    expect(() =>
+      createAsrExportPlugin({
+        format: "wav",
+        encoders: [pcmExportEncoder], // 故意不传 wavExportEncoder
+        sampleRate: 16000,
+        chunkDurationMs: 20,
+      })
+    ).toThrow('ASR export encoder for format "wav" not found')
+  })
+
+  it("throws when channels !== 1 (line 24)", () => {
+    expect(() =>
+      createAsrExportPlugin({
+        format: "pcm",
+        encoders: [pcmExportEncoder],
+        sampleRate: 16000,
+        chunkDurationMs: 20,
+        channels: 2,
+      })
+    ).toThrow("ASR export only supports mono output")
+  })
+
+  it("throws when bitsPerSample !== 16 (line 27)", () => {
+    expect(() =>
+      createAsrExportPlugin({
+        format: "pcm",
+        encoders: [pcmExportEncoder],
+        sampleRate: 16000,
+        chunkDurationMs: 20,
+        bitsPerSample: 8,
+      })
+    ).toThrow("ASR export currently only supports 16-bit output")
+  })
+
+  it("throws when chunkDurationMs <= 0 (line 30)", () => {
+    expect(() =>
+      createAsrExportPlugin({
+        format: "pcm",
+        encoders: [pcmExportEncoder],
+        sampleRate: 16000,
+        chunkDurationMs: 0,
+      })
+    ).toThrow("ASR chunkDurationMs must be positive")
+  })
+
+  it("dispose clears state without throwing", async () => {
+    const adapter = new FakeAsrInputAdapter()
+    const recorder = new RecorderController({
+      inputAdapter: adapter,
+      storageOptions: undefined,
+    })
+
+    const plugin = createAsrExportPlugin({
+      format: "pcm",
+      encoders: [pcmExportEncoder],
+      sampleRate: 16000,
+      chunkDurationMs: 20,
+    })
+
+    await recorder.use(plugin)
+    await recorder.open()
+    await recorder.start()
+    adapter.session?.emitFrame(
+      createAudioFrame([new Float32Array(80)], 16000, 10)
+    )
+    // dispose 是 RecorderController 内部生命周期调用，通过 close 触发
+    await recorder.stop()
+    await recorder.close()
+    // 如果 dispose 正常执行则不会抛出
+  })
 })

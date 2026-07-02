@@ -150,6 +150,45 @@ describe("createAudioWorkletBackend", () => {
     expect(created[0]?.port.onmessage).toBeNull()
   })
 
+  it("throws InputBackendUnavailableError when audioWorklet property is missing", async () => {
+    class FakeNode {
+      port = { onmessage: null }
+    }
+    vi.stubGlobal("AudioWorkletNode", FakeNode)
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Windows NT 10.0)" })
+    // audioContext without audioWorklet property
+    const audioContext = {
+      sampleRate: 48000,
+      destination: {},
+      createMediaStreamSource: vi.fn(),
+      createGain: vi.fn(),
+    }
+
+    await expect(
+      createAudioWorkletBackend(
+        createContext(audioContext, { acceptFrame: vi.fn() })
+      )
+    ).rejects.toBeInstanceOf(InputBackendUnavailableError)
+  })
+
+  it("throws InputBackendUnavailableError when AudioWorkletNode construction fails", async () => {
+    class FakeNode {
+      constructor() {
+        throw new Error("construction failed")
+      }
+    }
+    const addModule = vi.fn(async () => {})
+    vi.stubGlobal("AudioWorkletNode", FakeNode)
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Windows NT 10.0)" })
+    const audioContext = createAudioContextStub(addModule)
+
+    await expect(
+      createAudioWorkletBackend(
+        createContext(audioContext, { acceptFrame: vi.fn() })
+      )
+    ).rejects.toBeInstanceOf(InputBackendUnavailableError)
+  })
+
   it("uses batchSamples > 0 on mobile UA, 0 on desktop UA", async () => {
     const created: AudioWorkletNodeOptions[] = []
     class FakeNode {
