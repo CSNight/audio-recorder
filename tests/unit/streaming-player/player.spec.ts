@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { createStreamingPlayer } from "@/plugins/streaming-player/player"
 import type { StreamingPlayerOptions } from "@/plugins/streaming-player/types"
 import type { StreamingPacketPayload } from "@/plugins/streaming-export/types"
@@ -110,7 +110,9 @@ describe("createStreamingPlayer", () => {
     vi.useFakeTimers()
     // jsdom 没有 AudioContext，给需要内部创建 ctx 的测试提供全局 mock
     // @ts-expect-error mock
-    globalThis.AudioContext = function AudioContext() { return makeAudioContextMock() }
+    globalThis.AudioContext = function AudioContext() {
+      return makeAudioContextMock()
+    }
   })
 
   afterEach(() => {
@@ -295,7 +297,9 @@ describe("createStreamingPlayer", () => {
 
   describe("push() 双写行为", () => {
     it("push() 非暂停状态写入 persistStore", async () => {
-      const p = await createStreamingPlayer(makeOptions({ persistBufferMs: 10_000 }))
+      const p = await createStreamingPlayer(
+        makeOptions({ persistBufferMs: 10_000 })
+      )
       await p.start()
       p.push(makePacket(0))
       p.push(makePacket(1))
@@ -305,7 +309,9 @@ describe("createStreamingPlayer", () => {
     })
 
     it("pause() 期间 push() 仍写入 persistStore", async () => {
-      const p = await createStreamingPlayer(makeOptions({ persistBufferMs: 10_000 }))
+      const p = await createStreamingPlayer(
+        makeOptions({ persistBufferMs: 10_000 })
+      )
       await p.start()
       p.pause()
       p.push(makePacket(0))
@@ -335,7 +341,9 @@ describe("createStreamingPlayer", () => {
 
   describe("storedMs drop-old 行为", () => {
     it("超出 persistBufferMs 后 storedMs 不超过上限", async () => {
-      const p = await createStreamingPlayer(makeOptions({ persistBufferMs: 100 }))
+      const p = await createStreamingPlayer(
+        makeOptions({ persistBufferMs: 100 })
+      )
       await p.start()
       for (let i = 0; i < 10; i++) p.push(makePacket(i))
       expect(p.storedMs).toBeLessThanOrEqual(100)
@@ -347,7 +355,9 @@ describe("createStreamingPlayer", () => {
 
   describe("bufferedMs 统计", () => {
     it("push 包后 bufferedMs 增加", async () => {
-      const p = await createStreamingPlayer(makeOptions({ targetLatencyMs: 300 }))
+      const p = await createStreamingPlayer(
+        makeOptions({ targetLatencyMs: 300 })
+      )
       await p.start()
       p.push(makePacket(0))
       p.push(makePacket(1))
@@ -378,7 +388,10 @@ describe("createStreamingPlayer", () => {
       // drainLoop 每 20ms tick，触发 reorderBuf.drain() 后 drop-old 才执行
       await vi.advanceTimersByTimeAsync(25)
       expect(onPacketDrop).toHaveBeenCalled()
-      const call = onPacketDrop.mock.calls[0]![0] as { count: number; reason: string }
+      const call = onPacketDrop.mock.calls[0]![0] as {
+        count: number
+        reason: string
+      }
       expect(call.reason).toBe("max-buffer-exceeded")
       expect(call.count).toBeGreaterThan(0)
       p.destroy()
@@ -542,11 +555,15 @@ describe("createStreamingPlayer", () => {
 
       const replaySources = sources.slice(sourceCountBeforeReplay)
       expect(replaySources.length).toBeGreaterThan(0)
-      expect(replaySources.every((src) => src.stop.mock.calls.length === 0)).toBe(true)
+      expect(
+        replaySources.every((src) => src.stop.mock.calls.length === 0)
+      ).toBe(true)
 
       p.resume()
 
-      expect(replaySources.every((src) => src.stop.mock.calls.length > 0)).toBe(true)
+      expect(replaySources.every((src) => src.stop.mock.calls.length > 0)).toBe(
+        true
+      )
       p.destroy()
     })
   })

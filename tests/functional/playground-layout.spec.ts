@@ -62,4 +62,24 @@ test.describe("playground layout inspection", () => {
     expect(metrics.clientHeight).toBeLessThanOrEqual(460)
     expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight)
   })
+
+  test("player controls still sync after unbinding onStateChange", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 1200 })
+    await page.goto("/")
+
+    const playerShell = page.locator(".player-section-shell")
+    await playerShell.scrollIntoViewIfNeeded()
+
+    await page.getByRole("button", { name: "createPlayer()" }).click()
+    await page.getByRole("button", { name: "unbind null" }).click()
+
+    const startButton = page.getByRole("button", { name: "start()" })
+    await expect(startButton).toBeEnabled()
+
+    await startButton.click()
+
+    await expect(startButton).toBeDisabled({ timeout: 5_000 })
+  })
 })

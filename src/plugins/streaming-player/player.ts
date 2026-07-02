@@ -1,13 +1,9 @@
-import type {
-  StreamingPlayerHandle,
-  StreamingPlayerOptions,
-  StreamingPlayerState,
-} from "./types"
+import type { StreamingPlayerHandle, StreamingPlayerOptions, StreamingPlayerState, } from "./types"
 import type { StreamingPacketPayload } from "@/plugins/streaming-export/types"
 import { ReorderBuffer } from "./reorder-buffer"
 import { JitterBuffer } from "./jitter-buffer"
-import { MemoryPersistStore, IndexedDbPersistStore } from "./persist-store"
 import type { PersistStore } from "./persist-store"
+import { IndexedDbPersistStore, MemoryPersistStore } from "./persist-store"
 
 /**
  * 创建流式播放器。
@@ -56,7 +52,7 @@ export async function createStreamingPlayer(
   // 调度状态
   let _scheduleTime = 0
   let _playbackStarted = false
-  let _playbackStartedAt = 0  // audioCtx.currentTime when playback first started
+  let _playbackStartedAt = 0 // audioCtx.currentTime when playback first started
   let _drainInterval: ReturnType<typeof setInterval> | null = null
 
   // 可在创建后替换的状态回调
@@ -203,7 +199,9 @@ export async function createStreamingPlayer(
 
     // 跟踪已调度节点，供 destroy 在外部 ctx 场景下强制停止
     _activeSources.add(src)
-    src.onended = () => { _activeSources.delete(src) }
+    src.onended = () => {
+      _activeSources.delete(src)
+    }
   }
 
   function startDrainLoop(): void {
@@ -318,12 +316,17 @@ export async function createStreamingPlayer(
         replayScheduleTime += buf.duration
         // 跟踪重播节点，供 destroy 强制停止
         _activeSources.add(src)
-        src.onended = () => { _activeSources.delete(src) }
+        src.onended = () => {
+          _activeSources.delete(src)
+        }
       }
 
       // 等待重播完成后，再次暂停 audioCtx（保持 paused 状态）
       // 注意：replayScheduleTime 是 audioCtx 时间轴上的结束点，用它减去当前时间得到剩余等待量
-      const waitMs = Math.max(0, (replayScheduleTime - audioCtx.currentTime) * 1000)
+      const waitMs = Math.max(
+        0,
+        (replayScheduleTime - audioCtx.currentTime) * 1000
+      )
       setTimeout(() => {
         if (_destroyed) return
         if (_paused) {
