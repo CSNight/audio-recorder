@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest"
 import type { PcmBufferSnapshot } from "@/buffer/types"
-import { exportG711Snapshot } from "@/codecs/g711/g711-snapshot-exporter"
+import {
+  exportG711Snapshot,
+  g711ExportEncoder,
+} from "@/codecs/g711/g711-snapshot-exporter"
 
 function makeSnapshot(
   samples: number[],
@@ -98,5 +101,14 @@ describe("exportG711Snapshot", () => {
     const snapshot = makeSnapshot(new Array(8000).fill(0), 8000, 1)
     const result = exportG711Snapshot(snapshot)
     expect(result.durationMs).toBeCloseTo(1000, 0)
+  })
+
+  it("g711ExportEncoder.export 透传到 exportG711Snapshot", () => {
+    const snapshot = makeSnapshot([0, 1000, -1000, 500])
+    const direct = exportG711Snapshot(snapshot, { variant: "ulaw" })
+    const viaEncoder = g711ExportEncoder.export(snapshot, { variant: "ulaw" })
+
+    expect(g711ExportEncoder.type).toBe("g711")
+    expect(viaEncoder).toEqual(direct)
   })
 })

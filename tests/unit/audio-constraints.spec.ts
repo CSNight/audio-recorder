@@ -5,6 +5,14 @@ import {
   reportUnappliedConstraints,
 } from "@/input/audio-constraints"
 import { RecorderWarningCode } from "@/types"
+import type { RecorderIssue } from "@/types"
+
+function expectWarningIssue(
+  issue: RecorderIssue | undefined
+): asserts issue is Extract<RecorderIssue, { kind: "warning" }> {
+  expect(issue).toBeDefined()
+  expect(issue?.kind).toBe("warning")
+}
 
 // ---------------------------------------------------------------------------
 // buildAudioConstraints
@@ -64,8 +72,10 @@ describe("buildAudioConstraints", () => {
 // ---------------------------------------------------------------------------
 describe("acquireMicStream", () => {
   it("getUserMedia 不可用时抛出错误", async () => {
-    // @ts-expect-error: 模拟浏览器没有 mediaDevices
-    vi.stubGlobal("navigator", { mediaDevices: undefined })
+    vi.stubGlobal(
+      "navigator",
+      { mediaDevices: undefined } as unknown as Navigator
+    )
     await expect(acquireMicStream({})).rejects.toThrow(
       "navigator.mediaDevices.getUserMedia is not available"
     )
@@ -135,7 +145,7 @@ describe("reportUnappliedConstraints", () => {
   }
 
   it("约束全部生效时不调用 emitIssue", () => {
-    const emitIssue = vi.fn()
+    const emitIssue = vi.fn<(issue: RecorderIssue) => void>()
     const stream = makeStream({
       echoCancellation: true,
       noiseSuppression: true,
@@ -147,12 +157,12 @@ describe("reportUnappliedConstraints", () => {
   })
 
   it("echoCancellation 未生效时发出告警", () => {
-    const emitIssue = vi.fn()
+    const emitIssue = vi.fn<(issue: RecorderIssue) => void>()
     const stream = makeStream({ echoCancellation: false })
     reportUnappliedConstraints(stream, { echoCancellation: true }, emitIssue)
     expect(emitIssue).toHaveBeenCalledOnce()
-    const issue = emitIssue.mock.calls[0][0]
-    expect(issue.kind).toBe("warning")
+    const issue = emitIssue.mock.calls[0]?.[0]
+    expectWarningIssue(issue)
     expect(issue.warning.code).toBe(
       RecorderWarningCode.AudioConstraintNotApplied
     )
@@ -160,22 +170,24 @@ describe("reportUnappliedConstraints", () => {
   })
 
   it("channelCount 不匹配时发出告警", () => {
-    const emitIssue = vi.fn()
+    const emitIssue = vi.fn<(issue: RecorderIssue) => void>()
     const stream = makeStream({ channelCount: 1 })
     reportUnappliedConstraints(stream, { channelCount: 2 }, emitIssue)
     expect(emitIssue).toHaveBeenCalledOnce()
-    expect(emitIssue.mock.calls[0][0].warning.message).toContain("channelCount")
+    const issue = emitIssue.mock.calls[0]?.[0]
+    expectWarningIssue(issue)
+    expect(issue.warning.message).toContain("channelCount")
   })
 
   it("无音频 track 时静默返回", () => {
-    const emitIssue = vi.fn()
+    const emitIssue = vi.fn<(issue: RecorderIssue) => void>()
     const stream = { getAudioTracks: () => [] } as unknown as MediaStream
     reportUnappliedConstraints(stream, {}, emitIssue)
     expect(emitIssue).not.toHaveBeenCalled()
   })
 
   it("settings 中缺失的字段不误报", () => {
-    const emitIssue = vi.fn()
+    const emitIssue = vi.fn<(issue: RecorderIssue) => void>()
     // settings 完全为空，浏览器不上报任何值
     const stream = makeStream({})
     reportUnappliedConstraints(

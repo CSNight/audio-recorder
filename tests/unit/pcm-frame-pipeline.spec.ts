@@ -8,38 +8,38 @@ function makeFrame(samples: number[] = [0.5, -0.5], sampleRate = 16000) {
 }
 
 describe("PcmFramePipeline", () => {
-  it("使用默认 InMemoryPcmBufferStore，acceptFrame 后 getSnapshot 可取到数据", () => {
+  it("使用默认 InMemoryPcmBufferStore，acceptFrame 后 getSnapshot 可取到数据", async () => {
     const pipeline = new PcmFramePipeline()
     pipeline.acceptFrame(makeFrame([0.5, -0.5]))
-    const snap = pipeline.getSnapshot()
+    const snap = await pipeline.getSnapshot()
     expect(snap).toBeDefined()
     expect(snap?.channels).toBe(1)
     expect(snap?.frameCount).toBe(1)
   })
 
-  it("多帧 acceptFrame 后 snapshot 包含所有帧", () => {
+  it("多帧 acceptFrame 后 snapshot 包含所有帧", async () => {
     const pipeline = new PcmFramePipeline()
     pipeline.acceptFrame(makeFrame([0.25]))
     pipeline.acceptFrame(makeFrame([0.5]))
     pipeline.acceptFrame(makeFrame([-0.25]))
-    const snap = pipeline.getSnapshot()
+    const snap = await pipeline.getSnapshot()
     expect(snap?.frameCount).toBe(3)
   })
 
-  it("reset 后 getSnapshot 返回 undefined/null", () => {
+  it("reset 后 getSnapshot 返回 undefined/null", async () => {
     const pipeline = new PcmFramePipeline()
     pipeline.acceptFrame(makeFrame())
     pipeline.reset()
-    const snap = pipeline.getSnapshot()
+    const snap = await pipeline.getSnapshot()
     expect(snap == null).toBe(true)
   })
 
-  it("reset 后可以重新写入数据", () => {
+  it("reset 后可以重新写入数据", async () => {
     const pipeline = new PcmFramePipeline()
     pipeline.acceptFrame(makeFrame([0.9]))
     pipeline.reset()
     pipeline.acceptFrame(makeFrame([0.1]))
-    const snap = pipeline.getSnapshot()
+    const snap = await pipeline.getSnapshot()
     expect(snap?.frameCount).toBe(1)
   })
 
@@ -67,7 +67,7 @@ describe("PcmFramePipeline", () => {
     expect(mockStore.appendFrame).toHaveBeenCalledWith(frame)
   })
 
-  it("getSnapshot 透传给底层 store 的 snapshot 方法", () => {
+  it("getSnapshot 透传给底层 store 的 snapshot 方法", async () => {
     const fakeSnap = {
       sampleRate: 16000,
       channels: 1,
@@ -81,7 +81,7 @@ describe("PcmFramePipeline", () => {
       clear: vi.fn(),
     }
     const pipeline = new PcmFramePipeline(mockStore)
-    const result = pipeline.getSnapshot()
+    const result = await pipeline.getSnapshot()
     expect(result).toBe(fakeSnap)
     expect(mockStore.snapshot).toHaveBeenCalledOnce()
   })
@@ -107,7 +107,7 @@ describe("PcmFramePipeline", () => {
     expect(() => pipeline.initialize()).not.toThrow()
   })
 
-  it("自定义 store 注入后 getSnapshot 返回自定义数据", () => {
+  it("自定义 store 注入后 getSnapshot 返回自定义数据", async () => {
     const fakeSnap = {
       sampleRate: 48000,
       channels: 2,
@@ -121,6 +121,6 @@ describe("PcmFramePipeline", () => {
       clear: vi.fn(),
     }
     const pipeline = new PcmFramePipeline(mockStore)
-    expect(pipeline.getSnapshot()).toBe(fakeSnap)
+    expect(await Promise.resolve(pipeline.getSnapshot())).toBe(fakeSnap)
   })
 })

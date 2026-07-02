@@ -265,7 +265,7 @@ describe("createAsrExportPlugin", () => {
         encoders: [pcmExportEncoder],
         sampleRate: 16000,
         chunkDurationMs: 20,
-        channels: 2,
+        channels: 2 as unknown as 1,
       })
     ).toThrow("ASR export only supports mono output")
   })
@@ -277,7 +277,7 @@ describe("createAsrExportPlugin", () => {
         encoders: [pcmExportEncoder],
         sampleRate: 16000,
         chunkDurationMs: 20,
-        bitsPerSample: 8,
+        bitsPerSample: 8 as unknown as 16,
       })
     ).toThrow("ASR export currently only supports 16-bit output")
   })
