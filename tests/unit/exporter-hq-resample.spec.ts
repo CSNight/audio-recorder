@@ -25,8 +25,7 @@ function createResampledSnapshot(
   return {
     ...snapshot,
     sampleRate: targetSampleRate,
-    durationMs:
-      ((snapshot.planar[0]?.length ?? 0) / targetSampleRate) * 1000,
+    durationMs: ((snapshot.planar[0]?.length ?? 0) / targetSampleRate) * 1000,
     planar: snapshot.planar.map((channel) => new Int16Array(channel)),
   }
 }
@@ -39,15 +38,18 @@ afterEach(() => {
 describe("exporter HQ resample forwarding", () => {
   it("passes isHQ to PCM export", async () => {
     const snapshot = makeSnapshot()
-    const resample = vi.fn((value: PcmBufferSnapshot, targetSampleRate: number) =>
-      createResampledSnapshot(value, targetSampleRate)
+    const resample = vi.fn(
+      (value: PcmBufferSnapshot, targetSampleRate: number) =>
+        createResampledSnapshot(value, targetSampleRate)
     )
     vi.doMock("@csnight/audio-recorder", async (importOriginal) => {
-      const actual = await importOriginal<typeof import("@csnight/audio-recorder")>()
+      const actual =
+        await importOriginal<typeof import("@csnight/audio-recorder")>()
       return { ...actual, resample }
     })
 
-    const { exportPcmSnapshot } = await import("../../src/codecs/base/pcm-exporter")
+    const { exportPcmSnapshot } =
+      await import("../../src/codecs/base/pcm-exporter")
     exportPcmSnapshot(snapshot, { sampleRate: 16000, isHQ: true })
 
     expect(resample).toHaveBeenCalledWith(snapshot, 16000, { isHQ: true })
@@ -55,17 +57,18 @@ describe("exporter HQ resample forwarding", () => {
 
   it("passes isHQ to G.711 export", async () => {
     const snapshot = makeSnapshot()
-    const resample = vi.fn((value: PcmBufferSnapshot, targetSampleRate: number) =>
-      createResampledSnapshot(value, targetSampleRate)
+    const resample = vi.fn(
+      (value: PcmBufferSnapshot, targetSampleRate: number) =>
+        createResampledSnapshot(value, targetSampleRate)
     )
     vi.doMock("@csnight/audio-recorder", async (importOriginal) => {
-      const actual = await importOriginal<typeof import("@csnight/audio-recorder")>()
+      const actual =
+        await importOriginal<typeof import("@csnight/audio-recorder")>()
       return { ...actual, resample }
     })
 
-    const { exportG711Snapshot } = await import(
-      "../../src/codecs/g711/g711-snapshot-exporter"
-    )
+    const { exportG711Snapshot } =
+      await import("../../src/codecs/g711/g711-snapshot-exporter")
     exportG711Snapshot(snapshot, { sampleRate: 8000, isHQ: true })
 
     expect(resample).toHaveBeenCalledWith(snapshot, 8000, { isHQ: true })
@@ -73,11 +76,13 @@ describe("exporter HQ resample forwarding", () => {
 
   it("passes isHQ to AAC export", async () => {
     const snapshot = makeSnapshot()
-    const resample = vi.fn((value: PcmBufferSnapshot, targetSampleRate: number) =>
-      createResampledSnapshot(value, targetSampleRate)
+    const resample = vi.fn(
+      (value: PcmBufferSnapshot, targetSampleRate: number) =>
+        createResampledSnapshot(value, targetSampleRate)
     )
     vi.doMock("@csnight/audio-recorder", async (importOriginal) => {
-      const actual = await importOriginal<typeof import("@csnight/audio-recorder")>()
+      const actual =
+        await importOriginal<typeof import("@csnight/audio-recorder")>()
       return { ...actual, resample }
     })
     vi.doMock("../../src/codecs/aac/aac-wasm-api", () => ({
@@ -95,9 +100,8 @@ describe("exporter HQ resample forwarding", () => {
       })),
     }))
 
-    const { exportAacSnapshot } = await import(
-      "../../src/codecs/aac/aac-snapshot-exporter"
-    )
+    const { exportAacSnapshot } =
+      await import("../../src/codecs/aac/aac-snapshot-exporter")
     exportAacSnapshot(snapshot, { sampleRate: 44100, isHQ: true })
 
     expect(resample).toHaveBeenCalledWith(snapshot, 44100, { isHQ: true })
@@ -105,11 +109,13 @@ describe("exporter HQ resample forwarding", () => {
 
   it("passes isHQ to MP3 export", async () => {
     const snapshot = makeSnapshot()
-    const resample = vi.fn((value: PcmBufferSnapshot, targetSampleRate: number) =>
-      createResampledSnapshot(value, targetSampleRate)
+    const resample = vi.fn(
+      (value: PcmBufferSnapshot, targetSampleRate: number) =>
+        createResampledSnapshot(value, targetSampleRate)
     )
     vi.doMock("@csnight/audio-recorder", async (importOriginal) => {
-      const actual = await importOriginal<typeof import("@csnight/audio-recorder")>()
+      const actual =
+        await importOriginal<typeof import("@csnight/audio-recorder")>()
       return { ...actual, resample }
     })
     vi.doMock("../../src/codecs/mp3/mp3-wasm-api", () => ({
@@ -133,9 +139,8 @@ describe("exporter HQ resample forwarding", () => {
       })),
     }))
 
-    const { exportMp3Snapshot } = await import(
-      "../../src/codecs/mp3/mp3-snapshot-exporter"
-    )
+    const { exportMp3Snapshot } =
+      await import("../../src/codecs/mp3/mp3-snapshot-exporter")
     exportMp3Snapshot(snapshot, { sampleRate: 16000, isHQ: true })
 
     expect(resample).toHaveBeenCalledWith(
@@ -147,11 +152,13 @@ describe("exporter HQ resample forwarding", () => {
 
   it("passes isHQ to FLAC export", async () => {
     const snapshot = makeSnapshot()
-    const resample = vi.fn((value: PcmBufferSnapshot, targetSampleRate: number) =>
-      createResampledSnapshot(value, targetSampleRate)
+    const resample = vi.fn(
+      (value: PcmBufferSnapshot, targetSampleRate: number) =>
+        createResampledSnapshot(value, targetSampleRate)
     )
     vi.doMock("@csnight/audio-recorder", async (importOriginal) => {
-      const actual = await importOriginal<typeof import("@csnight/audio-recorder")>()
+      const actual =
+        await importOriginal<typeof import("@csnight/audio-recorder")>()
       return { ...actual, resample }
     })
     vi.doMock("../../src/codecs/flac/flac-wasm-api", () => ({
@@ -166,9 +173,8 @@ describe("exporter HQ resample forwarding", () => {
       })),
     }))
 
-    const { exportFlacSnapshot } = await import(
-      "../../src/codecs/flac/flac-snapshot-exporter"
-    )
+    const { exportFlacSnapshot } =
+      await import("../../src/codecs/flac/flac-snapshot-exporter")
     exportFlacSnapshot(snapshot, { sampleRate: 44100, isHQ: true })
 
     expect(resample).toHaveBeenCalledWith(snapshot, 44100, { isHQ: true })
@@ -176,11 +182,13 @@ describe("exporter HQ resample forwarding", () => {
 
   it("passes isHQ to Opus export", async () => {
     const snapshot = makeSnapshot()
-    const resample = vi.fn((value: PcmBufferSnapshot, targetSampleRate: number) =>
-      createResampledSnapshot(value, targetSampleRate)
+    const resample = vi.fn(
+      (value: PcmBufferSnapshot, targetSampleRate: number) =>
+        createResampledSnapshot(value, targetSampleRate)
     )
     vi.doMock("@csnight/audio-recorder", async (importOriginal) => {
-      const actual = await importOriginal<typeof import("@csnight/audio-recorder")>()
+      const actual =
+        await importOriginal<typeof import("@csnight/audio-recorder")>()
       return { ...actual, resample }
     })
     vi.doMock("../../src/codecs/opus/opus-wasm-api", () => ({
@@ -196,9 +204,8 @@ describe("exporter HQ resample forwarding", () => {
       })),
     }))
 
-    const { exportOpusSnapshot } = await import(
-      "../../src/codecs/opus/opus-snapshot-exporter"
-    )
+    const { exportOpusSnapshot } =
+      await import("../../src/codecs/opus/opus-snapshot-exporter")
     exportOpusSnapshot(snapshot, { sampleRate: 16000, isHQ: true })
 
     expect(resample).toHaveBeenCalledWith(snapshot, 16000, { isHQ: true })
@@ -206,11 +213,13 @@ describe("exporter HQ resample forwarding", () => {
 
   it("passes isHQ to AMR export", async () => {
     const snapshot = makeSnapshot()
-    const resample = vi.fn((value: PcmBufferSnapshot, targetSampleRate: number) =>
-      createResampledSnapshot(value, targetSampleRate)
+    const resample = vi.fn(
+      (value: PcmBufferSnapshot, targetSampleRate: number) =>
+        createResampledSnapshot(value, targetSampleRate)
     )
     vi.doMock("@csnight/audio-recorder", async (importOriginal) => {
-      const actual = await importOriginal<typeof import("@csnight/audio-recorder")>()
+      const actual =
+        await importOriginal<typeof import("@csnight/audio-recorder")>()
       return { ...actual, resample }
     })
     vi.doMock("../../src/codecs/amr/amr-wasm-api", () => ({
@@ -227,9 +236,8 @@ describe("exporter HQ resample forwarding", () => {
       })),
     }))
 
-    const { exportAmrSnapshot } = await import(
-      "../../src/codecs/amr/amr-snapshot-exporter"
-    )
+    const { exportAmrSnapshot } =
+      await import("../../src/codecs/amr/amr-snapshot-exporter")
     exportAmrSnapshot(snapshot, { bandMode: "nb", isHQ: true })
 
     expect(resample).toHaveBeenCalledWith(snapshot, 8000, { isHQ: true })
@@ -237,17 +245,23 @@ describe("exporter HQ resample forwarding", () => {
 
   it("passes isHQ to AC3 export", async () => {
     const snapshot = makeSnapshot()
-    const resample = vi.fn((value: PcmBufferSnapshot, targetSampleRate: number) =>
-      createResampledSnapshot(value, targetSampleRate)
+    const resample = vi.fn(
+      (value: PcmBufferSnapshot, targetSampleRate: number) =>
+        createResampledSnapshot(value, targetSampleRate)
     )
     vi.doMock("@csnight/audio-recorder", async (importOriginal) => {
-      const actual = await importOriginal<typeof import("@csnight/audio-recorder")>()
+      const actual =
+        await importOriginal<typeof import("@csnight/audio-recorder")>()
       return { ...actual, resample }
     })
     vi.doMock("../../src/codecs/ac3/ac3-wasm-api", () => ({
       preloadAc3Module: vi.fn(),
       resolveAc3EncoderOptions: vi.fn(
-        (options: Record<string, unknown>, sampleRate: number, channels: number) => ({
+        (
+          options: Record<string, unknown>,
+          sampleRate: number,
+          channels: number
+        ) => ({
           codec: (options.codec as "ac3" | "eac3" | undefined) ?? "ac3",
           sampleRate: (options.sampleRate as number | undefined) ?? sampleRate,
           channels,
@@ -266,9 +280,8 @@ describe("exporter HQ resample forwarding", () => {
       })),
     }))
 
-    const { exportAc3Snapshot } = await import(
-      "../../src/codecs/ac3/ac3-snapshot-exporter"
-    )
+    const { exportAc3Snapshot } =
+      await import("../../src/codecs/ac3/ac3-snapshot-exporter")
     exportAc3Snapshot(snapshot, { sampleRate: 44100, isHQ: true })
 
     expect(resample).toHaveBeenCalledWith(snapshot, 44100, { isHQ: true })

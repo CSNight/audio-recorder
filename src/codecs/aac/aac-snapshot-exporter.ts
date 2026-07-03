@@ -1,14 +1,8 @@
 import type { PcmBufferSnapshot } from "../../buffer/types"
 import type { ExportEncoderDefinition } from "../../types"
 import { resample } from "@csnight/audio-recorder"
-import {
-  createAacEncoder,
-  preloadAacModule,
-} from "./aac-wasm-api"
-import {
-  isSupportSampleRate,
-  resolveExportSampleRate,
-} from "./sample-rate"
+import { createAacEncoder, preloadAacModule } from "./aac-wasm-api"
+import { isSupportSampleRate, resolveExportSampleRate } from "./sample-rate"
 import type { AacExportOptions, AacExportResult } from "./types"
 
 function interleave(planar: Int16Array[], channels: number, frameSize: number) {

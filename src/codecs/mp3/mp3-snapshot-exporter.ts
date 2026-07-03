@@ -15,14 +15,8 @@ import {
   preloadMp3Module,
   resolveMp3EncoderOptions,
 } from "./mp3-wasm-api"
-import {
-  isSupportSampleRate,
-  resolveExportSampleRate,
-} from "./sample-rate"
-import type {
-  Mp3ExportOptions,
-  Mp3ExportResult,
-} from "./types"
+import { isSupportSampleRate, resolveExportSampleRate } from "./sample-rate"
+import type { Mp3ExportOptions, Mp3ExportResult } from "./types"
 
 const MPEG_FRAME_SIZE = 1152
 
@@ -98,17 +92,10 @@ export function exportMp3Snapshot(
     encoderOptions.channelMode === "mono"
       ? left
       : (normalized.planar[1] ?? left)
-  const encoder = createMp3Encoder(
-    encoderOptions,
-    desiredChannels
-  )
+  const encoder = createMp3Encoder(encoderOptions, desiredChannels)
   const chunks: Uint8Array[] = []
 
-  for (
-    let offset = 0;
-    offset < left.length;
-    offset += MPEG_FRAME_SIZE
-  ) {
+  for (let offset = 0; offset < left.length; offset += MPEG_FRAME_SIZE) {
     const frameLeft = left.subarray(offset, offset + MPEG_FRAME_SIZE)
     const frameRight = right.subarray(offset, offset + MPEG_FRAME_SIZE)
     const encoded = encoder.encode(frameLeft, frameRight, frameLeft.length)

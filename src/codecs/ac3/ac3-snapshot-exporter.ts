@@ -120,7 +120,8 @@ export const ac3ExportEncoder: ExportEncoderDefinition<
   Ac3ExportResult
 > = {
   type: "ac3",
-  isSupportSampleRate: (sampleRate) => isAc3SupportSampleRate(sampleRate, "ac3"),
+  isSupportSampleRate: (sampleRate) =>
+    isAc3SupportSampleRate(sampleRate, "ac3"),
   preload: preloadAc3Module,
   export: (snapshot, options) =>
     exportAc3Snapshot(snapshot, { ...options, codec: "ac3" }),
@@ -132,7 +133,8 @@ export const eac3ExportEncoder: ExportEncoderDefinition<
   Ac3ExportResult
 > = {
   type: "eac3",
-  isSupportSampleRate: (sampleRate) => isAc3SupportSampleRate(sampleRate, "eac3"),
+  isSupportSampleRate: (sampleRate) =>
+    isAc3SupportSampleRate(sampleRate, "eac3"),
   preload: preloadAc3Module,
   export: (snapshot, options) =>
     exportAc3Snapshot(snapshot, { ...options, codec: "eac3" }),

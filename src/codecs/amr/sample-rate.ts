@@ -14,7 +14,9 @@ export function isSupportSampleRate(
     return sampleRate === AMR_SAMPLE_RATES[options.bandMode]
   }
 
-  return sampleRate === AMR_SAMPLE_RATES.nb || sampleRate === AMR_SAMPLE_RATES.wb
+  return (
+    sampleRate === AMR_SAMPLE_RATES.nb || sampleRate === AMR_SAMPLE_RATES.wb
+  )
 }
 
 export function resolveExportSampleRate(
@@ -46,9 +48,7 @@ export function resolveExportBandMode(
     )
   }
 
-  return sampleRate === 8000
-    ? "nb"
-    : "wb"
+  return sampleRate === 8000 ? "nb" : "wb"
 }
 
 export function resolveExportProfile(

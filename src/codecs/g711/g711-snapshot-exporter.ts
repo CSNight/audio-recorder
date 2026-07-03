@@ -11,10 +11,7 @@ import type { PcmBufferSnapshot } from "../../buffer/types"
 import type { ExportEncoderDefinition } from "../../types"
 import { resample } from "@csnight/audio-recorder"
 import { encodeAlaw, encodeUlaw } from "./g711-encoder"
-import {
-  isSupportSampleRate,
-  resolveExportSampleRate,
-} from "./sample-rate"
+import { isSupportSampleRate, resolveExportSampleRate } from "./sample-rate"
 import type { G711ExportOptions, G711ExportResult } from "./types"
 
 export function exportG711Snapshot(

@@ -1,7 +1,9 @@
 import type { Ac3Codec, Ac3SampleRate } from "./types"
 import { pickNearestSupportedSampleRate } from "@csnight/audio-recorder"
 
-export const AC3_SAMPLE_RATES = [32000, 44100, 48000] as const satisfies readonly Ac3SampleRate[]
+export const AC3_SAMPLE_RATES = [
+  32000, 44100, 48000,
+] as const satisfies readonly Ac3SampleRate[]
 export const EAC3_SAMPLE_RATES = [
   16000, 22050, 24000, 32000, 44100, 48000,
 ] as const satisfies readonly Ac3SampleRate[]

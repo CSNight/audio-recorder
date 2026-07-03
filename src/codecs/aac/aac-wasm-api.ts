@@ -1,7 +1,4 @@
-import type {
-  AacEncoderHandle,
-  AacEncoderOptions,
-} from "./types"
+import type { AacEncoderHandle, AacEncoderOptions } from "./types"
 import { AacError } from "./types"
 import { AAC_SAMPLE_RATES } from "./sample-rate"
 

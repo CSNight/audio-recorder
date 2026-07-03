@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { aacExportEncoder } from "../../src/codecs/aac"
-import {
-  ac3ExportEncoder,
-  eac3ExportEncoder,
-} from "../../src/codecs/ac3"
+import { ac3ExportEncoder, eac3ExportEncoder } from "../../src/codecs/ac3"
 import { amrExportEncoder } from "../../src/codecs/amr"
 import { pcmExportEncoder } from "../../src/codecs/base"
 import { wavExportEncoder } from "../../src/codecs/base"
