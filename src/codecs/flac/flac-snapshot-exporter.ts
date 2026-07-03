@@ -10,7 +10,11 @@
 import type { PcmBufferSnapshot } from "../../buffer/types"
 import type { ExportEncoderDefinition } from "../../types"
 import { createFlacEncoder, preloadFlacModule } from "./flac-wasm-api"
-import type { FlacEncoderOptions, FlacExportOptions, FlacExportResult, } from "./types"
+import type {
+  FlacEncoderOptions,
+  FlacExportOptions,
+  FlacExportResult,
+} from "./types"
 
 /**
  * 交织 planar PCM 数据

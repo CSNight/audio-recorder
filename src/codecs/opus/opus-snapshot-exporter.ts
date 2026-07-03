@@ -16,7 +16,11 @@ import type { ExportEncoderDefinition } from "../../types"
 import { createOpusEncoder, preloadOpusModule } from "./opus-wasm-api"
 import { OggMuxer } from "./muxers/ogg"
 import { WebmMuxer } from "./muxers/webm"
-import type { OpusEncoderOptions, OpusExportOptions, OpusExportResult, } from "./types"
+import type {
+  OpusEncoderOptions,
+  OpusExportOptions,
+  OpusExportResult,
+} from "./types"
 
 /**
  * 交织 planar PCM 数据

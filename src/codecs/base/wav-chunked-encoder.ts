@@ -1,4 +1,7 @@
-import type { StreamEncoder, StreamEncoderDefinition, } from "../../plugins/streaming-export"
+import type {
+  StreamEncoder,
+  StreamEncoderDefinition,
+} from "../../plugins/streaming-export"
 import { createWavHeader } from "./wav-header"
 
 /** WAV StreamEncoder 选项 */

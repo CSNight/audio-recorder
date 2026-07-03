@@ -1,2 +1,3 @@
 components.d.ts
 assets/
+*.mjs
