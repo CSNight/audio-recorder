@@ -48,6 +48,9 @@ export default defineConfig({
         "codecs/amr/index": fileURLToPath(
           new URL("./src/codecs/amr/index.ts", import.meta.url)
         ),
+        "codecs/ac3/index": fileURLToPath(
+          new URL("./src/codecs/ac3/index.ts", import.meta.url)
+        ),
       },
       formats: ["es"],
       fileName: (_format, entryName) => `${entryName}.js`,

@@ -2,7 +2,7 @@
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
-面向浏览器端麦克风和 `MediaStream` 输入的 TypeScript 录音库。适合在现代 Web 应用中构建音频录制、PCM 处理、流式导出、插件扩展、持久化存储，以及 WAV、MP3、Opus、FLAC、AAC、AMR、G.711 等格式输出能力。
+面向浏览器端麦克风和 `MediaStream` 输入的 TypeScript 录音库。适合在现代 Web 应用中构建音频录制、PCM 处理、流式导出、插件扩展、持久化存储，以及 WAV、MP3、Opus、FLAC、AAC、AMR、AC3/E-AC3、G.711 等格式输出能力。
 
 ## 目录
 
@@ -84,7 +84,7 @@ console.log(summary.durationMs, wav.arrayBuffer.byteLength)
 - 设备枚举：`listMicrophoneDevices()`
 - 能力检测：`checkRecorderCapability()`
 - 录音事件：`statechange`、`frame:async`、`issue`
-- 快照导出：`pcm`、`wav`、`mp3`、`flac`、`ogg`、`webm`、`g711`、`aac`、`amr`
+- 快照导出：`pcm`、`wav`、`mp3`、`flac`、`ogg`、`webm`、`g711`、`aac`、`amr`、`ac3`、`eac3`
 - 持久化后端：`storage/opfs`、`storage/indexeddb`
 - 内置插件：`level-meter`、`streaming-export`、`asr-export`
 
@@ -270,6 +270,7 @@ import {
 | `g711`         | `G711ExportResult` |
 | `aac`          | `AacExportResult`  |
 | `amr`          | `AmrExportResult`  |
+| `ac3` / `eac3` | `Ac3ExportResult`  |
 
 #### `open(options?)`
 
@@ -358,6 +359,7 @@ import {
 | `@csnight/audio-recorder/codecs/opus`              | Opus 编码器                          |
 | `@csnight/audio-recorder/codecs/aac`               | AAC 编码器                           |
 | `@csnight/audio-recorder/codecs/amr`               | AMR 编码器                           |
+| `@csnight/audio-recorder/codecs/ac3`               | AC3 / E-AC3 编码器                   |
 | `@csnight/audio-recorder/codecs/g711`              | G.711 编码器                         |
 | `@csnight/audio-recorder/plugins/level-meter`      | `createLevelMeterPlugin()`           |
 | `@csnight/audio-recorder/plugins/streaming-export` | `createStreamingExportPlugin()`      |
@@ -890,6 +892,13 @@ createRecorder({
 - 支持 `nb` 和 `wb`
 - 面向电话语音和 speech pipeline
 
+### `codecs/ac3`
+
+基于 WASM 编码器的 AC3 / E-AC3 导出。
+
+- 同一子路径同时暴露 `ac3` 和 `eac3` 两种快照编码器
+- 适合 Dolby Digital 兼容分发或转码流程
+
 ### `codecs/g711`
 
 纯 TypeScript 实现的 G.711 导出。
@@ -927,7 +936,7 @@ npm run build:wasm
 ```bash
 npm run build:wasm:select -- --codec=mp3
 npm run build:wasm:select -- --codec=flac,opus
-npm run build:wasm:select -- --codec=aac,amr
+npm run build:wasm:select -- --codec=aac,amr,ac3
 ```
 
 可选项由构建脚本驱动，当前对应 `scripts/wasm/` 下的各编码器构建入口。
@@ -947,6 +956,7 @@ npm run build:wasm:select -- --codec=aac,amr
 | ------------------------------- | ------------------------------ |
 | `scripts/wasm/build-docker.mjs` | 基于 Docker 的 WASM 主构建入口 |
 | `scripts/wasm/build.mjs`        | 通用 WASM 构建编排             |
+| `scripts/wasm/build-ac3.mjs`    | AC3 / E-AC3 构建               |
 | `scripts/wasm/build-aac.mjs`    | AAC 构建                       |
 | `scripts/wasm/build-amr.mjs`    | AMR 构建                       |
 | `scripts/wasm/build-flac.mjs`   | FLAC 构建                      |
@@ -986,6 +996,8 @@ npm run build:wasm:select -- --codec=aac,amr
 | Opus  |     57 |      52 |     11 | WASM 编码器         |
 | AAC   |     57 |      52 |     11 | WASM 编码器         |
 | AMR   |     57 |      52 |     11 | WASM 编码器         |
+| AC3   |     57 |      52 |     11 | WASM 编码器         |
+| E-AC3 |     57 |      52 |     11 | WASM 编码器         |
 
 ### 存储
 

@@ -88,6 +88,12 @@ async function main() {
     await buildMp3()
   }
 
+  if (codecs.includes("ac3")) {
+    console.log("\n=== Building AC3 WASM ===\n")
+    const { buildAc3 } = await import("./build-ac3.mjs")
+    await buildAc3()
+  }
+
   console.log("\nBuild complete")
 }
 

@@ -15,6 +15,7 @@ import type { OpusExportOptions, OpusExportResult } from "./codecs/opus"
 import type { G711ExportOptions, G711ExportResult } from "./codecs/g711"
 import type { AacExportOptions, AacExportResult } from "./codecs/aac"
 import type { AmrExportOptions, AmrExportResult } from "./codecs/amr"
+import type { Ac3ExportOptions, Ac3ExportResult } from "./codecs/ac3"
 
 export interface EncodedAudioChunk {
   format: string
@@ -236,4 +237,6 @@ export interface EncoderMap {
   g711: { options: G711ExportOptions; result: G711ExportResult }
   aac: { options: AacExportOptions; result: AacExportResult }
   amr: { options: AmrExportOptions; result: AmrExportResult }
+  ac3: { options: Ac3ExportOptions; result: Ac3ExportResult }
+  eac3: { options: Ac3ExportOptions; result: Ac3ExportResult }
 }

@@ -85,6 +85,12 @@ export default defineConfig({
           new URL("../dist/codecs/amr/index.js", import.meta.url)
         ),
       },
+      {
+        find: "@csnight/audio-recorder/codecs/ac3",
+        replacement: fileURLToPath(
+          new URL("../dist/codecs/ac3/index.js", import.meta.url)
+        ),
+      },
 
       {
         find: "@csnight/audio-recorder",

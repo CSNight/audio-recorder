@@ -4,7 +4,7 @@
   "version": "1.0.4",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
-  "description": "TypeScript browser audio recorder for microphone and MediaStream input with PCM pipelines, plugins, streaming export, persistence, and WAV/MP3/Opus/FLAC/AAC/AMR output.",
+  "description": "TypeScript browser audio recorder for microphone and MediaStream input with PCM pipelines, plugins, streaming export, persistence, and WAV/MP3/Opus/FLAC/AAC/AMR/AC3 output.",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
@@ -37,6 +37,7 @@
     "flac",
     "aac",
     "amr",
+    "ac3",
     "typescript",
     "wasm"
   ],
@@ -117,6 +118,10 @@
     "./codecs/amr": {
       "types": "./dist/codecs/amr/index.d.ts",
       "import": "./dist/codecs/amr/index.js"
+    },
+    "./codecs/ac3": {
+      "types": "./dist/codecs/ac3/index.d.ts",
+      "import": "./dist/codecs/ac3/index.js"
     }
   },
   "devDependencies": {

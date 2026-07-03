@@ -8,7 +8,7 @@ import { pipeline } from "stream/promises"
 import { spawn } from "child_process"
 import { dirname } from "path"
 
-export const supportedWasmCodecs = ["opus", "flac", "aac", "amr", "mp3"]
+export const supportedWasmCodecs = ["opus", "flac", "aac", "amr", "mp3", "ac3"]
 
 /**
  * Download a file from URL with SHA-256 verification

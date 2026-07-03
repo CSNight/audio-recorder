@@ -33,6 +33,7 @@ const artifactPaths = {
   aac: ["src/codecs/aac/libaac.wasm.mjs"],
   amr: ["src/codecs/amr/libamrnb.wasm.mjs", "src/codecs/amr/libamrwb.wasm.mjs"],
   mp3: ["src/codecs/mp3/libmp3.wasm.mjs"],
+  ac3: ["src/codecs/ac3/libac3.wasm.mjs"],
 }
 
 const { values } = parseArgs({
@@ -130,11 +131,13 @@ function runAndCapture(command, args, options = {}) {
 }
 
 async function ensureHostDirs() {
+  await mkdir(resolve(projectRoot, ".cache"), { recursive: true })
   await mkdir(resolve(projectRoot, "src/codecs/opus"), { recursive: true })
   await mkdir(resolve(projectRoot, "src/codecs/flac"), { recursive: true })
   await mkdir(resolve(projectRoot, "src/codecs/aac"), { recursive: true })
   await mkdir(resolve(projectRoot, "src/codecs/amr"), { recursive: true })
   await mkdir(resolve(projectRoot, "src/codecs/mp3"), { recursive: true })
+  await mkdir(resolve(projectRoot, "src/codecs/ac3"), { recursive: true })
 }
 
 async function ensureDockerImage() {

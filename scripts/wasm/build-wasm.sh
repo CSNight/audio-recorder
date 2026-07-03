@@ -15,11 +15,11 @@ if [ "$#" -gt 0 ]; then
 fi
 
 case "$CODEC" in
-  opus|flac|aac|amr|all|*,*)
+  opus|flac|aac|amr|mp3|ac3|all|*,*)
     ;;
   *)
     echo "Unknown codec: $CODEC"
-    echo "Usage: ./scripts/wasm/build-wasm.sh [opus|flac|aac|amr|all|comma-separated list]"
+    echo "Usage: ./scripts/wasm/build-wasm.sh [opus|flac|aac|amr|mp3|ac3|all|comma-separated list]"
     exit 1
     ;;
 esac

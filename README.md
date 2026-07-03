@@ -2,7 +2,7 @@
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
-TypeScript browser audio recorder library for microphone and `MediaStream` input. Build modern web audio recording flows with PCM frame processing, streaming export, plugins, persistence, and codec output including WAV, MP3, Opus, FLAC, AAC, AMR, and G.711.
+TypeScript browser audio recorder library for microphone and `MediaStream` input. Build modern web audio recording flows with PCM frame processing, streaming export, plugins, persistence, and codec output including WAV, MP3, Opus, FLAC, AAC, AMR, AC3/E-AC3, and G.711.
 
 ## Contents
 
@@ -85,7 +85,7 @@ console.log(summary.durationMs, wav.arrayBuffer.byteLength)
 - device enumeration: `listMicrophoneDevices()`
 - capability detection: `checkRecorderCapability()`
 - recording events: `statechange`, `frame:async`, `issue`
-- snapshot export: `pcm`, `wav`, `mp3`, `flac`, `ogg`, `webm`, `g711`, `aac`, `amr`
+- snapshot export: `pcm`, `wav`, `mp3`, `flac`, `ogg`, `webm`, `g711`, `aac`, `amr`, `ac3`, `eac3`
 - persistence backends: `storage/opfs`, `storage/indexeddb`
 - bundled plugins: `level-meter`, `streaming-export`, `asr-export`
 
@@ -271,6 +271,7 @@ Common built-in result types:
 | `g711`         | `G711ExportResult` |
 | `aac`          | `AacExportResult`  |
 | `amr`          | `AmrExportResult`  |
+| `ac3` / `eac3` | `Ac3ExportResult`  |
 
 #### `open(options?)`
 
@@ -359,6 +360,7 @@ Returns:
 | `@csnight/audio-recorder/codecs/opus`              | Opus encoder                         |
 | `@csnight/audio-recorder/codecs/aac`               | AAC encoder                          |
 | `@csnight/audio-recorder/codecs/amr`               | AMR encoder                          |
+| `@csnight/audio-recorder/codecs/ac3`               | AC3 / E-AC3 encoders                |
 | `@csnight/audio-recorder/codecs/g711`              | G.711 encoder                        |
 | `@csnight/audio-recorder/plugins/level-meter`      | `createLevelMeterPlugin()`           |
 | `@csnight/audio-recorder/plugins/streaming-export` | `createStreamingExportPlugin()`      |
@@ -892,6 +894,13 @@ AMR export based on a WASM encoder.
 - supports `nb` and `wb`
 - intended for telephony and speech-oriented pipelines
 
+### `codecs/ac3`
+
+AC3 / E-AC3 export based on a WASM encoder.
+
+- exposes both `ac3` and `eac3` snapshot encoders from one subpath
+- intended for Dolby Digital compatible delivery and transcoding workflows
+
 ### `codecs/g711`
 
 G.711 export implemented in pure TypeScript.
@@ -929,7 +938,7 @@ This runs the Docker-based WASM build pipeline for all supported WASM codecs.
 ```bash
 npm run build:wasm:select -- --codec=mp3
 npm run build:wasm:select -- --codec=flac,opus
-npm run build:wasm:select -- --codec=aac,amr
+npm run build:wasm:select -- --codec=aac,amr,ac3
 ```
 
 Available selections are driven by the build script and currently map to the dedicated codec builders under `scripts/wasm/`.
@@ -949,6 +958,7 @@ Available selections are driven by the build script and currently map to the ded
 | ------------------------------- | ---------------------------------- |
 | `scripts/wasm/build-docker.mjs` | Main Docker-based WASM build entry |
 | `scripts/wasm/build.mjs`        | Shared WASM build orchestration    |
+| `scripts/wasm/build-ac3.mjs`    | AC3 / E-AC3 build                  |
 | `scripts/wasm/build-aac.mjs`    | AAC build                          |
 | `scripts/wasm/build-amr.mjs`    | AMR build                          |
 | `scripts/wasm/build-flac.mjs`   | FLAC build                         |
@@ -988,6 +998,8 @@ Based on direct API usage in `src/` and `vite.config.ts` target `es2022`.
 | Opus  |     57 |      52 |     11 | WASM encoder                |
 | AAC   |     57 |      52 |     11 | WASM encoder                |
 | AMR   |     57 |      52 |     11 | WASM encoder                |
+| AC3   |     57 |      52 |     11 | WASM encoder                |
+| E-AC3 |     57 |      52 |     11 | WASM encoder                |
 
 ### Storage
 

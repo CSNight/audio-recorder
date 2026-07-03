@@ -1,6 +1,6 @@
 /**
  * 库的主入口：导出公共 API（createRecorder / RecorderController / 类型定义等）。
- * 各编码格式（mp3 / aac / amr / flac / g711 / opus）作为独立子入口，
+ * 各编码格式（mp3 / aac / amr / ac3 / flac / g711 / opus）作为独立子入口，
  * 按需从 "@csnight/audio-recorder/codecs/xxx" 单独导入，避免主包体积膨胀。
  */
 import {

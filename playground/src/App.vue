@@ -28,6 +28,10 @@ import {
 import { flacExportEncoder } from "@csnight/audio-recorder/codecs/flac"
 import { aacExportEncoder } from "@csnight/audio-recorder/codecs/aac"
 import { amrExportEncoder } from "@csnight/audio-recorder/codecs/amr"
+import {
+  ac3ExportEncoder,
+  eac3ExportEncoder,
+} from "@csnight/audio-recorder/codecs/ac3"
 
 const PLAYGROUND_SOURCE_MODE = {
   microphone: RecorderInputSource.Microphone,
@@ -58,6 +62,7 @@ const state = reactive({
   persistenceBackend: PLAYGROUND_PERSISTENCE_BACKEND.indexeddb,
   requestedChannelCount: 1,
   amrBandMode: "nb",
+  ac3SampleRate: 48000,
   inputStrategy: "auto",
   memoryThresholdBytes: 256 * 1024,
   pendingActionLabel: "",
@@ -288,6 +293,14 @@ const exportStats = computed(() => {
     {
       label: "AAC",
       value: formatBytes(state.lastExportResult.aac.data.byteLength),
+    },
+    {
+      label: "AC3",
+      value: formatBytes(state.lastExportResult.ac3.data.byteLength),
+    },
+    {
+      label: "E-AC3",
+      value: formatBytes(state.lastExportResult.eac3.data.byteLength),
     },
   ]
 })
@@ -557,6 +570,8 @@ async function stopRecorder() {
         flacResult,
         aacResult,
         amrResult,
+        ac3Result,
+        eac3Result,
       ] = await Promise.all([
         recorder.exportEncoded("pcm"),
         recorder.exportEncoded("wav"),
@@ -567,6 +582,8 @@ async function stopRecorder() {
         recorder.exportEncoded("flac"),
         recorder.exportEncoded("aac"),
         recorder.exportEncoded("amr", { bandMode: state.amrBandMode }),
+        recorder.exportEncoded("ac3", { sampleRate: state.ac3SampleRate }),
+        recorder.exportEncoded("eac3", { sampleRate: state.ac3SampleRate }),
       ])
       state.exportedBytes = pcmResult.data.byteLength
       state.lastExportResult = {
@@ -579,6 +596,8 @@ async function stopRecorder() {
         flac: flacResult,
         aac: aacResult,
         amr: amrResult,
+        ac3: ac3Result,
+        eac3: eac3Result,
       }
       state.storageDiagnostics = await collectStorageDiagnostics()
       state.activePersistenceBackend =
@@ -667,6 +686,24 @@ function downloadAMR() {
   triggerDownload(
     new Blob([result.data.buffer], { type: result.mimeType }),
     `recording_${result.sampleRate}hz_${result.bandMode}.${extension}`
+  )
+}
+
+function downloadAC3() {
+  const result = state.lastExportResult?.ac3
+  if (!result) return
+  triggerDownload(
+    new Blob([result.data.buffer], { type: result.mimeType }),
+    `recording_${result.sampleRate}hz_${result.channels}ch_${result.bitrate}bps.${result.codec}`
+  )
+}
+
+function downloadEAC3() {
+  const result = state.lastExportResult?.eac3
+  if (!result) return
+  triggerDownload(
+    new Blob([result.data.buffer], { type: result.mimeType }),
+    `recording_${result.sampleRate}hz_${result.channels}ch_${result.bitrate}bps.${result.codec}`
   )
 }
 
@@ -784,6 +821,8 @@ function createPlaygroundRecorder() {
       g711ExportEncoder,
       aacExportEncoder,
       amrExportEncoder,
+      ac3ExportEncoder,
+      eac3ExportEncoder,
       oggExportEncoder,
       webmExportEncoder,
       flacExportEncoder,
@@ -1351,6 +1390,14 @@ onBeforeUnmount(() => {
                 <option value="wb">WB</option>
               </select>
             </label>
+            <label class="field field-inline-compact">
+              <span>AC3 采样率</span>
+              <select v-model.number="state.ac3SampleRate">
+                <option :value="32000">32000</option>
+                <option :value="44100">44100</option>
+                <option :value="48000">48000</option>
+              </select>
+            </label>
           </div>
 
           <p class="panel-note">
@@ -1375,6 +1422,12 @@ onBeforeUnmount(() => {
             </button>
             <button :disabled="!state.lastExportResult" @click="downloadAMR">
               AMR
+            </button>
+            <button :disabled="!state.lastExportResult" @click="downloadAC3">
+              AC3
+            </button>
+            <button :disabled="!state.lastExportResult" @click="downloadEAC3">
+              E-AC3
             </button>
             <button
               :disabled="!state.lastExportResult"
