@@ -1,10 +1,7 @@
-import type { RecorderPlugin } from "@/plugins/types"
-import type {
-  StreamingExportPluginOptions,
-  StreamingPacketPayload,
-} from "@/plugins/streaming-export/types"
-import { ChunkedEncoderBridge } from "@/workers/chunked-encoder-bridge"
-import type { AudioFrame } from "@/types"
+import type { RecorderPlugin } from "../types"
+import type { StreamingExportPluginOptions, StreamingPacketPayload, } from "./types"
+import { ChunkedEncoderBridge } from "../../workers/chunked-encoder-bridge"
+import type { AudioFrame } from "../../types"
 
 /**
  * createStreamingExportPlugin：实时分片编码插件。

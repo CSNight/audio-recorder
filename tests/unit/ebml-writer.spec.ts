@@ -7,7 +7,7 @@ import {
   writeInt,
   writeUint,
   writeVint,
-} from "@/codecs/opus/muxers/webm/ebml-writer"
+} from "../../src/codecs/opus/muxers/webm/ebml-writer"
 
 // ---- writeVint ---------------------------------------------------------------
 

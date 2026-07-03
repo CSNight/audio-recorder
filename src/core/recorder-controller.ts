@@ -1,10 +1,7 @@
-import { createPcmBufferStore } from "@/buffer/pcm-buffer-store"
-import type { RecorderInputAdapter, RecorderInputSession } from "@/input/types"
-import { checkRecorderCapability } from "@/input/capability-check"
-import type {
-  RecorderPlugin,
-  RecorderPluginEventContext,
-} from "@/plugins/types"
+import { createPcmBufferStore } from "../buffer/pcm-buffer-store"
+import type { RecorderInputAdapter, RecorderInputSession } from "../input/types"
+import { checkRecorderCapability } from "../input/capability-check"
+import type { RecorderPlugin, RecorderPluginEventContext, } from "../plugins/types"
 import type {
   AudioFrame,
   EncoderMap,
@@ -17,17 +14,13 @@ import type {
   RecorderRuntimeInfo,
   RecorderSessionSummary,
   RecorderStateChangeEvent,
-} from "@/types"
-import {
-  RecorderInputSource,
-  RecorderState,
-  RecorderWarningCode,
-} from "@/types"
-import { PcmFramePipeline } from "@/pipeline/pcm-frame-pipeline"
-import type { RecorderFramePipeline } from "@/pipeline/types"
-import { PluginHost } from "@/plugins/plugin-host"
-import type { RecorderStorageOptions } from "@/storage/types"
-import { EventBus } from "@/core/event-bus"
+} from "../types"
+import { RecorderInputSource, RecorderState, RecorderWarningCode, } from "../types"
+import { PcmFramePipeline } from "../pipeline/pcm-frame-pipeline"
+import type { RecorderFramePipeline } from "../pipeline/types"
+import { PluginHost } from "../plugins/plugin-host"
+import type { RecorderStorageOptions } from "../storage"
+import { EventBus } from "./event-bus"
 
 /**
  * 录音控制器核心类，管理录音会话的完整生命周期。

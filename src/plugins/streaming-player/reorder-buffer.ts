@@ -1,4 +1,4 @@
-import type { StreamingPacketPayload } from "@/plugins/streaming-export/types"
+import type { StreamingPacketPayload } from "../streaming-export"
 
 /**
  * 按 seq 排序的乱序重排缓冲。

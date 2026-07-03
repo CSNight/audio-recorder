@@ -3,4 +3,4 @@ export type {
   RecorderPersistenceSession,
   RecorderPersistenceSessionOptions,
   RecorderStorageOptions,
-} from "@/storage/types"
+} from "./types"

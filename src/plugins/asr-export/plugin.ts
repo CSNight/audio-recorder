@@ -1,12 +1,12 @@
-import type { PcmBufferSnapshot } from "@/buffer/types"
-import type { ExportEncoderDefinition } from "@/types"
-import type { RecorderPlugin } from "@/plugins/types"
+import type { PcmBufferSnapshot } from "../../buffer/types"
+import type { ExportEncoderDefinition } from "../../types"
+import type { RecorderPlugin } from "../types"
 import { resample } from "@csnight/audio-recorder"
 import type {
   AsrChunkPayload,
   AsrExportFormat,
   AsrExportPluginOptions,
-} from "@/plugins/asr-export/types"
+} from "./types"
 
 const DEFAULT_SAMPLE_RATE = 16000
 const DEFAULT_CHUNK_DURATION_MS = 40

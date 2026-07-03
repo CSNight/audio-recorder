@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest"
-import type { PcmBufferSnapshot } from "@/buffer/types"
-import {
-  deserializePcmSnapshot,
-  serializePcmSnapshot,
-} from "@/utils/snapshot-codec"
+import type { PcmBufferSnapshot } from "../../src/buffer/types"
+import { deserializePcmSnapshot, serializePcmSnapshot } from "../../src"
 
 describe("snapshot codec", () => {
   it("serializes and deserializes stereo PCM snapshots", () => {

@@ -1,11 +1,11 @@
-import type { InputBackend, InputFrameSink } from "@/input/backends/types"
+import type { InputBackend, InputFrameSink } from "./backends/types"
 import type {
   InputSessionSummary,
   RecorderInputHandlers,
   RecorderInputSession,
-} from "@/input/types"
-import { type RecorderInputStrategy, RecorderWarningCode } from "@/types"
-import { createAudioFrame, resolveChannelCount } from "@/utils/audio-frame"
+} from "./types"
+import { type RecorderInputStrategy, RecorderWarningCode } from "../types"
+import { createAudioFrame, resolveChannelCount } from "../utils/audio-frame"
 
 const enum InputSessionState {
   Ready = "ready",

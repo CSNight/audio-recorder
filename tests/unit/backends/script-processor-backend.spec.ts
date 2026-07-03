@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { createScriptProcessorBackend } from "@/input/backends/script-processor-backend"
-import type { InputBackendContext } from "@/input/backends/types"
+import { createScriptProcessorBackend } from "../../../src/input/backends/script-processor-backend"
+import type { InputBackendContext } from "../../../src/input/backends/types"
 
 type AudioProcessHandler = ((event: Event) => void) | null
 

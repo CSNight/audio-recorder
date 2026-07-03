@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
-import type { PcmBufferSnapshot } from "@/buffer/types"
-import { wavDecoderDefinition } from "@/codecs/base"
-import { exportWavSnapshot } from "@/codecs/base/wav-exporter"
+import type { PcmBufferSnapshot } from "../../src/buffer/types"
+import { wavDecoderDefinition } from "../../src/codecs/base"
+import { exportWavSnapshot } from "../../src/codecs/base/wav-exporter"
 
 describe("wavDecoderDefinition", () => {
   it("decodes mono 16-bit WAV payload into planar float32 data", async () => {

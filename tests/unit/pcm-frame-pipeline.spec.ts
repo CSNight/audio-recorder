@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
-import { PcmFramePipeline } from "@/pipeline/pcm-frame-pipeline"
-import { createAudioFrame } from "@/utils/audio-frame"
-import type { PcmBufferStore } from "@/buffer/types"
+import { PcmFramePipeline } from "../../src/pipeline/pcm-frame-pipeline"
+import { createAudioFrame } from "../../src/utils/audio-frame"
+import type { PcmBufferStore } from "../../src/buffer/types"
 
 function makeFrame(samples: number[] = [0.5, -0.5], sampleRate = 16000) {
   return createAudioFrame([new Float32Array(samples)], sampleRate, 10)

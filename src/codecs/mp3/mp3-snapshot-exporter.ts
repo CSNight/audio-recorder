@@ -7,8 +7,8 @@
  * 与实时流式导出路径不同，此路径不经过 Worker，snapshot 已驻留
  * 在调用线程内存中，直接同步编码即可。
  */
-import type { PcmBufferSnapshot } from "@/buffer/types"
-import type { ExportEncoderDefinition } from "@/types"
+import type { PcmBufferSnapshot } from "../../buffer/types"
+import type { ExportEncoderDefinition } from "../../types"
 import { resample } from "@csnight/audio-recorder"
 import {
   createMp3Encoder,

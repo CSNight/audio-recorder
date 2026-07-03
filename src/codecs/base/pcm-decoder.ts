@@ -2,7 +2,7 @@ import type {
   AudioDecoderDefinition,
   DecodedAudioChunk,
   EncodedAudioChunk,
-} from "@/types"
+} from "../../types"
 
 export const pcmDecoderDefinition: AudioDecoderDefinition = {
   format: "pcm",

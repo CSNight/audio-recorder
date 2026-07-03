@@ -44,10 +44,7 @@
     "access": "public"
   },
   "scripts": {
-    "dev": "vite",
-    "dev:playground": "npm run build && vite --open /playground/",
-    "build": "vite build && tsc -p tsconfig.build.json && npm run fix:dts",
-    "preview": "vite preview",
+    "build": "vite build && tsc -p tsconfig.build.json",
     "prepare": "husky",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build:wasm": "node ./scripts/wasm/build-docker.mjs --codec=all",
@@ -59,7 +56,6 @@
     "test:functional:headed": "playwright test --headed",
     "lint": "eslint . --fix",
     "format": "prettier --write .",
-    "fix:dts": "node ./scripts/fix-dts-imports.mjs",
     "commitlint": "commitlint --edit",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build && npm run verify:exports",
     "verify:exports": "node ./scripts/verify-exports.mjs",

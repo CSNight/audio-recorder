@@ -1,1 +1,1 @@
-export { createIndexedDbPersistencePlugin } from "@/storage/indexeddb/plugin"
+export { createIndexedDbPersistencePlugin } from "./plugin"

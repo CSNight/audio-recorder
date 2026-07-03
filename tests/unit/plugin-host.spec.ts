@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest"
-import { PluginHost } from "@/plugins/plugin-host"
-import type { RecorderPlugin } from "@/plugins/types"
-import { RecorderInputSource } from "@/types"
-import { createAudioFrame } from "@/utils/audio-frame"
+import { PluginHost } from "../../src/plugins/plugin-host"
+import type { RecorderPlugin } from "../../src/plugins/types"
+import { RecorderInputSource } from "../../src"
+import { createAudioFrame } from "../../src/utils/audio-frame"
 
 function createHost() {
   const emitIssue = vi.fn()

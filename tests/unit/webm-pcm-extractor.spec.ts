@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { createWebMExtractScope, webmExtract } from "@/input/webm-pcm-extractor"
+import {
+  createWebMExtractScope,
+  webmExtract,
+} from "../../src/input/webm-pcm-extractor"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WebM binary builder helpers

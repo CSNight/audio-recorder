@@ -1,4 +1,4 @@
-import type { PcmBufferSnapshot } from "@/buffer/types"
+import type { PcmBufferSnapshot } from "../buffer/types"
 
 export interface ResampledPcm {
   sampleRate: number

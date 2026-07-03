@@ -1,20 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { selectInputBackend } from "@/input/backends/select"
-import type { InputBackendContext } from "@/input/backends/types"
-import { InputBackendUnavailableError } from "@/input/backends/types"
-import { RecorderWarningCode } from "@/types"
+import { selectInputBackend } from "../../../src/input/backends/select"
+import type { InputBackendContext } from "../../../src/input/backends/types"
+import { InputBackendUnavailableError } from "../../../src/input/backends/types"
+import { RecorderWarningCode } from "../../../src"
 
 const mrFactory = vi.hoisted(() => vi.fn())
 const workletFactory = vi.hoisted(() => vi.fn())
 const spFactory = vi.hoisted(() => vi.fn())
 
-vi.mock("@/input/backends/media-recorder-backend", () => ({
+vi.mock("../../../src/input/backends/media-recorder-backend", () => ({
   createMediaRecorderBackend: mrFactory,
 }))
-vi.mock("@/input/backends/audio-worklet-backend", () => ({
+vi.mock("../../../src/input/backends/audio-worklet-backend", () => ({
   createAudioWorkletBackend: workletFactory,
 }))
-vi.mock("@/input/backends/script-processor-backend", () => ({
+vi.mock("../../../src/input/backends/script-processor-backend", () => ({
   createScriptProcessorBackend: spFactory,
 }))
 

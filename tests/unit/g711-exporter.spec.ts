@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest"
-import type { PcmBufferSnapshot } from "@/buffer/types"
+import type { PcmBufferSnapshot } from "../../src/buffer/types"
 import {
   exportG711Snapshot,
   g711ExportEncoder,
-} from "@/codecs/g711/g711-snapshot-exporter"
+} from "../../src/codecs/g711/g711-snapshot-exporter"
 
 function makeSnapshot(
   samples: number[],

@@ -1,10 +1,10 @@
-import type { RecorderController } from "@/core/recorder-controller"
+import type { RecorderController } from "../core/recorder-controller"
 import type {
   AudioFrame,
   RecorderEventContext,
   RecorderRuntimeInfo,
   RecorderSessionSummary,
-} from "@/types"
+} from "../types"
 
 export interface RecorderPluginEventContext<
   TPayload extends object = object,

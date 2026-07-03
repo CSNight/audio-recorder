@@ -55,7 +55,10 @@ yarn add @csnight/audio-recorder
 
 ```ts
 import { createRecorder } from "@csnight/audio-recorder"
-import { pcmExportEncoder, wavExportEncoder } from "@csnight/audio-recorder/codecs/base"
+import {
+  pcmExportEncoder,
+  wavExportEncoder,
+} from "@csnight/audio-recorder/codecs/base"
 import { createLevelMeterPlugin } from "@csnight/audio-recorder/plugins/level-meter"
 
 const recorder = createRecorder({
@@ -100,38 +103,38 @@ import {
 
 导出项：
 
-| Export | Description |
-|---|---|
-| `createRecorder(options?)` | 创建录音控制器 |
-| `listMicrophoneDevices()` | 枚举麦克风设备 |
-| `checkRecorderCapability()` | 返回浏览器能力报告 |
-| `RecorderController` | 录音控制器类 |
-| `resample()` | PCM 重采样工具 |
-| `serializePcmSnapshot()` / `deserializePcmSnapshot()` | PCM 快照编解码 |
-| `RecorderState` | 录音状态枚举 |
-| `RecorderWarningCode` | 告警码枚举 |
-| `RecorderInputSource` | 输入来源枚举 |
+| Export                                                | Description |
+|-------------------------------------------------------|-------------|
+| `createRecorder(options?)`                            | 创建录音控制器     |
+| `listMicrophoneDevices()`                             | 枚举麦克风设备     |
+| `checkRecorderCapability()`                           | 返回浏览器能力报告   |
+| `RecorderController`                                  | 录音控制器类      |
+| `resample()`                                          | PCM 重采样工具   |
+| `serializePcmSnapshot()` / `deserializePcmSnapshot()` | PCM 快照编解码   |
+| `RecorderState`                                       | 录音状态枚举      |
+| `RecorderWarningCode`                                 | 告警码枚举       |
+| `RecorderInputSource`                                 | 输入来源枚举      |
 
 ### `createRecorder(options?)`
 
-| Option | Type | Default | Notes |
-|---|---|---|---|
-| `sampleRate` | `number` | `-` | 期望输入采样率 |
-| `channelCount` | `number` | `-` | 期望声道数 |
-| `echoCancellation` | `boolean` | `true` | 输入约束 |
-| `noiseSuppression` | `boolean` | `true` | 输入约束 |
-| `autoGainControl` | `boolean` | `true` | 输入约束 |
-| `deviceId` | `string` | `-` | 目标麦克风设备 |
-| `disableFrameLossCompensation` | `boolean` | `false` | 跳过静音补帧 |
-| `inputStrategy` | `"auto" \| "media-recorder" \| "audio-worklet" \| "script-processor"` | `"auto"` | 输入后端选择 |
-| `storage` | `RecorderStorageOptions` | `-` | 缓冲持久化策略 |
-| `encoders` | `ExportEncoderDefinition[]` | `[]` | 快照编码器 |
+| Option                         | Type                                                                  | Default  | Notes   |
+|--------------------------------|-----------------------------------------------------------------------|----------|---------|
+| `sampleRate`                   | `number`                                                              | `-`      | 期望输入采样率 |
+| `channelCount`                 | `number`                                                              | `-`      | 期望声道数   |
+| `echoCancellation`             | `boolean`                                                             | `true`   | 输入约束    |
+| `noiseSuppression`             | `boolean`                                                             | `true`   | 输入约束    |
+| `autoGainControl`              | `boolean`                                                             | `true`   | 输入约束    |
+| `deviceId`                     | `string`                                                              | `-`      | 目标麦克风设备 |
+| `disableFrameLossCompensation` | `boolean`                                                             | `false`  | 跳过静音补帧  |
+| `inputStrategy`                | `"auto" \| "media-recorder" \| "audio-worklet" \| "script-processor"` | `"auto"` | 输入后端选择  |
+| `storage`                      | `RecorderStorageOptions`                                              | `-`      | 缓冲持久化策略 |
+| `encoders`                     | `ExportEncoderDefinition[]`                                           | `[]`     | 快照编码器   |
 
 返回值：
 
-| Type | Description |
-|---|---|
-| `RecorderController` | 录音控制器实例 |
+| Type                 | Description |
+|----------------------|-------------|
+| `RecorderController` | 录音控制器实例     |
 
 ### `storage`
 
@@ -139,12 +142,12 @@ import {
 
 `RecorderStorageOptions`：
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `mode` | `"memory" \| "persistent" \| "auto"` | `-` | 缓冲模式 |
-| `memoryThresholdBytes` | `number` | `-` | `auto` 模式切换阈值 |
-| `persistenceChunkBytes` | `number` | `-` | 持久化写入目标块大小 |
-| `persistencePlugin` | `RecorderPersistencePlugin` | `-` | 持久化后端 |
+| Field                   | Type                                 | Default | Description   |
+|-------------------------|--------------------------------------|---------|---------------|
+| `mode`                  | `"memory" \| "persistent" \| "auto"` | `-`     | 缓冲模式          |
+| `memoryThresholdBytes`  | `number`                             | `-`     | `auto` 模式切换阈值 |
+| `persistenceChunkBytes` | `number`                             | `-`     | 持久化写入目标块大小    |
+| `persistencePlugin`     | `RecorderPersistencePlugin`          | `-`     | 持久化后端         |
 
 ### `RecorderController`
 
@@ -154,16 +157,16 @@ import {
 
 参数：
 
-| Name | Type | Description |
-|---|---|---|
-| `event` | `keyof RecorderEventMap` | 事件名 |
-| `listener` | `(payload) => void` | 事件监听器 |
+| Name       | Type                     | Description |
+|------------|--------------------------|-------------|
+| `event`    | `keyof RecorderEventMap` | 事件名         |
+| `listener` | `(payload) => void`      | 事件监听器       |
 
 返回值：
 
-| Type | Description |
-|---|---|
-| `() => void` | 取消订阅函数 |
+| Type         | Description |
+|--------------|-------------|
+| `() => void` | 取消订阅函数      |
 
 #### `off(event, listener)`
 
@@ -171,40 +174,40 @@ import {
 
 参数：
 
-| Name | Type | Description |
-|---|---|---|
-| `event` | `keyof RecorderEventMap` | 事件名 |
-| `listener` | `(payload) => void` | 要移除的监听器 |
+| Name       | Type                     | Description |
+|------------|--------------------------|-------------|
+| `event`    | `keyof RecorderEventMap` | 事件名         |
+| `listener` | `(payload) => void`      | 要移除的监听器     |
 
 返回值：
 
-| Type | Description |
-|---|---|
-| `void` | 无返回值 |
+| Type   | Description |
+|--------|-------------|
+| `void` | 无返回值        |
 
 #### `getState()`
 
 返回值：
 
-| Type | Description |
-|---|---|
-| `RecorderState` | 当前录音状态 |
+| Type            | Description |
+|-----------------|-------------|
+| `RecorderState` | 当前录音状态      |
 
 #### `getRuntimeInfo()`
 
 返回值：
 
-| Type | Description |
-|---|---|
+| Type                  | Description   |
+|-----------------------|---------------|
 | `RecorderRuntimeInfo` | 请求值与实际输入运行时信息 |
 
 #### `getLatestSummary()`
 
 返回值：
 
-| Type | Description |
-|---|---|
-| `RecorderSessionSummary` | 当前会话摘要 |
+| Type                     | Description |
+|--------------------------|-------------|
+| `RecorderSessionSummary` | 当前会话摘要      |
 
 #### `use(plugin)`
 
@@ -212,14 +215,14 @@ import {
 
 参数：
 
-| Name | Type | Description |
-|---|---|---|
-| `plugin` | `RecorderPlugin` | 插件实例 |
+| Name     | Type             | Description |
+|----------|------------------|-------------|
+| `plugin` | `RecorderPlugin` | 插件实例        |
 
 返回值：
 
-| Type | Description |
-|---|---|
+| Type            | Description      |
+|-----------------|------------------|
 | `Promise<void>` | 插件初始化完成后 resolve |
 
 #### `registerEncoder(definition)`
@@ -228,15 +231,15 @@ import {
 
 参数：
 
-| Name | Type | Description |
-|---|---|---|
+| Name         | Type                      | Description                  |
+|--------------|---------------------------|------------------------------|
 | `definition` | `ExportEncoderDefinition` | 供 `exportEncoded()` 使用的编码器定义 |
 
 返回值：
 
-| Type | Description |
-|---|---|
-| `void` | 无返回值 |
+| Type   | Description |
+|--------|-------------|
+| `void` | 无返回值        |
 
 #### `exportEncoded(type, options?)`
 
@@ -244,29 +247,29 @@ import {
 
 参数：
 
-| Name | Type | Description |
-|---|---|---|
-| `type` | `keyof EncoderMap \| string` | 编码器类型 |
-| `options` | encoder-specific | 对应编码器的导出参数 |
+| Name      | Type                         | Description |
+|-----------|------------------------------|-------------|
+| `type`    | `keyof EncoderMap \| string` | 编码器类型       |
+| `options` | encoder-specific             | 对应编码器的导出参数  |
 
 返回值：
 
-| Type | Description |
-|---|---|
+| Type               | Description  |
+|--------------------|--------------|
 | `Promise<TResult>` | 所选编码器返回的编码结果 |
 
 常见内置结果类型：
 
-| Type | Result |
-|---|---|
-| `pcm` | `PcmExportResult` |
-| `wav` | `WavExportResult` |
-| `mp3` | `Mp3ExportResult` |
-| `flac` | `FlacExportResult` |
+| Type           | Result             |
+|----------------|--------------------|
+| `pcm`          | `PcmExportResult`  |
+| `wav`          | `WavExportResult`  |
+| `mp3`          | `Mp3ExportResult`  |
+| `flac`         | `FlacExportResult` |
 | `ogg` / `webm` | `OpusExportResult` |
-| `g711` | `G711ExportResult` |
-| `aac` | `AacExportResult` |
-| `amr` | `AmrExportResult` |
+| `g711`         | `G711ExportResult` |
+| `aac`          | `AacExportResult`  |
+| `amr`          | `AmrExportResult`  |
 
 #### `open(options?)`
 
@@ -280,88 +283,88 @@ import {
 
 `RecorderInputOptions` 字段：
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `sampleRate` | `number` | `-` | 期望采样率 |
-| `channelCount` | `number` | `-` | 期望声道数 |
-| `echoCancellation` | `boolean` | `true` | 启用回声消除 |
-| `noiseSuppression` | `boolean` | `true` | 启用降噪 |
-| `autoGainControl` | `boolean` | `true` | 启用自动增益 |
-| `deviceId` | `string` | `-` | 目标麦克风设备 |
-| `disableFrameLossCompensation` | `boolean` | `false` | 禁用丢帧静音补偿 |
-| `inputStrategy` | `"auto" \| "media-recorder" \| "audio-worklet" \| "script-processor"` | `"auto"` | 首选输入后端 |
+| Field                          | Type                                                                  | Default  | Description |
+|--------------------------------|-----------------------------------------------------------------------|----------|-------------|
+| `sampleRate`                   | `number`                                                              | `-`      | 期望采样率       |
+| `channelCount`                 | `number`                                                              | `-`      | 期望声道数       |
+| `echoCancellation`             | `boolean`                                                             | `true`   | 启用回声消除      |
+| `noiseSuppression`             | `boolean`                                                             | `true`   | 启用降噪        |
+| `autoGainControl`              | `boolean`                                                             | `true`   | 启用自动增益      |
+| `deviceId`                     | `string`                                                              | `-`      | 目标麦克风设备     |
+| `disableFrameLossCompensation` | `boolean`                                                             | `false`  | 禁用丢帧静音补偿    |
+| `inputStrategy`                | `"auto" \| "media-recorder" \| "audio-worklet" \| "script-processor"` | `"auto"` | 首选输入后端      |
 
 返回值：
 
-| Type | Description |
-|---|---|
+| Type                           | Description   |
+|--------------------------------|---------------|
 | `Promise<RecorderRuntimeInfo>` | 会话打开后的实际运行时信息 |
 
 #### `start()`
 
 返回值：
 
-| Type | Description |
-|---|---|
-| `Promise<RecorderRuntimeInfo>` | 更新后的运行时信息 |
+| Type                           | Description |
+|--------------------------------|-------------|
+| `Promise<RecorderRuntimeInfo>` | 更新后的运行时信息   |
 
 #### `pause()`
 
 返回值：
 
-| Type | Description |
-|---|---|
-| `void` | 无返回值 |
+| Type   | Description |
+|--------|-------------|
+| `void` | 无返回值        |
 
 #### `resume()`
 
 返回值：
 
-| Type | Description |
-|---|---|
-| `Promise<RecorderRuntimeInfo>` | 更新后的运行时信息 |
+| Type                           | Description |
+|--------------------------------|-------------|
+| `Promise<RecorderRuntimeInfo>` | 更新后的运行时信息   |
 
 #### `stop()`
 
 返回值：
 
-| Type | Description |
-|---|---|
-| `Promise<RecorderSessionSummary>` | 最终会话摘要 |
+| Type                              | Description |
+|-----------------------------------|-------------|
+| `Promise<RecorderSessionSummary>` | 最终会话摘要      |
 
 #### `close()`
 
 返回值：
 
-| Type | Description |
-|---|---|
+| Type            | Description     |
+|-----------------|-----------------|
 | `Promise<void>` | 会话资源关闭后 resolve |
 
 #### `destroy()`
 
 返回值：
 
-| Type | Description |
-|---|---|
+| Type            | Description   |
+|-----------------|---------------|
 | `Promise<void>` | 销毁完成后 resolve |
 
 ### 子路径
 
-| Package path | Exports |
-|---|---|
-| `@csnight/audio-recorder/codecs/base` | PCM / WAV 编码器与解码器 |
-| `@csnight/audio-recorder/codecs/mp3` | MP3 编码器 |
-| `@csnight/audio-recorder/codecs/flac` | FLAC 编码器 |
-| `@csnight/audio-recorder/codecs/opus` | Opus 编码器 |
-| `@csnight/audio-recorder/codecs/aac` | AAC 编码器 |
-| `@csnight/audio-recorder/codecs/amr` | AMR 编码器 |
-| `@csnight/audio-recorder/codecs/g711` | G.711 编码器 |
-| `@csnight/audio-recorder/plugins/level-meter` | `createLevelMeterPlugin()` |
-| `@csnight/audio-recorder/plugins/streaming-export` | `createStreamingExportPlugin()` |
-| `@csnight/audio-recorder/plugins/asr-export` | `createAsrExportPlugin()` |
-| `@csnight/audio-recorder/plugins/streaming-player` | `createStreamingPlayer()` |
-| `@csnight/audio-recorder/storage/opfs` | `createOpfsPersistencePlugin()` |
-| `@csnight/audio-recorder/storage/indexeddb` | `createIndexedDbPersistencePlugin()` |
+| Package path                                       | Exports                              |
+|----------------------------------------------------|--------------------------------------|
+| `@csnight/audio-recorder/codecs/base`              | PCM / WAV 编码器与解码器                    |
+| `@csnight/audio-recorder/codecs/mp3`               | MP3 编码器                              |
+| `@csnight/audio-recorder/codecs/flac`              | FLAC 编码器                             |
+| `@csnight/audio-recorder/codecs/opus`              | Opus 编码器                             |
+| `@csnight/audio-recorder/codecs/aac`               | AAC 编码器                              |
+| `@csnight/audio-recorder/codecs/amr`               | AMR 编码器                              |
+| `@csnight/audio-recorder/codecs/g711`              | G.711 编码器                            |
+| `@csnight/audio-recorder/plugins/level-meter`      | `createLevelMeterPlugin()`           |
+| `@csnight/audio-recorder/plugins/streaming-export` | `createStreamingExportPlugin()`      |
+| `@csnight/audio-recorder/plugins/asr-export`       | `createAsrExportPlugin()`            |
+| `@csnight/audio-recorder/plugins/streaming-player` | `createStreamingPlayer()`            |
+| `@csnight/audio-recorder/storage/opfs`             | `createOpfsPersistencePlugin()`      |
+| `@csnight/audio-recorder/storage/indexeddb`        | `createIndexedDbPersistencePlugin()` |
 
 ### 事件
 
@@ -369,58 +372,58 @@ import {
 
 录音状态变化时触发。
 
-| Field | Type | Description |
-|---|---|---|
-| `controller` | `RecorderController` | 录音器实例 |
-| `sessionId` | `string` | 当前会话 ID |
-| `emittedAt` | `number` | 毫秒时间戳 |
-| `previousState` | `RecorderState` | 之前状态 |
-| `state` | `RecorderState` | 新状态 |
-| `runtimeInfo` | `RecorderRuntimeInfo` | 运行时信息快照 |
-| `summary` | `RecorderSessionSummary` | 会话摘要快照 |
+| Field           | Type                     | Description |
+|-----------------|--------------------------|-------------|
+| `controller`    | `RecorderController`     | 录音器实例       |
+| `sessionId`     | `string`                 | 当前会话 ID     |
+| `emittedAt`     | `number`                 | 毫秒时间戳       |
+| `previousState` | `RecorderState`          | 之前状态        |
+| `state`         | `RecorderState`          | 新状态         |
+| `runtimeInfo`   | `RecorderRuntimeInfo`    | 运行时信息快照     |
+| `summary`       | `RecorderSessionSummary` | 会话摘要快照      |
 
 #### `frame:async`
 
 异步 PCM 帧事件。
 
-| Field | Type | Description |
-|---|---|---|
-| `controller` | `RecorderController` | 录音器实例 |
-| `sessionId` | `string` | 当前会话 ID |
-| `emittedAt` | `number` | 毫秒时间戳 |
-| `frame` | `AudioFrame` | PCM 帧 |
-| `runtimeInfo` | `RecorderRuntimeInfo` | 运行时信息快照 |
-| `summary` | `RecorderSessionSummary` | 会话摘要快照 |
+| Field         | Type                     | Description |
+|---------------|--------------------------|-------------|
+| `controller`  | `RecorderController`     | 录音器实例       |
+| `sessionId`   | `string`                 | 当前会话 ID     |
+| `emittedAt`   | `number`                 | 毫秒时间戳       |
+| `frame`       | `AudioFrame`             | PCM 帧       |
+| `runtimeInfo` | `RecorderRuntimeInfo`    | 运行时信息快照     |
+| `summary`     | `RecorderSessionSummary` | 会话摘要快照      |
 
 `frame` 字段：
 
-| Field | Type | Description |
-|---|---|---|
-| `channels` | `number` | 声道数 |
-| `sampleRate` | `number` | 帧采样率 |
-| `timestamp` | `number` | 帧时间戳（毫秒） |
-| `durationMs` | `number` | 帧时长（毫秒） |
-| `planar` | `Int16Array[]` | 按声道拆分的 PCM 样本 |
+| Field        | Type           | Description   |
+|--------------|----------------|---------------|
+| `channels`   | `number`       | 声道数           |
+| `sampleRate` | `number`       | 帧采样率          |
+| `timestamp`  | `number`       | 帧时间戳（毫秒）      |
+| `durationMs` | `number`       | 帧时长（毫秒）       |
+| `planar`     | `Int16Array[]` | 按声道拆分的 PCM 样本 |
 
 #### `issue`
 
 告警或错误事件。
 
-| Field | Type | Description |
-|---|---|---|
-| `controller` | `RecorderController` | 录音器实例 |
-| `sessionId` | `string` | 当前会话 ID |
-| `emittedAt` | `number` | 毫秒时间戳 |
-| `issue` | `RecorderIssue` | 告警或错误负载 |
-| `runtimeInfo` | `RecorderRuntimeInfo` | 运行时信息快照 |
-| `summary` | `RecorderSessionSummary` | 会话摘要快照 |
+| Field         | Type                     | Description |
+|---------------|--------------------------|-------------|
+| `controller`  | `RecorderController`     | 录音器实例       |
+| `sessionId`   | `string`                 | 当前会话 ID     |
+| `emittedAt`   | `number`                 | 毫秒时间戳       |
+| `issue`       | `RecorderIssue`          | 告警或错误负载     |
+| `runtimeInfo` | `RecorderRuntimeInfo`    | 运行时信息快照     |
+| `summary`     | `RecorderSessionSummary` | 会话摘要快照      |
 
 `issue` 变体：
 
-| Variant | Fields |
-|---|---|
+| Variant   | Fields                                            |
+|-----------|---------------------------------------------------|
 | `warning` | `{ kind: "warning", warning: { code, message } }` |
-| `error` | `{ kind: "error", error: Error }` |
+| `error`   | `{ kind: "error", error: Error }`                 |
 
 ## 插件
 
@@ -466,23 +469,23 @@ None.
 
 Event payload: `plugin:level`
 
-| Field | Type | Description |
-|---|---|---|
-| `controller` | `RecorderController` | 录音器实例 |
-| `sessionId` | `string` | 当前会话 ID |
-| `emittedAt` | `number` | 毫秒时间戳 |
-| `pluginName` | `string` | 插件名 |
-| `runtimeInfo` | `RecorderRuntimeInfo` | 运行时信息快照 |
-| `summary` | `RecorderSessionSummary` | 会话摘要快照 |
-| `payload` | `RecorderLevelEvent` | 电平负载 |
+| Field         | Type                     | Description |
+|---------------|--------------------------|-------------|
+| `controller`  | `RecorderController`     | 录音器实例       |
+| `sessionId`   | `string`                 | 当前会话 ID     |
+| `emittedAt`   | `number`                 | 毫秒时间戳       |
+| `pluginName`  | `string`                 | 插件名         |
+| `runtimeInfo` | `RecorderRuntimeInfo`    | 运行时信息快照     |
+| `summary`     | `RecorderSessionSummary` | 会话摘要快照      |
+| `payload`     | `RecorderLevelEvent`     | 电平负载        |
 
 `payload.level` 字段：
 
-| Field | Type | Description |
-|---|---|---|
-| `peak` | `number` | `0..1` 范围峰值 |
-| `rms` | `number` | `0..1` 范围 RMS |
-| `channels` | `RecorderLevelChannel[]` | 分声道电平数组 |
+| Field      | Type                     | Description   |
+|------------|--------------------------|---------------|
+| `peak`     | `number`                 | `0..1` 范围峰值   |
+| `rms`      | `number`                 | `0..1` 范围 RMS |
+| `channels` | `RecorderLevelChannel[]` | 分声道电平数组       |
 
 ### `streaming-export`
 
@@ -549,24 +552,24 @@ Options: `StreamingExportPluginOptions`
 
 `StreamEncoderDefinition` 字段：
 
-| Field | Type | Description |
-|---|---|---|
-| `format` | `string` | 编码格式键 |
-| `workerFactory` | `() => Worker` | `ChunkedEncoderBridge` 使用的可选 Worker 工厂 |
-| `preload` | `() => Promise<void>` | 在插件 `setup()` 中调用的可选预加载钩子 |
-| `create` | `(options?) => StreamEncoder` | 创建编码器实例 |
+| Field           | Type                          | Description                            |
+|-----------------|-------------------------------|----------------------------------------|
+| `format`        | `string`                      | 编码格式键                                  |
+| `workerFactory` | `() => Worker`                | `ChunkedEncoderBridge` 使用的可选 Worker 工厂 |
+| `preload`       | `() => Promise<void>`         | 在插件 `setup()` 中调用的可选预加载钩子              |
+| `create`        | `(options?) => StreamEncoder` | 创建编码器实例                                |
 
 Event payload: `plugin:stream`
 
-| Field | Type | Description |
-|---|---|---|
-| `controller` | `RecorderController` | 录音器实例 |
-| `sessionId` | `string` | 当前会话 ID |
-| `emittedAt` | `number` | 毫秒时间戳 |
-| `pluginName` | `string` | 插件名 |
-| `runtimeInfo` | `RecorderRuntimeInfo` | 运行时信息快照 |
-| `summary` | `RecorderSessionSummary` | 会话摘要快照 |
-| `payload` | `StreamingPacketPayload` | 编码流式 packet 负载 |
+| Field         | Type                     | Description    |
+|---------------|--------------------------|----------------|
+| `controller`  | `RecorderController`     | 录音器实例          |
+| `sessionId`   | `string`                 | 当前会话 ID        |
+| `emittedAt`   | `number`                 | 毫秒时间戳          |
+| `pluginName`  | `string`                 | 插件名            |
+| `runtimeInfo` | `RecorderRuntimeInfo`    | 运行时信息快照        |
+| `summary`     | `RecorderSessionSummary` | 会话摘要快照         |
+| `payload`     | `StreamingPacketPayload` | 编码流式 packet 负载 |
 
 `StreamingPacketPayload` 字段：
 
@@ -622,34 +625,34 @@ recorder.on("plugin:asr:chunk", ({ payload }) => {
 
 以下类型从 `@csnight/audio-recorder/plugins/asr-export` 子路径导出。
 
-| Export | Description |
-|---|---|
+| Export                           | Description   |
+|----------------------------------|---------------|
 | `createAsrExportPlugin(options)` | 创建 ASR 分片导出插件 |
-| `AsrChunkPayload` | ASR chunk 负载 |
-| `AsrExportPluginOptions` | 插件选项 |
+| `AsrChunkPayload`                | ASR chunk 负载  |
+| `AsrExportPluginOptions`         | 插件选项          |
 
 Options: `AsrExportPluginOptions`
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `format` | `"pcm" \| "wav"` | `"pcm"` | chunk 输出格式 |
-| `encoders` | `ExportEncoderDefinition[]` | `-` | 可用快照编码器 |
-| `sampleRate` | `8000 \| 16000 \| 24000 \| 32000 \| 48000` | `16000` | 输出采样率 |
-| `channels` | `1` | `-` | 仅支持单声道 |
-| `chunkDurationMs` | `number` | `40` | chunk 时长（毫秒） |
-| `bitsPerSample` | `16` | `16` | 当前固定为 16-bit 输出 |
+| Field             | Type                                       | Default | Description     |
+|-------------------|--------------------------------------------|---------|-----------------|
+| `format`          | `"pcm" \| "wav"`                           | `"pcm"` | chunk 输出格式      |
+| `encoders`        | `ExportEncoderDefinition[]`                | `-`     | 可用快照编码器         |
+| `sampleRate`      | `8000 \| 16000 \| 24000 \| 32000 \| 48000` | `16000` | 输出采样率           |
+| `channels`        | `1`                                        | `-`     | 仅支持单声道          |
+| `chunkDurationMs` | `number`                                   | `40`    | chunk 时长（毫秒）    |
+| `bitsPerSample`   | `16`                                       | `16`    | 当前固定为 16-bit 输出 |
 
 Event payload: `plugin:asr:chunk`
 
-| Field | Type | Description |
-|---|---|---|
-| `controller` | `RecorderController` | 录音器实例 |
-| `sessionId` | `string` | 当前会话 ID |
-| `emittedAt` | `number` | 毫秒时间戳 |
-| `pluginName` | `string` | 插件名 |
-| `runtimeInfo` | `RecorderRuntimeInfo` | 运行时信息快照 |
-| `summary` | `RecorderSessionSummary` | 会话摘要快照 |
-| `payload` | `AsrChunkPayload` | ASR chunk 负载 |
+| Field         | Type                     | Description  |
+|---------------|--------------------------|--------------|
+| `controller`  | `RecorderController`     | 录音器实例        |
+| `sessionId`   | `string`                 | 当前会话 ID      |
+| `emittedAt`   | `number`                 | 毫秒时间戳        |
+| `pluginName`  | `string`                 | 插件名          |
+| `runtimeInfo` | `RecorderRuntimeInfo`    | 运行时信息快照      |
+| `summary`     | `RecorderSessionSummary` | 会话摘要快照       |
+| `payload`     | `AsrChunkPayload`        | ASR chunk 负载 |
 
 `AsrChunkPayload` 字段：
 
@@ -699,7 +702,7 @@ websocket.onmessage = ({ data }) => player.push(JSON.parse(data))
 // 控制
 player.pause()
 player.resume()
-player.replay(5)        // 重播最近 5 秒（仅暂停状态下可用）
+player.replay(5) // 重播最近 5 秒（仅暂停状态下可用）
 player.setVolume(0.8)
 player.destroy()
 ```
@@ -708,29 +711,29 @@ player.destroy()
 
 `@csnight/audio-recorder/plugins/streaming-player` 导出：
 
-| 导出 | 说明 |
-|---|---|
-| `createStreamingPlayer(options)` | 创建并初始化流式播放器 |
-| `PersistStore` | 自定义持久化存储需要实现的公开接口 |
-| `StreamingPlayerOptions` | 播放器创建选项 |
-| `StreamingPlayerHandle` | 播放器控制句柄 |
-| `StreamingPlayerState` | 播放器状态联合类型 |
-| `PersistMode` | 持久化模式联合类型：`"memory" \| "indexeddb" \| "custom"` |
+| 导出                               | 说明                                              |
+|----------------------------------|-------------------------------------------------|
+| `createStreamingPlayer(options)` | 创建并初始化流式播放器                                     |
+| `PersistStore`                   | 自定义持久化存储需要实现的公开接口                               |
+| `StreamingPlayerOptions`         | 播放器创建选项                                         |
+| `StreamingPlayerHandle`          | 播放器控制句柄                                         |
+| `StreamingPlayerState`           | 播放器状态联合类型                                       |
+| `PersistMode`                    | 持久化模式联合类型：`"memory" \| "indexeddb" \| "custom"` |
 
 选项：`StreamingPlayerOptions`
 
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `decoders` | `AudioDecoderDefinition[]` | **必填** | 解码器定义列表，每项将 `format` 字符串映射到解码函数 |
-| `targetLatencyMs` | `number` | `300` | 起播垫片和抖动缓冲的目标深度（毫秒） |
-| `maxBufferMs` | `number` | `3000` | `ReorderBuffer + JitterBuffer` 的最大 live 积压时长，超出后触发丢弃旧数据 |
-| `volume` | `number` | `1.0` | 初始增益 `[0, 1]` |
-| `persistMode` | `"memory" \| "indexeddb" \| "custom"` | `"memory"` | 选择内置持久化存储后端，或在 `"custom"` 模式下要求通过 `player.use(store)` 注入外部实现 |
-| `persistBufferMs` | `number` | `10000` | 使用内置存储时的最大历史时长（毫秒）；`"custom"` 模式下忽略 |
-| `audioContext` | `AudioContext` | 自动 | 外部 `AudioContext`；未传则内部创建 |
-| `onUnderrun` | `(detail: { bufferedMs: number }) => void` | `-` | 整条播放管线在播放中见底时触发 |
-| `onPacketDrop` | `(detail: { count: number; reason: string }) => void` | `-` | 数据包因积压被丢弃时触发 |
-| `onStateChange` | `(state: StreamingPlayerState) => void` | `-` | 每次状态变化时触发 |
+| 字段                | 类型                                                    | 默认值        | 说明                                                           |
+|-------------------|-------------------------------------------------------|------------|--------------------------------------------------------------|
+| `decoders`        | `AudioDecoderDefinition[]`                            | **必填**     | 解码器定义列表，每项将 `format` 字符串映射到解码函数                              |
+| `targetLatencyMs` | `number`                                              | `300`      | 起播垫片和抖动缓冲的目标深度（毫秒）                                           |
+| `maxBufferMs`     | `number`                                              | `3000`     | `ReorderBuffer + JitterBuffer` 的最大 live 积压时长，超出后触发丢弃旧数据      |
+| `volume`          | `number`                                              | `1.0`      | 初始增益 `[0, 1]`                                                |
+| `persistMode`     | `"memory" \| "indexeddb" \| "custom"`                 | `"memory"` | 选择内置持久化存储后端，或在 `"custom"` 模式下要求通过 `player.use(store)` 注入外部实现 |
+| `persistBufferMs` | `number`                                              | `10000`    | 使用内置存储时的最大历史时长（毫秒）；`"custom"` 模式下忽略                          |
+| `audioContext`    | `AudioContext`                                        | 自动         | 外部 `AudioContext`；未传则内部创建                                    |
+| `onUnderrun`      | `(detail: { bufferedMs: number }) => void`            | `-`        | 整条播放管线在播放中见底时触发                                              |
+| `onPacketDrop`    | `(detail: { count: number; reason: string }) => void` | `-`        | 数据包因积压被丢弃时触发                                                 |
+| `onStateChange`   | `(state: StreamingPlayerState) => void`               | `-`        | 每次状态变化时触发                                                    |
 
 `persistMode: "indexeddb"` 说明：
 
@@ -747,21 +750,21 @@ player.destroy()
 
 句柄：`StreamingPlayerHandle`
 
-| 成员 | 类型 | 说明 |
-|---|---|---|
-| `state` | `StreamingPlayerState` | 当前状态：`idle \| buffering \| playing \| paused \| stopped` |
-| `bufferedMs` | `number` | 当前整条播放管线的总余量（毫秒），包含 `ReorderBuffer + JitterBuffer + 待解码时长 + 已调度未播完音频` |
-| `droppedPackets` | `number` | 累计丢弃数据包数量 |
-| `storedMs` | `number` | 持久化存储中的音频时长（毫秒），可用于展示可重播时长 |
-| `use(store)` | `void` | 注册自定义 `PersistStore`；仅 `persistMode === "custom"` 且首次 `push()` / `start()` 之前可调用 |
-| `push(packet)` | `void` | 推入一个 `StreamingPacketPayload`；始终写入持久化存储，只有 `buffering / playing` 时才进入播放管线 |
-| `start()` | `Promise<void>` | 从 `idle` 切换到 `buffering`；从 live edge 起播，并用最近一小段历史作为启动垫片 |
-| `pause()` | `void` | 暂停 `AudioContext` 并停止管线；新数据包仍写入持久化存储 |
-| `resume()` | `void` | 重置管线积压并从新的 live 数据包恢复播放 |
-| `setVolume(v)` | `void` | 随时调整增益 `[0, 1]` |
-| `replay(seconds)` | `void` | 从持久化存储播放最近 N 秒；仅暂停状态下有效 |
-| `destroy()` | `void` | 释放所有资源 |
-| `onStateChange` | `((state) => void) \| null` | 创建后可直接赋值；`null` 表示取消监听 |
+| 成员                | 类型                          | 说明                                                                               |
+|-------------------|-----------------------------|----------------------------------------------------------------------------------|
+| `state`           | `StreamingPlayerState`      | 当前状态：`idle \| buffering \| playing \| paused \| stopped`                         |
+| `bufferedMs`      | `number`                    | 当前整条播放管线的总余量（毫秒），包含 `ReorderBuffer + JitterBuffer + 待解码时长 + 已调度未播完音频`            |
+| `droppedPackets`  | `number`                    | 累计丢弃数据包数量                                                                        |
+| `storedMs`        | `number`                    | 持久化存储中的音频时长（毫秒），可用于展示可重播时长                                                       |
+| `use(store)`      | `void`                      | 注册自定义 `PersistStore`；仅 `persistMode === "custom"` 且首次 `push()` / `start()` 之前可调用 |
+| `push(packet)`    | `void`                      | 推入一个 `StreamingPacketPayload`；始终写入持久化存储，只有 `buffering / playing` 时才进入播放管线        |
+| `start()`         | `Promise<void>`             | 从 `idle` 切换到 `buffering`；从 live edge 起播，并用最近一小段历史作为启动垫片                          |
+| `pause()`         | `void`                      | 暂停 `AudioContext` 并停止管线；新数据包仍写入持久化存储                                             |
+| `resume()`        | `void`                      | 重置管线积压并从新的 live 数据包恢复播放                                                          |
+| `setVolume(v)`    | `void`                      | 随时调整增益 `[0, 1]`                                                                  |
+| `replay(seconds)` | `void`                      | 从持久化存储播放最近 N 秒；仅暂停状态下有效                                                          |
+| `destroy()`       | `void`                      | 释放所有资源                                                                           |
+| `onStateChange`   | `((state) => void) \| null` | 创建后可直接赋值；`null` 表示取消监听                                                           |
 
 ## 存储
 
@@ -788,8 +791,8 @@ const recorder = createRecorder({
 
 #### API
 
-| Export | Description |
-|---|---|
+| Export                          | Description   |
+|---------------------------------|---------------|
 | `createOpfsPersistencePlugin()` | 创建 OPFS 持久化插件 |
 
 通过主录音器 `storage` 选项使用：
@@ -826,8 +829,8 @@ const recorder = createRecorder({
 
 #### API
 
-| Export | Description |
-|---|---|
+| Export                               | Description        |
+|--------------------------------------|--------------------|
 | `createIndexedDbPersistencePlugin()` | 创建 IndexedDB 持久化插件 |
 
 通过主录音器 `storage` 选项使用：
@@ -931,24 +934,24 @@ npm run build:wasm:select -- --codec=aac,amr
 
 ### 相关脚本
 
-| Command | Description |
-|---|---|
-| `npm run build:wasm` | 编译全部 WASM 编码器 |
+| Command                                       | Description    |
+|-----------------------------------------------|----------------|
+| `npm run build:wasm`                          | 编译全部 WASM 编码器  |
 | `npm run build:wasm:select -- --codec=<list>` | 只编译指定 WASM 编码器 |
-| `npm run benchmark:codecs` | 运行编码器基准测试 |
-| `npm run verify:exports` | 校验包导出入口 |
+| `npm run benchmark:codecs`                    | 运行编码器基准测试      |
+| `npm run verify:exports`                      | 校验包导出入口        |
 
 ### 脚本入口
 
-| Path | Description |
-|---|---|
+| Path                            | Description            |
+|---------------------------------|------------------------|
 | `scripts/wasm/build-docker.mjs` | 基于 Docker 的 WASM 主构建入口 |
-| `scripts/wasm/build.mjs` | 通用 WASM 构建编排 |
-| `scripts/wasm/build-aac.mjs` | AAC 构建 |
-| `scripts/wasm/build-amr.mjs` | AMR 构建 |
-| `scripts/wasm/build-flac.mjs` | FLAC 构建 |
-| `scripts/wasm/build-mp3.mjs` | MP3 构建 |
-| `scripts/wasm/build-opus.mjs` | Opus 构建 |
+| `scripts/wasm/build.mjs`        | 通用 WASM 构建编排           |
+| `scripts/wasm/build-aac.mjs`    | AAC 构建                 |
+| `scripts/wasm/build-amr.mjs`    | AMR 构建                 |
+| `scripts/wasm/build-flac.mjs`   | FLAC 构建                |
+| `scripts/wasm/build-mp3.mjs`    | MP3 构建                 |
+| `scripts/wasm/build-opus.mjs`   | Opus 构建                |
 
 ## 浏览器支持
 
@@ -956,40 +959,40 @@ npm run build:wasm:select -- --codec=aac,amr
 
 ### 主库
 
-| Module | Chrome | Firefox | Safari | Notes |
-|---|---:|---:|---:|---|
-| Core recorder | 66 | 76 | 14.1 | `AudioWorkletNode` 是稳定基线 |
-| Auto input fallback | 66 | 76 | 14.1 | PCM `MediaRecorder` 不可用时回退到 `audio-worklet` |
-| `media-recorder` path | 105 | - | - | 使用 `MediaRecorder.isTypeSupported("audio/webm; codecs=pcm")` |
-| `script-processor` fallback | 35 | 25 | 6 | 仅保底 |
+| Module                      | Chrome | Firefox | Safari | Notes                                                        |
+|-----------------------------|-------:|--------:|-------:|--------------------------------------------------------------|
+| Core recorder               |     66 |      76 |   14.1 | `AudioWorkletNode` 是稳定基线                                     |
+| Auto input fallback         |     66 |      76 |   14.1 | PCM `MediaRecorder` 不可用时回退到 `audio-worklet`                  |
+| `media-recorder` path       |    105 |       - |      - | 使用 `MediaRecorder.isTypeSupported("audio/webm; codecs=pcm")` |
+| `script-processor` fallback |     35 |      25 |      6 | 仅保底                                                          |
 
 ### 插件
 
-| Plugin | Chrome | Firefox | Safari | Notes |
-|---|---:|---:|---:|---|
-| `level-meter` | 66 | 76 | 14.1 | PCM 帧消费者 |
-| `streaming-export` | 66 | 76 | 14.1 | Worker 分片导出 |
-| `asr-export` | 66 | 76 | 14.1 | PCM 切块 + 编码器 |
+| Plugin             | Chrome | Firefox | Safari | Notes        |
+|--------------------|-------:|--------:|-------:|--------------|
+| `level-meter`      |     66 |      76 |   14.1 | PCM 帧消费者     |
+| `streaming-export` |     66 |      76 |   14.1 | Worker 分片导出  |
+| `asr-export`       |     66 |      76 |   14.1 | PCM 切块 + 编码器 |
 
 ### 编码器
 
-| Codec | Chrome | Firefox | Safari | Notes |
-|---|---:|---:|---:|---|
-| PCM | 57 | 52 | 11 | 纯 typed array 处理 |
-| WAV | 57 | 52 | 11 | 纯文件封装 |
-| G.711 | 57 | 52 | 11 | 纯算术 |
-| MP3 | 57 | 52 | 11 | WASM 编码器 |
-| FLAC | 57 | 52 | 11 | WASM 编码器 |
-| Opus | 57 | 52 | 11 | WASM 编码器 |
-| AAC | 57 | 52 | 11 | WASM 编码器 |
-| AMR | 57 | 52 | 11 | WASM 编码器 |
+| Codec | Chrome | Firefox | Safari | Notes            |
+|-------|-------:|--------:|-------:|------------------|
+| PCM   |     57 |      52 |     11 | 纯 typed array 处理 |
+| WAV   |     57 |      52 |     11 | 纯文件封装            |
+| G.711 |     57 |      52 |     11 | 纯算术              |
+| MP3   |     57 |      52 |     11 | WASM 编码器         |
+| FLAC  |     57 |      52 |     11 | WASM 编码器         |
+| Opus  |     57 |      52 |     11 | WASM 编码器         |
+| AAC   |     57 |      52 |     11 | WASM 编码器         |
+| AMR   |     57 |      52 |     11 | WASM 编码器         |
 
 ### 存储
 
-| Module | Chrome | Firefox | Safari | Notes |
-|---|---:|---:|---:|---|
-| `storage/indexeddb` | 24 | 16 | 8 | 标准 IndexedDB |
-| `storage/opfs` | 102 | 111 | 15.2 | `navigator.storage.getDirectory()` |
+| Module              | Chrome | Firefox | Safari | Notes                              |
+|---------------------|-------:|--------:|-------:|------------------------------------|
+| `storage/indexeddb` |     24 |      16 |      8 | 标准 IndexedDB                       |
+| `storage/opfs`      |    102 |     111 |   15.2 | `navigator.storage.getDirectory()` |
 
 ## 基准测试
 
@@ -997,43 +1000,43 @@ npm run build:wasm:select -- --codec=aac,amr
 
 ### 汇总
 
-| Codec | Variant | Scenario | Avg ms | RTF x | Bytes |
-|---|---|---|---:|---:|---:|
-| pcm | default | snapshot | 0.48 | 31493.03 | 1440000 |
-| pcm | default | streaming | 3.82 | 3987.75 | 1440000 |
-| wav | default | snapshot | 1.06 | 14286.82 | 1440044 |
-| wav | default | streaming | 2.12 | 8476.78 | 1440352 |
-| mp3 | default | snapshot | 208.64 | 74.52 | 240384 |
-| mp3 | default | streaming | 202.66 | 77.35 | 240384 |
-| flac | default | snapshot | 11.04 | 1374.19 | 679568 |
-| flac | default | streaming | 10.37 | 1447.88 | 679568 |
-| opus | ogg | snapshot | 49.84 | 305.77 | 262774 |
-| opus | ogg | streaming | 49.66 | 307.30 | 263229 |
-| opus | webm | snapshot | 48.38 | 314.75 | 246569 |
-| opus | webm | streaming | 48.40 | 315.27 | 246569 |
-| aac | default | snapshot | 94.14 | 159.52 | 245066 |
-| aac | default | streaming | 96.38 | 155.70 | 245066 |
-| amr | nb | snapshot | 29.05 | 516.49 | 24006 |
-| amr | nb | streaming | 29.09 | 515.67 | 24006 |
-| amr | wb | snapshot | 59.24 | 253.26 | 45759 |
-| amr | wb | streaming | 59.31 | 252.93 | 45759 |
+| Codec | Variant | Scenario  | Avg ms |    RTF x |   Bytes |
+|-------|---------|-----------|-------:|---------:|--------:|
+| pcm   | default | snapshot  |   0.48 | 31493.03 | 1440000 |
+| pcm   | default | streaming |   3.82 |  3987.75 | 1440000 |
+| wav   | default | snapshot  |   1.06 | 14286.82 | 1440044 |
+| wav   | default | streaming |   2.12 |  8476.78 | 1440352 |
+| mp3   | default | snapshot  | 208.64 |    74.52 |  240384 |
+| mp3   | default | streaming | 202.66 |    77.35 |  240384 |
+| flac  | default | snapshot  |  11.04 |  1374.19 |  679568 |
+| flac  | default | streaming |  10.37 |  1447.88 |  679568 |
+| opus  | ogg     | snapshot  |  49.84 |   305.77 |  262774 |
+| opus  | ogg     | streaming |  49.66 |   307.30 |  263229 |
+| opus  | webm    | snapshot  |  48.38 |   314.75 |  246569 |
+| opus  | webm    | streaming |  48.40 |   315.27 |  246569 |
+| aac   | default | snapshot  |  94.14 |   159.52 |  245066 |
+| aac   | default | streaming |  96.38 |   155.70 |  245066 |
+| amr   | nb      | snapshot  |  29.05 |   516.49 |   24006 |
+| amr   | nb      | streaming |  29.09 |   515.67 |   24006 |
+| amr   | wb      | snapshot  |  59.24 |   253.26 |   45759 |
+| amr   | wb      | streaming |  59.31 |   252.93 |   45759 |
 
 ### SIMD
 
-| Codec | Variant | Scenario | off/on |
-|---|---|---|---:|
-| flac | default | snapshot | 1.370 |
-| flac | default | streaming | 1.305 |
-| opus | ogg | snapshot | 1.130 |
-| opus | ogg | streaming | 1.118 |
-| opus | webm | snapshot | 1.215 |
-| opus | webm | streaming | 1.264 |
-| aac | default | snapshot | 1.377 |
-| aac | default | streaming | 1.361 |
-| amr | nb | snapshot | 1.055 |
-| amr | nb | streaming | 1.097 |
-| amr | wb | snapshot | 1.107 |
-| amr | wb | streaming | 1.126 |
+| Codec | Variant | Scenario  | off/on |
+|-------|---------|-----------|-------:|
+| flac  | default | snapshot  |  1.370 |
+| flac  | default | streaming |  1.305 |
+| opus  | ogg     | snapshot  |  1.130 |
+| opus  | ogg     | streaming |  1.118 |
+| opus  | webm    | snapshot  |  1.215 |
+| opus  | webm    | streaming |  1.264 |
+| aac   | default | snapshot  |  1.377 |
+| aac   | default | streaming |  1.361 |
+| amr   | nb      | snapshot  |  1.055 |
+| amr   | nb      | streaming |  1.097 |
+| amr   | wb      | snapshot  |  1.107 |
+| amr   | wb      | streaming |  1.126 |
 
 ## 架构
 

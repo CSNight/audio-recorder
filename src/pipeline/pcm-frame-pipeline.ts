@@ -1,7 +1,7 @@
-import { InMemoryPcmBufferStore } from "@/buffer/in-memory-pcm-buffer-store"
-import type { PcmBufferStore } from "@/buffer/types"
-import type { RecorderFramePipeline } from "@/pipeline/types"
-import type { AudioFrame } from "@/types"
+import { InMemoryPcmBufferStore } from "../buffer/in-memory-pcm-buffer-store"
+import type { PcmBufferStore } from "../buffer/types"
+import type { RecorderFramePipeline } from "./types"
+import type { AudioFrame } from "../types"
 
 /**
  * 默认 PCM 帧管线实现。

@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it } from "vitest"
-import type { PcmBufferSnapshot } from "@/buffer/types"
+import type { PcmBufferSnapshot } from "../../src/buffer/types"
 import {
   amrExportEncoder,
   exportAmrSnapshot,
-} from "@/codecs/amr/amr-snapshot-exporter"
-import { preloadAmrModules } from "@/codecs/amr/amr-wasm-api"
+} from "../../src/codecs/amr/amr-snapshot-exporter"
+import { preloadAmrModules } from "../../src/codecs/amr/amr-wasm-api"
 
 function sine(length: number, freq = 440, sampleRate = 16000): Int16Array {
   const out = new Int16Array(length)

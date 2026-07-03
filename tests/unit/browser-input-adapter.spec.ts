@@ -2,12 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import {
   BrowserInputAdapter,
   listMicrophoneDevices,
-} from "@/input/browser-input-adapter"
-import { RecorderWarningCode } from "@/types"
+} from "../../src/input/browser-input-adapter"
+import { RecorderWarningCode } from "../../src"
 
 const selectInputBackendMock = vi.hoisted(() => vi.fn())
 
-vi.mock("@/input/backends/select", () => ({
+vi.mock("../../src/input/backends/select", () => ({
   selectInputBackend: selectInputBackendMock,
 }))
 

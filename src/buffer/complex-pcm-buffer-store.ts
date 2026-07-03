@@ -1,9 +1,9 @@
-import { InMemoryPcmBufferStore } from "@/buffer/in-memory-pcm-buffer-store"
-import { getFrameBytes } from "@/buffer/pcm-buffer-utils"
-import { PersistPcmBufferStore } from "@/buffer/persist-pcm-buffer-store"
-import type { PcmBufferSnapshot, PcmBufferStore } from "@/buffer/types"
-import type { RecorderStorageOptions } from "@/storage/types"
-import type { AudioFrame, RecorderIssue } from "@/types"
+import { InMemoryPcmBufferStore } from "./in-memory-pcm-buffer-store"
+import { getFrameBytes } from "./pcm-buffer-utils"
+import { PersistPcmBufferStore } from "./persist-pcm-buffer-store"
+import type { PcmBufferSnapshot, PcmBufferStore } from "./types"
+import type { RecorderStorageOptions } from "../storage"
+import type { AudioFrame, RecorderIssue } from "../types"
 
 /** `ComplexPcmBufferStore` 的构造参数 */
 export interface ComplexPcmBufferStoreOptions {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import { EventBus } from "@/core/event-bus"
+import { EventBus } from "../../src/core/event-bus"
 
 interface TestEvents {
   value: { count: number }

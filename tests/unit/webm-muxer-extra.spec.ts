@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { WebmMuxer } from "@/codecs/opus/muxers/webm/webm-muxer"
+import { WebmMuxer } from "../../src/codecs/opus/muxers/webm"
 
 // ---- helpers ---------------------------------------------------------------
 

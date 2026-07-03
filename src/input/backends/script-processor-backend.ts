@@ -1,8 +1,5 @@
-import {
-  type InputBackend,
-  type InputBackendContext,
-} from "@/input/backends/types"
-import { resolveChannelCount } from "@/utils/audio-frame"
+import { type InputBackend, type InputBackendContext } from "./types"
+import { resolveChannelCount } from "../../utils/audio-frame"
 
 /**
  * ScriptProcessor 采集 backend —— 最低优先级的降级兜底。

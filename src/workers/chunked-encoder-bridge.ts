@@ -15,8 +15,8 @@
 import type {
   StreamEncoder,
   StreamEncoderDefinition,
-} from "@/plugins/streaming-export/types"
-import type { EncoderWorkerOutgoingMessage } from "@/types"
+} from "../plugins/streaming-export"
+import type { EncoderWorkerOutgoingMessage } from "../types"
 
 export interface StreamEncoderBridgeOptions {
   format: string

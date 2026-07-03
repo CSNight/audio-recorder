@@ -1,10 +1,6 @@
-import { EventBus } from "@/core/event-bus"
-import type {
-  RecorderPluginEventBus,
-  RecorderPluginEventContext,
-  RecorderPluginEventMap,
-} from "@/plugins/types"
-import type { RecorderEventContext } from "@/types"
+import { EventBus } from "../core/event-bus"
+import type { RecorderPluginEventBus, RecorderPluginEventContext, RecorderPluginEventMap, } from "./types"
+import type { RecorderEventContext } from "../types"
 
 /**
  * 核心内置事件名，插件不得注册同名事件，避免与主事件总线产生命名冲突。

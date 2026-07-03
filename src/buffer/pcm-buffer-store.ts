@@ -1,9 +1,9 @@
-import { ComplexPcmBufferStore } from "@/buffer/complex-pcm-buffer-store"
-import { InMemoryPcmBufferStore } from "@/buffer/in-memory-pcm-buffer-store"
-import { PersistPcmBufferStore } from "@/buffer/persist-pcm-buffer-store"
-import type { PcmBufferStore } from "@/buffer/types"
-import type { RecorderStorageOptions } from "@/storage/types"
-import type { RecorderIssue } from "@/types"
+import { ComplexPcmBufferStore } from "./complex-pcm-buffer-store"
+import { InMemoryPcmBufferStore } from "./in-memory-pcm-buffer-store"
+import { PersistPcmBufferStore } from "./persist-pcm-buffer-store"
+import type { PcmBufferStore } from "./types"
+import type { RecorderStorageOptions } from "../storage"
+import type { RecorderIssue } from "../types"
 
 export interface PcmBufferStoreOptions {
   sessionId: string

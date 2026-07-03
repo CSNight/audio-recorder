@@ -7,8 +7,8 @@
  * 多声道输入只取第一声道（G.711 为单声道标准）。
  * 可通过 options.sampleRate 指定重采样目标（通常为 8000Hz）。
  */
-import type { PcmBufferSnapshot } from "@/buffer/types"
-import type { ExportEncoderDefinition } from "@/types"
+import type { PcmBufferSnapshot } from "../../buffer/types"
+import type { ExportEncoderDefinition } from "../../types"
 import { resample } from "@csnight/audio-recorder"
 import { encodeAlaw, encodeUlaw } from "./g711-encoder"
 import type { G711ExportOptions, G711ExportResult } from "./types"

@@ -5,18 +5,17 @@ import type {
   RecorderInputHandlers,
   RecorderInputRequest,
   RecorderInputSession,
-} from "@/input/types"
-import { RecorderController } from "@/core/recorder-controller"
+} from "../../src/input/types"
+import type { RecorderPersistencePlugin } from "../../src"
 import {
+  RecorderController,
   type RecorderInputStrategy,
   RecorderState,
   RecorderWarningCode,
-} from "@/types"
-import type { RecorderPlugin } from "@/plugins/types"
-import type { RecorderPersistencePlugin } from "@/storage/types"
-import { createAudioFrame } from "@/utils/audio-frame"
-import { pcmExportEncoder } from "@/codecs/base/pcm-snapshot-encoder"
-import { wavExportEncoder } from "@/codecs/base/wav-snapshot-encoder"
+} from "../../src"
+import type { RecorderPlugin } from "../../src/plugins/types"
+import { createAudioFrame } from "../../src/utils/audio-frame"
+import { pcmExportEncoder, wavExportEncoder } from "../../src/codecs/base"
 
 class FakeInputSession implements RecorderInputSession {
   closeCalls = 0

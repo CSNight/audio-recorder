@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { checkRecorderCapability } from "@/input/capability-check"
+import { checkRecorderCapability } from "../../src"
 
 describe("checkRecorderCapability", () => {
   beforeEach(() => {

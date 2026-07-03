@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { calculateOggCrc32 } from "@/codecs/opus/muxers/ogg/ogg-crc32"
-import { OggMuxer } from "@/codecs/opus/muxers/ogg/ogg-muxer"
+import { calculateOggCrc32, OggMuxer } from "../../src/codecs/opus/muxers/ogg"
 
 // ---- helpers ---------------------------------------------------------------
 

@@ -2,14 +2,14 @@ import { describe, expect, it, vi } from "vitest"
 import {
   mergeSnapshots,
   PersistPcmBufferStore,
-} from "@/buffer/persist-pcm-buffer-store"
-import type { PcmBufferSnapshot } from "@/buffer/types"
+} from "../../src/buffer/persist-pcm-buffer-store"
+import type { PcmBufferSnapshot } from "../../src/buffer/types"
 import type {
   RecorderPersistencePlugin,
   RecorderPersistenceSession,
-} from "@/storage/types"
-import { RecorderWarningCode } from "@/types"
-import { createAudioFrame } from "@/utils/audio-frame"
+} from "../../src"
+import { RecorderWarningCode } from "../../src"
+import { createAudioFrame } from "../../src/utils/audio-frame"
 
 function inferChannelCount(
   planar: Int16Array[]

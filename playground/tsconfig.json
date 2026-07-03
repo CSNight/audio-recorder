@@ -18,7 +18,10 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "skipLibCheck": false
+    "skipLibCheck": false,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": [
     "src",

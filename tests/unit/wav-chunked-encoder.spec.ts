@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { wavStreamEncoder } from "@/codecs/base/wav-chunked-encoder"
+import { wavStreamEncoder } from "../../src/codecs/base"
 
 function mono(samples: number[]): Int16Array[] {
   return [new Int16Array(samples)]

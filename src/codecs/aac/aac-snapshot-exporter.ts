@@ -1,5 +1,5 @@
-import type { PcmBufferSnapshot } from "@/buffer/types"
-import type { ExportEncoderDefinition } from "@/types"
+import type { PcmBufferSnapshot } from "../../buffer/types"
+import type { ExportEncoderDefinition } from "../../types"
 import { resample } from "@csnight/audio-recorder"
 import { createAacEncoder, preloadAacModule } from "./aac-wasm-api"
 import type { AacExportOptions, AacExportResult } from "./types"

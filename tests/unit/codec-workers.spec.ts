@@ -13,7 +13,7 @@ function setupWorkerHandlerMock() {
     return handler
   })
 
-  vi.doMock("@/workers/chunked-encoder-worker-core", () => ({
+  vi.doMock("../../src/workers/chunked-encoder-worker-core", () => ({
     createWorkerMessageHandler,
   }))
 
@@ -28,14 +28,14 @@ describe("codec worker entrypoints", () => {
   it("binds PCM/WAV workers to self.onmessage", async () => {
     const cases = [
       {
-        entry: "@/codecs/base/pcm-worker",
-        module: "@/codecs/base/pcm-chunked-encoder",
+        entry: "../../src/codecs/base/pcm-worker",
+        module: "../../src/codecs/base/pcm-chunked-encoder",
         exportName: "pcmStreamEncoder",
         format: "pcm",
       },
       {
-        entry: "@/codecs/base/wav-worker",
-        module: "@/codecs/base/wav-chunked-encoder",
+        entry: "../../src/codecs/base/wav-worker",
+        module: "../../src/codecs/base/wav-chunked-encoder",
         exportName: "wavStreamEncoder",
         format: "wav",
       },

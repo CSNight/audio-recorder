@@ -2,13 +2,13 @@ import {
   type InputBackend,
   type InputBackendContext,
   InputBackendUnavailableError,
-} from "@/input/backends/types"
+} from "./types"
 import {
   createWebMExtractScope,
   webmExtract,
   type WebMExtractScope,
-} from "@/input/webm-pcm-extractor"
-import { RecorderWarningCode } from "@/types"
+} from "../webm-pcm-extractor"
+import { RecorderWarningCode } from "../../types"
 
 const MEDIA_RECORDER_MIME = "audio/webm; codecs=pcm"
 const MEDIA_RECORDER_TIMESLICE_MS = 10 // ondataavailable 回调间隔

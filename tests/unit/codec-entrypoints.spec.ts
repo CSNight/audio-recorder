@@ -17,26 +17,26 @@ describe("codec entrypoints", () => {
     const pcmWorker = makeWorkerCtor("pcm")
     const wavWorker = makeWorkerCtor("wav")
 
-    vi.doMock("@/codecs/base/pcm-worker.ts?worker", () => ({
+    vi.doMock("../../src/codecs/base/pcm-worker.ts?worker", () => ({
       default: pcmWorker,
     }))
-    vi.doMock("@/codecs/base/wav-worker.ts?worker", () => ({
+    vi.doMock("../../src/codecs/base/wav-worker.ts?worker", () => ({
       default: wavWorker,
     }))
-    vi.doMock("@/codecs/base/pcm-chunked-encoder", () => ({
+    vi.doMock("../../src/codecs/base/pcm-chunked-encoder", () => ({
       pcmStreamEncoder: pcmDefinition,
     }))
-    vi.doMock("@/codecs/base/wav-chunked-encoder", () => ({
+    vi.doMock("../../src/codecs/base/wav-chunked-encoder", () => ({
       wavStreamEncoder: wavDefinition,
     }))
-    vi.doMock("@/codecs/base/pcm-snapshot-encoder", () => ({
+    vi.doMock("../../src/codecs/base/pcm-snapshot-encoder", () => ({
       pcmExportEncoder: { type: "pcm" },
     }))
-    vi.doMock("@/codecs/base/wav-snapshot-encoder", () => ({
+    vi.doMock("../../src/codecs/base/wav-snapshot-encoder", () => ({
       wavExportEncoder: { type: "wav" },
     }))
 
-    const mod = await import("@/codecs/base")
+    const mod = await import("../../src/codecs/base")
 
     expect(mod.pcmStreamEncoder).toBe(pcmDefinition)
     expect(mod.wavStreamEncoder).toBe(wavDefinition)

@@ -4,10 +4,10 @@ import type {
   RecorderInputAdapter,
   RecorderInputHandlers,
   RecorderInputSession,
-} from "@/input/types"
-import { RecorderController } from "@/core/recorder-controller"
-import { createLevelMeterPlugin } from "@/plugins/level-meter/index"
-import { createAudioFrame } from "@/utils/audio-frame"
+} from "../../src/input/types"
+import { RecorderController } from "../../src"
+import { createLevelMeterPlugin } from "../../src/plugins/level-meter"
+import { createAudioFrame } from "../../src/utils/audio-frame"
 
 class FakePluginInputSession implements RecorderInputSession {
   constructor(

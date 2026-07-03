@@ -1,19 +1,19 @@
-import type { RecorderController } from "@/core/recorder-controller"
-import { EventBus } from "@/core/event-bus"
-import { PluginEventBus } from "@/plugins/plugin-event-bus"
+import type { RecorderController } from "../core/recorder-controller"
+import { EventBus } from "../core/event-bus"
+import { PluginEventBus } from "./plugin-event-bus"
 import type {
   RecorderPlugin,
   RecorderPluginContext,
   RecorderPluginEventContext,
   RecorderPluginEventMap,
-} from "@/plugins/types"
+} from "./types"
 import type {
   AudioFrame,
   RecorderEventContext,
   RecorderIssue,
   RecorderRuntimeInfo,
   RecorderSessionSummary,
-} from "@/types"
+} from "../types"
 
 /** PluginHost 的构造选项，由 RecorderController 注入。 */
 interface PluginHostOptions {

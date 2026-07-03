@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import type { PcmBufferSnapshot } from "@/buffer/types"
-import type { Mp3WasmEncoderHandle } from "@/codecs/mp3/types"
+import type { PcmBufferSnapshot } from "../../src/buffer/types"
+import type { Mp3WasmEncoderHandle } from "../../src/codecs/mp3/types"
 
 const preloadMp3Module = vi.fn(async () => {})
 const createMp3Encoder =
@@ -13,7 +13,7 @@ const mockEncode =
 const mockFlush = vi.fn<() => Uint8Array>()
 const mockFree = vi.fn<() => void>()
 
-vi.mock("@/codecs/mp3/mp3-wasm-api", () => ({
+vi.mock("../../src/codecs/mp3/mp3-wasm-api", () => ({
   preloadMp3Module,
   createMp3Encoder,
   resolveMp3EncoderOptions: (
@@ -42,7 +42,7 @@ vi.mock("@/codecs/mp3/mp3-wasm-api", () => ({
 }))
 
 const { exportMp3Snapshot, mp3ExportEncoder } =
-  await import("@/codecs/mp3/mp3-snapshot-exporter")
+  await import("../../src/codecs/mp3/mp3-snapshot-exporter")
 
 function sine(length: number, freq = 440, sampleRate = 44100): Int16Array {
   const out = new Int16Array(length)

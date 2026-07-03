@@ -3,15 +3,15 @@ import type {
   RecorderInputHandlers,
   RecorderInputRequest,
   RecorderInputSession,
-} from "@/input/types"
+} from "./types"
 import {
   acquireMicStream,
   reportUnappliedConstraints,
-} from "@/input/audio-constraints"
-import { BrowserInputSession } from "@/input/browser-input-session"
-import { selectInputBackend } from "@/input/backends/select"
-import type { InputBackendContext } from "@/input/backends/types"
-import type { AudioInputDevice, RecorderInputOptions } from "@/types"
+} from "./audio-constraints"
+import { BrowserInputSession } from "./browser-input-session"
+import { selectInputBackend } from "./backends/select"
+import type { InputBackendContext } from "./backends/types"
+import type { AudioInputDevice, RecorderInputOptions } from "../types"
 
 type AudioContextConstructor = typeof AudioContext
 type AudioContextScope = typeof globalThis & {

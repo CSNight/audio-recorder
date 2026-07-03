@@ -206,7 +206,9 @@ const topSnapshotGroups = computed(() => [
       {
         label: "Last Frame",
         value:
-          state.lastFrameDurationMs > 0 ? `${state.lastFrameDurationMs} ms` : "-",
+          state.lastFrameDurationMs > 0
+            ? `${state.lastFrameDurationMs} ms`
+            : "-",
       },
     ],
   },
@@ -829,7 +831,9 @@ function formatBytes(bytes) {
 }
 
 function toStateClassName(value) {
-  return String(value).toLowerCase().replace(/[^a-z0-9]+/g, "-")
+  return String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
 }
 
 function getRecorderBadgeClass(value) {
@@ -1040,11 +1044,17 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <p class="lede">
-          通过 <code>dist</code> 产物快速校验输入源、持久化、实时编码、播放器与导出链路。
+          通过
+          <code>dist</code>
+          产物快速校验输入源、持久化、实时编码、播放器与导出链路。
         </p>
         <div class="hero-chip-row">
-          <span class="mini-chip">Source · {{ getSourceModeLabel(state.sourceMode) }}</span>
-          <span class="mini-chip">Storage · {{ getStorageModeLabel(state.storageMode) }}</span>
+          <span class="mini-chip"
+            >Source · {{ getSourceModeLabel(state.sourceMode) }}</span
+          >
+          <span class="mini-chip"
+            >Storage · {{ getStorageModeLabel(state.storageMode) }}</span
+          >
           <span class="mini-chip">
             Backend ·
             {{
@@ -1127,7 +1137,9 @@ onBeforeUnmount(() => {
                   </label>
 
                   <label
-                    v-if="state.sourceMode === PLAYGROUND_SOURCE_MODE.microphone"
+                    v-if="
+                      state.sourceMode === PLAYGROUND_SOURCE_MODE.microphone
+                    "
                     class="field"
                   >
                     <span>麦克风设备</span>
@@ -1140,7 +1152,8 @@ onBeforeUnmount(() => {
                           :value="device.deviceId"
                         >
                           {{
-                            device.label || `麦克风 ${device.deviceId.slice(0, 8)}…`
+                            device.label ||
+                            `麦克风 ${device.deviceId.slice(0, 8)}…`
                           }}
                         </option>
                       </select>
@@ -1281,7 +1294,9 @@ onBeforeUnmount(() => {
                   <article class="stat-card">
                     <span>Export</span>
                     <strong>{{
-                      hasExportResult ? formatBytes(state.exportedBytes ?? 0) : "Pending"
+                      hasExportResult
+                        ? formatBytes(state.exportedBytes ?? 0)
+                        : "Pending"
                     }}</strong>
                   </article>
                 </div>
@@ -1299,12 +1314,24 @@ onBeforeUnmount(() => {
                   </div>
                 </div>
                 <div class="action-grid">
-                  <button :disabled="!canOpen" @click="openRecorder">打开</button>
-                  <button :disabled="!canStart" @click="startRecorder">开始</button>
-                  <button :disabled="!canPause" @click="pauseRecorder">暂停</button>
-                  <button :disabled="!canResume" @click="resumeRecorder">恢复</button>
-                  <button :disabled="!canStop" @click="stopRecorder">停止</button>
-                  <button :disabled="!canClose" @click="closeRecorder">关闭</button>
+                  <button :disabled="!canOpen" @click="openRecorder">
+                    打开
+                  </button>
+                  <button :disabled="!canStart" @click="startRecorder">
+                    开始
+                  </button>
+                  <button :disabled="!canPause" @click="pauseRecorder">
+                    暂停
+                  </button>
+                  <button :disabled="!canResume" @click="resumeRecorder">
+                    恢复
+                  </button>
+                  <button :disabled="!canStop" @click="stopRecorder">
+                    停止
+                  </button>
+                  <button :disabled="!canClose" @click="closeRecorder">
+                    关闭
+                  </button>
                 </div>
               </section>
             </div>
@@ -1349,7 +1376,10 @@ onBeforeUnmount(() => {
             <button :disabled="!state.lastExportResult" @click="downloadAMR">
               AMR
             </button>
-            <button :disabled="!state.lastExportResult" @click="downloadOpusOgg">
+            <button
+              :disabled="!state.lastExportResult"
+              @click="downloadOpusOgg"
+            >
               Opus OGG
             </button>
             <button
@@ -1363,7 +1393,10 @@ onBeforeUnmount(() => {
             </button>
           </div>
 
-          <div v-if="exportStats.length" class="stats-grid compact export-stats">
+          <div
+            v-if="exportStats.length"
+            class="stats-grid compact export-stats"
+          >
             <article
               v-for="item in exportStats"
               :key="item.label"
@@ -1471,8 +1504,13 @@ onBeforeUnmount(() => {
                 </div>
                 <p class="log-message">{{ item.message }}</p>
               </li>
-              <li v-if="state.logs.length === 0" class="log-item log-item-empty">
-                <p class="log-message">暂无日志，操作录音器后会在这里展示事件流。</p>
+              <li
+                v-if="state.logs.length === 0"
+                class="log-item log-item-empty"
+              >
+                <p class="log-message">
+                  暂无日志，操作录音器后会在这里展示事件流。
+                </p>
               </li>
             </ul>
           </div>

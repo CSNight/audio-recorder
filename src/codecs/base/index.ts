@@ -26,7 +26,7 @@ export type {
   AudioDecoderDefinition,
   DecodedAudioChunk,
   EncodedAudioChunk,
-} from "@/types"
+} from "../../types"
 export type { PcmExportOptions, PcmExportResult } from "./pcm-types"
 export type { WavExportOptions, WavExportResult } from "./wav-types"
 export type { PcmChunkedEncoderOptions } from "./pcm-chunked-encoder"

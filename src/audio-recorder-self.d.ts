@@ -1,3 +1,3 @@
 declare module "@csnight/audio-recorder" {
-  export * from "@/index"
+  export * from "src/index"
 }

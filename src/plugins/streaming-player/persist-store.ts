@@ -1,4 +1,4 @@
-import type { StreamingPacketPayload } from "@/plugins/streaming-export/types"
+import type { StreamingPacketPayload } from "../streaming-export"
 
 /**
  * PersistStore 接口：历史 packet 存储，用于重播。

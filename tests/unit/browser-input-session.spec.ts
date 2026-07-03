@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest"
-import { BrowserInputSession } from "@/input/browser-input-session"
-import type { InputBackend } from "@/input/backends/types"
-import type { RecorderInputHandlers } from "@/input/types"
-import { RecorderWarningCode } from "@/types"
+import { BrowserInputSession } from "../../src/input/browser-input-session"
+import type { InputBackend } from "../../src/input/backends/types"
+import type { RecorderInputHandlers } from "../../src/input/types"
+import { RecorderWarningCode } from "../../src"
 
 type FakeTrack = { stop: ReturnType<typeof vi.fn> }
 

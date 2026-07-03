@@ -2,8 +2,8 @@ import {
   type InputBackend,
   type InputBackendContext,
   InputBackendUnavailableError,
-} from "@/input/backends/types"
-import { resolveChannelCount } from "@/utils/audio-frame"
+} from "./types"
+import { resolveChannelCount } from "../../utils/audio-frame"
 
 const RECORDER_WORKLET_PROCESSOR_NAME = "csnight-audio-recorder-frame-processor"
 

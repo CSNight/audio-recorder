@@ -1,4 +1,4 @@
-import type { AudioFrame } from "@/types"
+import type { AudioFrame } from "../types"
 
 /** 将请求的声道数规范化为合法的声道数；非法值回退到 1。 */
 export function resolveChannelCount(requested?: number | null): number {

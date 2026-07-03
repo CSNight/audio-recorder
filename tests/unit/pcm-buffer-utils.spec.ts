@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { getFrameBytes, mergeChannelChunks } from "@/buffer/pcm-buffer-utils"
-import type { AudioFrame } from "@/types"
+import {
+  getFrameBytes,
+  mergeChannelChunks,
+} from "../../src/buffer/pcm-buffer-utils"
+import type { AudioFrame } from "../../src"
 
 function makeFrame(planar: Int16Array[], sampleRate = 16000): AudioFrame {
   return {

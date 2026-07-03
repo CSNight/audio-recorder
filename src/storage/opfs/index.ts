@@ -1,1 +1,1 @@
-export { createOpfsPersistencePlugin } from "@/storage/opfs/plugin"
+export { createOpfsPersistencePlugin } from "./plugin"

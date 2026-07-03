@@ -2,9 +2,9 @@
  * streaming-player 公共类型定义
  */
 
-import type { StreamingPacketPayload } from "@/plugins/streaming-export/types"
+import type { StreamingPacketPayload } from "../streaming-export"
 import type { PersistStore } from "./persist-store"
-import type { AudioDecoderDefinition } from "@/types"
+import type { AudioDecoderDefinition } from "../../types"
 
 export type { StreamingPacketPayload, AudioDecoderDefinition }
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { AacError } from "@/codecs/aac/types"
+import { AacError } from "../../src/codecs/aac/types"
 
 function createMockAacModule(overrides: Partial<any> = {}) {
   const HEAPF32 = new Float32Array(64)
@@ -50,18 +50,18 @@ function createMockAacModule(overrides: Partial<any> = {}) {
 
 afterEach(() => {
   vi.resetModules()
-  vi.doUnmock("@/codecs/aac/libaac.wasm.mjs")
+  vi.doUnmock("../../src/codecs/aac/libaac.wasm.mjs")
 })
 
 describe("aac-wasm-api", () => {
   it("preloads the module only once", async () => {
     const module = createMockAacModule()
     const createModule = vi.fn(async () => module)
-    vi.doMock("@/codecs/aac/libaac.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/aac/libaac.wasm.mjs", () => ({
       default: createModule,
     }))
 
-    const api = await import("@/codecs/aac/aac-wasm-api")
+    const api = await import("../../src/codecs/aac/aac-wasm-api")
     await api.preloadAacModule()
     await api.preloadAacModule()
 
@@ -69,7 +69,7 @@ describe("aac-wasm-api", () => {
   })
 
   it("throws when creating an encoder before preload", async () => {
-    const api = await import("@/codecs/aac/aac-wasm-api")
+    const api = await import("../../src/codecs/aac/aac-wasm-api")
 
     expect(() =>
       api.createAacEncoder({ sampleRate: 48000, channels: 2 })
@@ -89,11 +89,11 @@ describe("aac-wasm-api", () => {
     const initFailModule = createMockAacModule({
       _init_encoder: vi.fn(() => 0),
     })
-    vi.doMock("@/codecs/aac/libaac.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/aac/libaac.wasm.mjs", () => ({
       default: vi.fn(async () => initFailModule),
     }))
 
-    let api = await import("@/codecs/aac/aac-wasm-api")
+    let api = await import("../../src/codecs/aac/aac-wasm-api")
     await api.preloadAacModule()
     expect(() =>
       api.createAacEncoder({ sampleRate: 48000, channels: 1 })
@@ -103,10 +103,10 @@ describe("aac-wasm-api", () => {
     const frameSizeModule = createMockAacModule({
       _get_encoder_frame_size: vi.fn(() => 0),
     })
-    vi.doMock("@/codecs/aac/libaac.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/aac/libaac.wasm.mjs", () => ({
       default: vi.fn(async () => frameSizeModule),
     }))
-    api = await import("@/codecs/aac/aac-wasm-api")
+    api = await import("../../src/codecs/aac/aac-wasm-api")
     await api.preloadAacModule()
     expect(() =>
       api.createAacEncoder({ sampleRate: 48000, channels: 1 })
@@ -117,10 +117,10 @@ describe("aac-wasm-api", () => {
     const ascModule = createMockAacModule({
       _get_encoder_extradata: vi.fn(() => 0),
     })
-    vi.doMock("@/codecs/aac/libaac.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/aac/libaac.wasm.mjs", () => ({
       default: vi.fn(async () => ascModule),
     }))
-    api = await import("@/codecs/aac/aac-wasm-api")
+    api = await import("../../src/codecs/aac/aac-wasm-api")
     await api.preloadAacModule()
     expect(() =>
       api.createAacEncoder({ sampleRate: 48000, channels: 1 })
@@ -129,11 +129,11 @@ describe("aac-wasm-api", () => {
 
   it("encodes, drains packets, flushes, and frees idempotently", async () => {
     const module = createMockAacModule()
-    vi.doMock("@/codecs/aac/libaac.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/aac/libaac.wasm.mjs", () => ({
       default: vi.fn(async () => module),
     }))
 
-    const api = await import("@/codecs/aac/aac-wasm-api")
+    const api = await import("../../src/codecs/aac/aac-wasm-api")
     await api.preloadAacModule()
     const encoder = api.createAacEncoder({
       sampleRate: 48000,
@@ -164,11 +164,11 @@ describe("aac-wasm-api", () => {
 
   it("clamps bitrate to the AAC frame limit before initializing the encoder", async () => {
     const module = createMockAacModule()
-    vi.doMock("@/codecs/aac/libaac.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/aac/libaac.wasm.mjs", () => ({
       default: vi.fn(async () => module),
     }))
 
-    const api = await import("@/codecs/aac/aac-wasm-api")
+    const api = await import("../../src/codecs/aac/aac-wasm-api")
     await api.preloadAacModule()
     const encoder = api.createAacEncoder({
       sampleRate: 16000,
@@ -182,11 +182,11 @@ describe("aac-wasm-api", () => {
 
   it("validates encode input length and packet drain failures", async () => {
     let module = createMockAacModule()
-    vi.doMock("@/codecs/aac/libaac.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/aac/libaac.wasm.mjs", () => ({
       default: vi.fn(async () => module),
     }))
 
-    let api = await import("@/codecs/aac/aac-wasm-api")
+    let api = await import("../../src/codecs/aac/aac-wasm-api")
     await api.preloadAacModule()
     let encoder = api.createAacEncoder({ sampleRate: 48000, channels: 1 })
 
@@ -198,10 +198,10 @@ describe("aac-wasm-api", () => {
     module = createMockAacModule({
       _get_encode_input_ptr: vi.fn(() => 0),
     })
-    vi.doMock("@/codecs/aac/libaac.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/aac/libaac.wasm.mjs", () => ({
       default: vi.fn(async () => module),
     }))
-    api = await import("@/codecs/aac/aac-wasm-api")
+    api = await import("../../src/codecs/aac/aac-wasm-api")
     await api.preloadAacModule()
     encoder = api.createAacEncoder({ sampleRate: 48000, channels: 1 })
     expect(() => encoder.encode(new Int16Array([1, 2, 3, 4]))).toThrow(
@@ -212,10 +212,10 @@ describe("aac-wasm-api", () => {
     module = createMockAacModule({
       _send_frame: vi.fn(() => -9),
     })
-    vi.doMock("@/codecs/aac/libaac.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/aac/libaac.wasm.mjs", () => ({
       default: vi.fn(async () => module),
     }))
-    api = await import("@/codecs/aac/aac-wasm-api")
+    api = await import("../../src/codecs/aac/aac-wasm-api")
     await api.preloadAacModule()
     encoder = api.createAacEncoder({ sampleRate: 48000, channels: 1 })
     expect(() => encoder.encode(new Int16Array([1, 2, 3, 4]))).toThrow(
@@ -224,10 +224,10 @@ describe("aac-wasm-api", () => {
 
     vi.resetModules()
     module = createMockAacModule()
-    vi.doMock("@/codecs/aac/libaac.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/aac/libaac.wasm.mjs", () => ({
       default: vi.fn(async () => module),
     }))
-    api = await import("@/codecs/aac/aac-wasm-api")
+    api = await import("../../src/codecs/aac/aac-wasm-api")
     await api.preloadAacModule()
     encoder = api.createAacEncoder({ sampleRate: 48000, channels: 1 })
     module.__queuePackets(-5)
@@ -239,10 +239,10 @@ describe("aac-wasm-api", () => {
     module = createMockAacModule({
       _get_encoded_data: vi.fn(() => 0),
     })
-    vi.doMock("@/codecs/aac/libaac.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/aac/libaac.wasm.mjs", () => ({
       default: vi.fn(async () => module),
     }))
-    api = await import("@/codecs/aac/aac-wasm-api")
+    api = await import("../../src/codecs/aac/aac-wasm-api")
     await api.preloadAacModule()
     encoder = api.createAacEncoder({ sampleRate: 48000, channels: 1 })
     module.__queuePackets(Uint8Array.from([1]))

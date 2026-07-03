@@ -7,14 +7,10 @@
  * 始终在主线程同步执行，不经过 Worker（snapshot 已是完整数据，无"实时流"语义）。
  */
 
-import type { PcmBufferSnapshot } from "@/buffer/types"
-import type { ExportEncoderDefinition } from "@/types"
+import type { PcmBufferSnapshot } from "../../buffer/types"
+import type { ExportEncoderDefinition } from "../../types"
 import { createFlacEncoder, preloadFlacModule } from "./flac-wasm-api"
-import type {
-  FlacEncoderOptions,
-  FlacExportOptions,
-  FlacExportResult,
-} from "./types"
+import type { FlacEncoderOptions, FlacExportOptions, FlacExportResult, } from "./types"
 
 /**
  * 交织 planar PCM 数据

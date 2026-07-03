@@ -354,16 +354,16 @@ flowchart LR
 
 ```ts
 interface StreamingPacketPayload {
-  streamId: string        // 逻辑流 ID，跨重连可稳定
-  sessionId: string       // 本次录音会话 ID
-  seq: number             // 顺序号
-  timestampMs: number     // 帧时间戳
-  durationMs: number      // 本 chunk 时长
+  streamId: string // 逻辑流 ID，跨重连可稳定
+  sessionId: string // 本次录音会话 ID
+  seq: number // 顺序号
+  timestampMs: number // 帧时间戳
+  durationMs: number // 本 chunk 时长
   sampleRate: number
   channels: number
   format: string
-  chunk: Uint8Array       // 编码后的音频数据
-  isFinal: boolean        // 是否为 session 最后一个 packet
+  chunk: Uint8Array // 编码后的音频数据
+  isFinal: boolean // 是否为 session 最后一个 packet
   discontinuity?: boolean // 是否存在不连续片段
   metadata?: Record<string, unknown>
 }

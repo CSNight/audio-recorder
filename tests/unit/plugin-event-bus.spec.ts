@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest"
-import { EventBus } from "@/core/event-bus"
-import { PluginEventBus } from "@/plugins/plugin-event-bus"
-import type { RecorderPluginEventMap } from "@/plugins/types"
-import { RecorderInputSource } from "@/types"
+import { EventBus } from "../../src/core/event-bus"
+import { PluginEventBus } from "../../src/plugins/plugin-event-bus"
+import type { RecorderPluginEventMap } from "../../src/plugins/types"
+import { RecorderInputSource } from "../../src"
 
 function createPluginEventBus() {
   const controller = {} as never

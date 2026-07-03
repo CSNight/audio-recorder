@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest"
-import { ComplexPcmBufferStore } from "@/buffer/complex-pcm-buffer-store"
+import { ComplexPcmBufferStore } from "../../src/buffer/complex-pcm-buffer-store"
 import type {
   RecorderPersistencePlugin,
   RecorderPersistenceSession,
-} from "@/storage/types"
-import { RecorderWarningCode } from "@/types"
-import { createAudioFrame } from "@/utils/audio-frame"
+} from "../../src"
+import { RecorderWarningCode } from "../../src"
+import { createAudioFrame } from "../../src/utils/audio-frame"
 
 function createPluginStub(): {
   plugin: RecorderPersistencePlugin

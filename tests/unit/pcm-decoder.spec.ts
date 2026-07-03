@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { pcmDecoderDefinition } from "@/codecs/base"
+import { pcmDecoderDefinition } from "../../src/codecs/base"
 
 describe("pcmDecoderDefinition", () => {
   it("decodes interleaved int16 PCM into planar float32 data", async () => {

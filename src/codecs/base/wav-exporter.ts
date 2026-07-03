@@ -1,4 +1,4 @@
-import type { PcmBufferSnapshot } from "@/buffer/types"
+import type { PcmBufferSnapshot } from "../../buffer/types"
 import { exportPcmSnapshot } from "./pcm-exporter"
 import type { WavExportOptions, WavExportResult } from "./wav-types"
 import { createWavHeader } from "./wav-header"

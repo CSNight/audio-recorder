@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import type { PcmBufferSnapshot } from "@/buffer/types"
-import { serializePcmSnapshot } from "@/utils/snapshot-codec"
-import { createIndexedDbPersistencePlugin } from "@/storage/indexeddb/plugin"
+import type { PcmBufferSnapshot } from "../../src/buffer/types"
+import { serializePcmSnapshot } from "../../src"
+import { createIndexedDbPersistencePlugin } from "../../src/storage/indexeddb"
 
 const DATABASE_NAME = "csnight-audio-recorder"
 const STORE_NAME = "sessions"

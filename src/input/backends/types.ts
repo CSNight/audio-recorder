@@ -1,4 +1,4 @@
-import type { RecorderInputStrategy, RecorderIssue } from "@/types"
+import type { RecorderInputStrategy, RecorderIssue } from "../../types"
 
 /**
  * 原始 float planar 帧的接收方。由 BrowserInputSession 实现，

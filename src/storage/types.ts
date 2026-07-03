@@ -1,4 +1,4 @@
-import type { MaybePromise, PcmBufferSnapshot } from "@/buffer/types"
+import type { MaybePromise, PcmBufferSnapshot } from "../buffer/types"
 
 export type RecorderStorageMode = "memory" | "persistent" | "auto"
 

@@ -1,13 +1,13 @@
-import { InMemoryPcmBufferStore } from "@/buffer/in-memory-pcm-buffer-store"
-import { getFrameBytes, mergeChannelChunks } from "@/buffer/pcm-buffer-utils"
-import type { PcmBufferSnapshot, PcmBufferStore } from "@/buffer/types"
+import { InMemoryPcmBufferStore } from "./in-memory-pcm-buffer-store"
+import { getFrameBytes, mergeChannelChunks } from "./pcm-buffer-utils"
+import type { PcmBufferSnapshot, PcmBufferStore } from "./types"
 import type {
   RecorderPersistencePlugin,
   RecorderPersistenceSession,
   RecorderStorageOptions,
-} from "@/storage/types"
-import type { AudioFrame, RecorderIssue } from "@/types"
-import { RecorderWarningCode } from "@/types"
+} from "../storage"
+import type { AudioFrame, RecorderIssue } from "../types"
+import { RecorderWarningCode } from "../types"
 
 export interface PersistPcmBufferStoreOptions {
   sessionId: string

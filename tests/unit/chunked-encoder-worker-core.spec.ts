@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type {
   StreamEncoder,
   StreamEncoderDefinition,
-} from "@/plugins/streaming-export/types"
-import { createWorkerMessageHandler } from "@/workers/chunked-encoder-worker-core"
+} from "../../src/plugins/streaming-export"
+import { createWorkerMessageHandler } from "../../src/workers/chunked-encoder-worker-core"
 
 const postMessage = vi.fn()
 

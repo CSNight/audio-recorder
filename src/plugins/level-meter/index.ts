@@ -1,5 +1,5 @@
-import type { RecorderPlugin } from "@/plugins/types"
-import type { AudioFrame } from "@/types"
+import type { RecorderPlugin } from "../types"
+import type { AudioFrame } from "../../types"
 import type { RecorderLevel, RecorderLevelChannel } from "./types"
 
 export type {

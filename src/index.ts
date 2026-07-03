@@ -6,25 +6,25 @@
 import {
   BrowserInputAdapter,
   listMicrophoneDevices,
-} from "@/input/browser-input-adapter"
-import { RecorderController } from "@/core/recorder-controller"
-import type { CreateRecorderOptions } from "@/types"
+} from "./input/browser-input-adapter"
+import { RecorderController } from "./core/recorder-controller"
+import type { CreateRecorderOptions } from "./types"
 
 export { listMicrophoneDevices }
 export {
   checkRecorderCapability,
   type RecorderCapabilityReport,
-} from "@/input/capability-check"
+} from "./input/capability-check"
 
-export { RecorderController } from "@/core/recorder-controller"
-export type { ExportEncoderDefinition, EncoderMap } from "@/types"
+export { RecorderController } from "./core/recorder-controller"
+export type { ExportEncoderDefinition, EncoderMap } from "./types"
 
 export type {
   RecorderPersistencePlugin,
   RecorderPersistenceSession,
   RecorderPersistenceSessionOptions,
   RecorderStorageOptions,
-} from "@/storage/types"
+} from "./storage/types"
 export type {
   AudioFrame,
   AudioInputDevice,
@@ -39,17 +39,17 @@ export type {
   RecorderSessionSummary,
   RecorderStateChangeEvent,
   RecorderWarning,
-} from "@/types"
+} from "./types"
 export {
   RecorderInputSource,
   RecorderState,
   RecorderWarningCode,
-} from "@/types"
-export { resample } from "@/utils/resample"
+} from "./types"
+export { resample } from "./utils/resample"
 export {
   serializePcmSnapshot,
   deserializePcmSnapshot,
-} from "@/utils/snapshot-codec"
+} from "./utils/snapshot-codec"
 
 export function createRecorder(
   options: CreateRecorderOptions = {}

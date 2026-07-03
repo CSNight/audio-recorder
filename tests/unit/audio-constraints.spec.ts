@@ -3,9 +3,9 @@ import {
   acquireMicStream,
   buildAudioConstraints,
   reportUnappliedConstraints,
-} from "@/input/audio-constraints"
-import { RecorderWarningCode } from "@/types"
-import type { RecorderIssue } from "@/types"
+} from "../../src/input/audio-constraints"
+import type { RecorderIssue } from "../../src"
+import { RecorderWarningCode } from "../../src"
 
 function expectWarningIssue(
   issue: RecorderIssue | undefined
@@ -72,10 +72,9 @@ describe("buildAudioConstraints", () => {
 // ---------------------------------------------------------------------------
 describe("acquireMicStream", () => {
   it("getUserMedia 不可用时抛出错误", async () => {
-    vi.stubGlobal(
-      "navigator",
-      { mediaDevices: undefined } as unknown as Navigator
-    )
+    vi.stubGlobal("navigator", {
+      mediaDevices: undefined,
+    } as unknown as Navigator)
     await expect(acquireMicStream({})).rejects.toThrow(
       "navigator.mediaDevices.getUserMedia is not available"
     )

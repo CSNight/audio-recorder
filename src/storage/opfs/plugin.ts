@@ -6,7 +6,7 @@ import type {
   RecorderPersistencePlugin,
   RecorderPersistenceSession,
   RecorderPersistenceSessionOptions,
-} from "@/storage/types"
+} from "../types"
 
 // OPFS 根目录名，所有会话子目录都挂在这一目录下
 const ROOT_DIRECTORY = "csnight-audio-recorder"

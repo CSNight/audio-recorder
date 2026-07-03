@@ -99,12 +99,12 @@
 
 当前代码已经远离最初的“全局脚本库”形态，但文档仍残留多处过期表述，主要问题有：
 
-| 问题 | 说明 |
-| --- | --- |
-| 文档与代码脱节 | 文档仍使用 `capture/registry/encoders` 等旧路径或旧抽象名 |
-| 阶段描述滞后 | README 仍以 `Phase 3` 为主，而代码已落到输入降级、chunk plugin、MP3、持久化子路径 |
-| 当前与规划混写 | 已落地能力和未来阶段能力没有清晰分界 |
-| 对外边界不清 | 根入口、子路径、插件事件、编码器 DI 的使用方式需要重新收敛 |
+| 问题      | 说明                                                        |
+|---------|-----------------------------------------------------------|
+| 文档与代码脱节 | 文档仍使用 `capture/registry/encoders` 等旧路径或旧抽象名               |
+| 阶段描述滞后  | README 仍以 `Phase 3` 为主，而代码已落到输入降级、chunk plugin、MP3、持久化子路径 |
+| 当前与规划混写 | 已落地能力和未来阶段能力没有清晰分界                                        |
+| 对外边界不清  | 根入口、子路径、插件事件、编码器 DI 的使用方式需要重新收敛                           |
 
 因此本次文档整理的核心原则是：
 
@@ -129,18 +129,11 @@
 
 ```ts
 import { createRecorder } from "/audio-recorder"
-import {
-  pcmExportEncoder,
-  wavExportEncoder,
-} from "/audio-recorder/codecs/base"
+import { pcmExportEncoder, wavExportEncoder } from "/audio-recorder/codecs/base"
 import { mp3ExportEncoder } from "/audio-recorder/codecs/mp3"
 
 const recorder = createRecorder({
-  encoders: [
-    pcmExportEncoder,
-    wavExportEncoder,
-    mp3ExportEncoder,
-  ],
+  encoders: [pcmExportEncoder, wavExportEncoder, mp3ExportEncoder],
 })
 
 await recorder.open()
@@ -178,17 +171,17 @@ window.Recorder = ...
 
 当前实际分层如下：
 
-| 层 | 当前目录 | 职责 |
-| --- | --- | --- |
-| Core | `src/core` | 控制器、状态机、事件总线 |
-| Input | `src/input` | 取流、约束诊断、后端选择、session 装配 |
-| Pipeline | `src/pipeline` | PCM 帧进入缓冲前的统一入口 |
-| Buffer | `src/buffer` | 内存缓冲、持久化缓冲、snapshot 合并 |
-| Codecs | `src/codecs` | PCM/WAV/MP3 快照导出与 chunk 编码定义 |
-| Plugins | `src/plugins` | level-meter、streaming-export 及插件宿主 |
-| Storage | `src/storage` | 持久化协议、OPFS / IndexedDB 插件 |
-| Workers | `src/workers` | chunked encoder bridge 与 Worker core |
-| Utils | `src/utils` | 音频帧转换、重采样、snapshot 序列化 |
+| 层        | 当前目录           | 职责                                   |
+|----------|----------------|--------------------------------------|
+| Core     | `src/core`     | 控制器、状态机、事件总线                         |
+| Input    | `src/input`    | 取流、约束诊断、后端选择、session 装配              |
+| Pipeline | `src/pipeline` | PCM 帧进入缓冲前的统一入口                      |
+| Buffer   | `src/buffer`   | 内存缓冲、持久化缓冲、snapshot 合并               |
+| Codecs   | `src/codecs`   | PCM/WAV/MP3 快照导出与 chunk 编码定义         |
+| Plugins  | `src/plugins`  | level-meter、streaming-export 及插件宿主   |
+| Storage  | `src/storage`  | 持久化协议、OPFS / IndexedDB 插件            |
+| Workers  | `src/workers`  | chunked encoder bridge 与 Worker core |
+| Utils    | `src/utils`    | 音频帧转换、重采样、snapshot 序列化               |
 
 ## 4. 参考其他录音库后的实践结论
 
@@ -294,14 +287,14 @@ export interface AudioFrame {
 
 ### 5.4 多声道支持优先级
 
-| 格式/链路 | 优先级 | 当前状态 |
-| --- | --- | --- |
-| PCM snapshot | 最高 | 已支持 |
-| WAV snapshot | 最高 | 已支持 |
-| MP3 snapshot | 高 | 已支持 1/2 声道主路径 |
-| 输入 runtime info | 最高 | 已支持 requested / actual 区分 |
-| chunked encoder | 高 | PCM/WAV/MP3 已有实现 |
-| 3+ 声道完整生态 | 低 | 暂不作为当前阶段承诺 |
+| 格式/链路           | 优先级 | 当前状态                      |
+|-----------------|-----|---------------------------|
+| PCM snapshot    | 最高  | 已支持                       |
+| WAV snapshot    | 最高  | 已支持                       |
+| MP3 snapshot    | 高   | 已支持 1/2 声道主路径             |
+| 输入 runtime info | 最高  | 已支持 requested / actual 区分 |
+| chunked encoder | 高   | PCM/WAV/MP3 已有实现          |
+| 3+ 声道完整生态       | 低   | 暂不作为当前阶段承诺                |
 
 ## 6. 浏览器兼容性策略
 
@@ -735,13 +728,13 @@ await recorder.use(
 
 尚未实现（本阶段目标）：
 
-| 格式 | 编码 | 解码 | 说明 |
-|------|------|------|------|
-| AMR | ✗ | ✗ | vendor `engine/beta-amr*.js`，约 626KB |
-| OGG/Opus | ✗ | ✗ | vendor `engine/beta-ogg*.js`，约 1.2MB |
-| WebM | ✗（导出） | 部分 | 当前 `webm-pcm-extractor.ts` 仅用于采集解析，不是导出编码器 |
-| G711 A-law/U-law | ✗ | ✗ | vendor `engine/g711x.js`，纯 JS 实现，无需大型 engine |
-| 统一解码入口 | — | ✗ | PCM / WAV / MP3 解码 API 尚不存在 |
+| 格式               | 编码    | 解码 | 说明                                           |
+|------------------|-------|----|----------------------------------------------|
+| AMR              | ✗     | ✗  | vendor `engine/beta-amr*.js`，约 626KB         |
+| OGG/Opus         | ✗     | ✗  | vendor `engine/beta-ogg*.js`，约 1.2MB         |
+| WebM             | ✗（导出） | 部分 | 当前 `webm-pcm-extractor.ts` 仅用于采集解析，不是导出编码器   |
+| G711 A-law/U-law | ✗     | ✗  | vendor `engine/g711x.js`，纯 JS 实现，无需大型 engine |
+| 统一解码入口           | —     | ✗  | PCM / WAV / MP3 解码 API 尚不存在                  |
 
 ### 5.2 各格式编码器实施规范
 
@@ -773,7 +766,11 @@ src/codecs/g711/
 
 ```ts
 import "audio-recorder/codecs/g711"
-const result = await recorder.export("g711", { lawType: "alaw", wrapInWav: true })
+
+const result = await recorder.export("g711", {
+  lawType: "alaw",
+  wrapInWav: true,
+})
 ```
 
 #### 5.2.2 OGG/Opus（中优先，依赖大型 engine）
@@ -829,7 +826,10 @@ WebM 原生导出辅助函数（可选，单独评估）：
 
 ```ts
 // src/utils/webm-native-export.ts
-export async function exportWebmNative(stream: MediaStream, options?: { durationMs?: number }): Promise<Blob>
+export async function exportWebmNative(
+  stream: MediaStream,
+  options?: { durationMs?: number }
+): Promise<Blob>
 ```
 
 ### 5.3 统一解码入口
@@ -853,7 +853,7 @@ export interface AudioDecodeResult {
   sampleRate: number
   channels: 1 | 2
   durationMs: number
-  planar: Float32Array[]    // 解码后的浮点 PCM（各声道独立）
+  planar: Float32Array[] // 解码后的浮点 PCM（各声道独立）
 }
 
 export interface AudioDecodeOptions {
@@ -861,7 +861,7 @@ export interface AudioDecodeOptions {
   // 仅 PCM/G711 软解码时需要
   sampleRate?: number
   channels?: 1 | 2
-  lawType?: "alaw" | "ulaw"  // G711 专用
+  lawType?: "alaw" | "ulaw" // G711 专用
 }
 
 /**
@@ -878,13 +878,13 @@ export async function decodeAudio(
 
 解码器分层：
 
-| 格式 | 解码方式 | 依赖 |
-|------|----------|------|
-| PCM | 软解码（类型转换） | 无 |
-| WAV | 软解码（header 解析 + PCM 提取） | 无 |
-| G711 | 软解码（A-law/U-law 反变换） | 无（与编码器同文件） |
-| MP3 / OGG / WebM | 原生 `decodeAudioData` | `AudioContext` |
-| AMR | 原生 `decodeAudioData` 或 AMR engine 解码 | 视浏览器支持 |
+| 格式               | 解码方式                                 | 依赖             |
+|------------------|--------------------------------------|----------------|
+| PCM              | 软解码（类型转换）                            | 无              |
+| WAV              | 软解码（header 解析 + PCM 提取）              | 无              |
+| G711             | 软解码（A-law/U-law 反变换）                 | 无（与编码器同文件）     |
+| MP3 / OGG / WebM | 原生 `decodeAudioData`                 | `AudioContext` |
+| AMR              | 原生 `decodeAudioData` 或 AMR engine 解码 | 视浏览器支持         |
 
 设计约束：
 
@@ -1120,10 +1120,10 @@ src/plugins/sonic-export/
 
 ```ts
 export interface SonicTransformOptions {
-  speed?: number      // 变速不变调，默认 1.0
-  pitch?: number      // 变调不变速，默认 1.0
-  rate?: number       // 变速变调，默认 1.0
-  volume?: number     // 音量，默认 1.0
+  speed?: number // 变速不变调，默认 1.0
+  pitch?: number // 变调不变速，默认 1.0
+  rate?: number // 变速变调，默认 1.0
+  volume?: number // 音量，默认 1.0
   /** 每次送入 Sonic 的块大小（ms），建议 ≥ 200ms，默认 200 */
   blockMs?: number
 }
@@ -1160,7 +1160,9 @@ export interface SonicExportPlugin extends RecorderPlugin {
   ): Promise<Int16Array>
 }
 
-export function createSonicExportPlugin(options: SonicExportOptions): SonicExportPlugin
+export function createSonicExportPlugin(
+  options: SonicExportOptions
+): SonicExportPlugin
 ```
 
 实现要点：
@@ -1177,9 +1179,9 @@ export function createSonicExportPlugin(options: SonicExportOptions): SonicExpor
 
 ```ts
 recorder.on("plugin:stream", (chunk: EncodedStreamChunk) => {
-  chunk.data     // Uint8Array，编码后的音频数据
-  chunk.format   // "wav" | "mp3" | ...
-  chunk.isFinal  // true 表示录音已结束，这是最后一帧
+  chunk.data // Uint8Array，编码后的音频数据
+  chunk.format // "wav" | "mp3" | ...
+  chunk.isFinal // true 表示录音已结束，这是最后一帧
 })
 ```
 
@@ -1196,7 +1198,7 @@ const sonicPlugin = createSonicExportPlugin({
   blockMs: 200,
 })
 
-await recorder.use(sonicPlugin)  // 注册，会检测与 streaming-export 互斥
+await recorder.use(sonicPlugin) // 注册，会检测与 streaming-export 互斥
 
 // 实时推流
 recorder.on("plugin:stream", ({ data, isFinal }) => {
@@ -1247,7 +1249,9 @@ export interface FrequencyData {
   timestampMs: number
 }
 
-export function createFrequencyHistogramPlugin(options?: FrequencyHistogramOptions): RecorderPlugin
+export function createFrequencyHistogramPlugin(
+  options?: FrequencyHistogramOptions
+): RecorderPlugin
 // 插件通过 "plugin:frequency-histogram:data" 事件发出 FrequencyData
 ```
 
@@ -1260,7 +1264,7 @@ export function createFrequencyHistogramPlugin(options?: FrequencyHistogramOptio
 
 ### 6.5 DTMF 插件（DTMFCodec）
 
-**功能**：双向能力：① DTMF 编码：将按键序列（0-9, *, #, A-D）合成为 PCM 音频；② DTMF 解码：从录音 PCM 帧中识别 DTMF 音调序列。
+**功能**：双向能力：① DTMF 编码：将按键序列（0-9, \*, #, A-D）合成为 PCM 音频；② DTMF 解码：从录音 PCM 帧中识别 DTMF 音调序列。
 
 **参照**：`vendor/Recorder-master/src/extensions/dtmf.encode.js` + `dtmf.decode.js`
 
@@ -1279,10 +1283,29 @@ src/plugins/dtmf/
 核心 API：
 
 ```ts
-export type DtmfKey = "0"|"1"|"2"|"3"|"4"|"5"|"6"|"7"|"8"|"9"|"*"|"#"|"A"|"B"|"C"|"D"
+export type DtmfKey =
+  | "0"
+  | "1"
+  | "2"
+  | "3"
+  | "4"
+  | "5"
+  | "6"
+  | "7"
+  | "8"
+  | "9"
+  | "*"
+  | "#"
+  | "A"
+  | "B"
+  | "C"
+  | "D"
 
 // 编码：独立函数，不是插件（生成 PCM 数据）
-export function encodeDtmf(keys: DtmfKey[], options?: DtmfEncodeOptions): Int16Array
+export function encodeDtmf(
+  keys: DtmfKey[],
+  options?: DtmfEncodeOptions
+): Int16Array
 
 // 解码插件：在录音时实时识别 DTMF 音调
 export function createDtmfDecoderPlugin(): RecorderPlugin
@@ -1315,13 +1338,13 @@ src/plugins/nmn2pcm/
 
 ```ts
 export interface NmnConvertOptions {
-  sampleRate?: number     // 默认 16000
-  bpm?: number            // 每分钟拍数，默认 60
-  volume?: number         // 0-1，默认 0.5
+  sampleRate?: number // 默认 16000
+  bpm?: number // 每分钟拍数，默认 60
+  volume?: number // 0-1，默认 0.5
 }
 
 export interface NmnConvertResult {
-  data: Int16Array        // 生成的 PCM 数据
+  data: Int16Array // 生成的 PCM 数据
   sampleRate: number
   durationMs: number
 }
@@ -1331,7 +1354,10 @@ export interface NmnConvertResult {
  * 简谱格式：使用数字 1-7 表示 do-si，0 表示休止符，
  * 高音点（·）低音点（,）、时值（-）等参照 vendor 格式
  */
-export function nmn2pcm(score: string, options?: NmnConvertOptions): NmnConvertResult
+export function nmn2pcm(
+  score: string,
+  options?: NmnConvertOptions
+): NmnConvertResult
 ```
 
 实现约束：
@@ -1360,9 +1386,19 @@ src/plugins/dsp/
 
 ```ts
 // 各滤波器均返回 RecorderPlugin，通过 onBeforeFrame 介入帧管线
-export function createHighpassPlugin(options?: { cutoffHz?: number }): RecorderPlugin
-export function createLowpassPlugin(options?: { cutoffHz?: number }): RecorderPlugin
-export function createNoiseGatePlugin(options?: { thresholdDb?: number; attackMs?: number; releaseMs?: number }): RecorderPlugin
+export function createHighpassPlugin(options?: {
+  cutoffHz?: number
+}): RecorderPlugin
+
+export function createLowpassPlugin(options?: {
+  cutoffHz?: number
+}): RecorderPlugin
+
+export function createNoiseGatePlugin(options?: {
+  thresholdDb?: number
+  attackMs?: number
+  releaseMs?: number
+}): RecorderPlugin
 ```
 
 实现要点：

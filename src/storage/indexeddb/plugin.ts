@@ -1,12 +1,9 @@
-import {
-  deserializePcmSnapshot,
-  serializePcmSnapshot,
-} from "@csnight/audio-recorder"
+import { deserializePcmSnapshot, serializePcmSnapshot, } from "@csnight/audio-recorder"
 import type {
   RecorderPersistencePlugin,
   RecorderPersistenceSession,
   RecorderPersistenceSessionOptions,
-} from "@/storage/types"
+} from "../types"
 
 /** IndexedDB 数据库名，全局唯一，避免与其他库冲突。 */
 const DATABASE_NAME = "csnight-audio-recorder"

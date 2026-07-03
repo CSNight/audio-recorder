@@ -5,9 +5,9 @@
  * 该文件仅在用户显式 import "@csnight/audio-recorder/codecs/base" 时，
  * 由 Vite 打包为独立的 Worker blob（?worker&inline）。
  *
- * 消息循环逻辑见 @/workers/chunked-encoder-worker-core.ts（被所有 Worker 入口共用）。
+ * 消息循环逻辑见 ../../workers/chunked-encoder-worker-core.ts（被所有 Worker 入口共用）。
  */
 import { pcmStreamEncoder } from "./pcm-chunked-encoder"
-import { createWorkerMessageHandler } from "@/workers/chunked-encoder-worker-core"
+import { createWorkerMessageHandler } from "../../workers/chunked-encoder-worker-core"
 
 self.onmessage = createWorkerMessageHandler(() => pcmStreamEncoder)

@@ -1,4 +1,4 @@
-import type { AudioFrame, RecorderInputStrategy, RecorderIssue } from "@/types"
+import type { AudioFrame, RecorderInputStrategy, RecorderIssue } from "../types"
 
 export interface RecorderInputHandlers {
   onFrame: (frame: AudioFrame) => void
@@ -7,7 +7,7 @@ export interface RecorderInputHandlers {
 
 export interface RecorderInputRequest {
   sourceStream?: MediaStream | undefined
-  input?: import("@/types").RecorderInputOptions | undefined
+  input?: import("../types").RecorderInputOptions | undefined
 }
 
 export interface InputSessionSummary {

@@ -1,4 +1,4 @@
-import type { PcmBufferSnapshot } from "@/buffer/types"
+import type { PcmBufferSnapshot } from "../../buffer/types"
 import type { PcmExportOptions, PcmExportResult } from "./pcm-types"
 import { resample } from "@csnight/audio-recorder"
 

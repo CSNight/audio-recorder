@@ -1,4 +1,4 @@
-import type { AudioFrame } from "@/types"
+import type { AudioFrame } from "../types"
 
 export type MaybePromise<T> = T | Promise<T>
 

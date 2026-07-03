@@ -3,7 +3,7 @@ import {
   createAudioFrame,
   resolveChannelCount,
   toInt16Sample,
-} from "@/utils/audio-frame"
+} from "../../src/utils/audio-frame"
 
 describe("audio frame utilities", () => {
   it("clamps float samples to int16", () => {

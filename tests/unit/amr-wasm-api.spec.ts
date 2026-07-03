@@ -50,8 +50,8 @@ function createMockWbModule(overrides: Partial<any> = {}) {
 
 afterEach(() => {
   vi.resetModules()
-  vi.doUnmock("@/codecs/amr/libamrnb.wasm.mjs")
-  vi.doUnmock("@/codecs/amr/libamrwb.wasm.mjs")
+  vi.doUnmock("../../src/codecs/amr/libamrnb.wasm.mjs")
+  vi.doUnmock("../../src/codecs/amr/libamrwb.wasm.mjs")
 })
 
 describe("amr-wasm-api", () => {
@@ -60,10 +60,14 @@ describe("amr-wasm-api", () => {
     const wbModule = createMockWbModule()
     const createNb = vi.fn(async () => nbModule)
     const createWb = vi.fn(async () => wbModule)
-    vi.doMock("@/codecs/amr/libamrnb.wasm.mjs", () => ({ default: createNb }))
-    vi.doMock("@/codecs/amr/libamrwb.wasm.mjs", () => ({ default: createWb }))
+    vi.doMock("../../src/codecs/amr/libamrnb.wasm.mjs", () => ({
+      default: createNb,
+    }))
+    vi.doMock("../../src/codecs/amr/libamrwb.wasm.mjs", () => ({
+      default: createWb,
+    }))
 
-    const api = await import("@/codecs/amr/amr-wasm-api")
+    const api = await import("../../src/codecs/amr/amr-wasm-api")
     await api.preloadAmrModules()
     await api.preloadAmrModules()
 
@@ -82,7 +86,7 @@ describe("amr-wasm-api", () => {
   })
 
   it("throws when creating encoders before preload", async () => {
-    const api = await import("@/codecs/amr/amr-wasm-api")
+    const api = await import("../../src/codecs/amr/amr-wasm-api")
 
     expect(() => api.createAmrEncoder()).toThrow(
       "AMR-NB WASM module is not loaded"
@@ -95,14 +99,14 @@ describe("amr-wasm-api", () => {
   it("encodes AMR-NB frames, reuses the malloc buffer, and frees idempotently", async () => {
     const nbModule = createMockNbModule()
     const wbModule = createMockWbModule()
-    vi.doMock("@/codecs/amr/libamrnb.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/amr/libamrnb.wasm.mjs", () => ({
       default: vi.fn(async () => nbModule),
     }))
-    vi.doMock("@/codecs/amr/libamrwb.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/amr/libamrwb.wasm.mjs", () => ({
       default: vi.fn(async () => wbModule),
     }))
 
-    const api = await import("@/codecs/amr/amr-wasm-api")
+    const api = await import("../../src/codecs/amr/amr-wasm-api")
     await api.preloadAmrModules()
     const encoder = api.createAmrEncoder()
     const frame = new Int16Array(160).fill(12)
@@ -124,14 +128,14 @@ describe("amr-wasm-api", () => {
       _amrnb_encoder_create: vi.fn(() => 0),
     })
     let wbModule = createMockWbModule()
-    vi.doMock("@/codecs/amr/libamrnb.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/amr/libamrnb.wasm.mjs", () => ({
       default: vi.fn(async () => nbModule),
     }))
-    vi.doMock("@/codecs/amr/libamrwb.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/amr/libamrwb.wasm.mjs", () => ({
       default: vi.fn(async () => wbModule),
     }))
 
-    let api = await import("@/codecs/amr/amr-wasm-api")
+    let api = await import("../../src/codecs/amr/amr-wasm-api")
     await api.preloadAmrModules()
     expect(() => api.createAmrEncoder()).toThrow("Failed to initialize AMR-NB")
 
@@ -140,13 +144,13 @@ describe("amr-wasm-api", () => {
       _amrnb_encode_frame: vi.fn(() => 0),
     })
     wbModule = createMockWbModule()
-    vi.doMock("@/codecs/amr/libamrnb.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/amr/libamrnb.wasm.mjs", () => ({
       default: vi.fn(async () => nbModule),
     }))
-    vi.doMock("@/codecs/amr/libamrwb.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/amr/libamrwb.wasm.mjs", () => ({
       default: vi.fn(async () => wbModule),
     }))
-    api = await import("@/codecs/amr/amr-wasm-api")
+    api = await import("../../src/codecs/amr/amr-wasm-api")
     await api.preloadAmrModules()
     const encoder = api.createAmrEncoder()
 
@@ -159,14 +163,14 @@ describe("amr-wasm-api", () => {
   it("covers AMR-WB success and failure paths", async () => {
     let nbModule = createMockNbModule()
     let wbModule = createMockWbModule()
-    vi.doMock("@/codecs/amr/libamrnb.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/amr/libamrnb.wasm.mjs", () => ({
       default: vi.fn(async () => nbModule),
     }))
-    vi.doMock("@/codecs/amr/libamrwb.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/amr/libamrwb.wasm.mjs", () => ({
       default: vi.fn(async () => wbModule),
     }))
 
-    let api = await import("@/codecs/amr/amr-wasm-api")
+    let api = await import("../../src/codecs/amr/amr-wasm-api")
     await api.preloadAmrModules()
     let encoder = api.createAmrEncoder({ bandMode: "wb" })
     const frame = new Int16Array(320).fill(21)
@@ -181,13 +185,13 @@ describe("amr-wasm-api", () => {
     wbModule = createMockWbModule({
       _amrwb_encoder_create: vi.fn(() => 0),
     })
-    vi.doMock("@/codecs/amr/libamrnb.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/amr/libamrnb.wasm.mjs", () => ({
       default: vi.fn(async () => nbModule),
     }))
-    vi.doMock("@/codecs/amr/libamrwb.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/amr/libamrwb.wasm.mjs", () => ({
       default: vi.fn(async () => wbModule),
     }))
-    api = await import("@/codecs/amr/amr-wasm-api")
+    api = await import("../../src/codecs/amr/amr-wasm-api")
     await api.preloadAmrModules()
     expect(() => api.createAmrEncoder({ bandMode: "wb" })).toThrow(
       "Failed to initialize AMR-WB"
@@ -198,13 +202,13 @@ describe("amr-wasm-api", () => {
     wbModule = createMockWbModule({
       _amrwb_encode_frame: vi.fn(() => -2),
     })
-    vi.doMock("@/codecs/amr/libamrnb.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/amr/libamrnb.wasm.mjs", () => ({
       default: vi.fn(async () => nbModule),
     }))
-    vi.doMock("@/codecs/amr/libamrwb.wasm.mjs", () => ({
+    vi.doMock("../../src/codecs/amr/libamrwb.wasm.mjs", () => ({
       default: vi.fn(async () => wbModule),
     }))
-    api = await import("@/codecs/amr/amr-wasm-api")
+    api = await import("../../src/codecs/amr/amr-wasm-api")
     await api.preloadAmrModules()
     encoder = api.createAmrEncoder({ bandMode: "wb" })
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
-import type { PcmBufferSnapshot } from "@/buffer/types"
-import { lowPassFilter, resample } from "@/utils/resample"
+import type { PcmBufferSnapshot } from "../../src/buffer/types"
+import { lowPassFilter, resample } from "../../src/utils/resample"
 
 // ---------------------------------------------------------------------------
 // helpers

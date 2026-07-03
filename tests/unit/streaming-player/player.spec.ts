@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { createStreamingPlayer } from "@/plugins/streaming-player/player"
-import type { StreamingPlayerOptions } from "@/plugins/streaming-player/types"
-import type { PersistStore } from "@/plugins/streaming-player/persist-store"
-import type { StreamingPacketPayload } from "@/plugins/streaming-export/types"
-import type { EncodedAudioChunk } from "@/types"
+import type {
+  PersistStore,
+  StreamingPlayerOptions,
+} from "../../../src/plugins/streaming-player"
+import { createStreamingPlayer } from "../../../src/plugins/streaming-player"
+import type { StreamingPacketPayload } from "../../../src/plugins/streaming-export"
+import type { EncodedAudioChunk } from "../../../src/types"
 
 // ── 工具函数 ────────────────────────────────────────────────────────────────
 

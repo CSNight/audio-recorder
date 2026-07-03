@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   IndexedDbPersistStore,
   MemoryPersistStore,
-} from "@/plugins/streaming-player/persist-store"
-import type { StreamingPacketPayload } from "@/plugins/streaming-export/types"
+} from "../../../src/plugins/streaming-player/persist-store"
+import type { StreamingPacketPayload } from "../../../src/plugins/streaming-export"
 
 function makePacket(seq: number, durationMs = 20): StreamingPacketPayload {
   return {
@@ -64,7 +64,9 @@ class MockIdbObjectStore {
   put(value: unknown): IDBRequest {
     this.database.putCalls.push({ storeName: this.storeName, value })
     const id = (value as { id?: IDBValidKey }).id
-    this.database.getStore(this.storeName).set(id ?? this.database.putCalls.length, value)
+    this.database
+      .getStore(this.storeName)
+      .set(id ?? this.database.putCalls.length, value)
     return {} as IDBRequest
   }
 
@@ -89,14 +91,20 @@ class MockIdbTransaction {
     if (name !== this.storeName) {
       throw new Error(`Unknown object store "${name}".`)
     }
-    return new MockIdbObjectStore(this.database, name) as unknown as IDBObjectStore
+    return new MockIdbObjectStore(
+      this.database,
+      name
+    ) as unknown as IDBObjectStore
   }
 }
 
 class MockIdbDatabase {
   readonly stores = new Map<string, Map<IDBValidKey, unknown>>()
   readonly createObjectStoreCalls: string[] = []
-  readonly transactionCalls: Array<{ storeName: string; mode?: IDBTransactionMode }> = []
+  readonly transactionCalls: Array<{
+    storeName: string
+    mode?: IDBTransactionMode
+  }> = []
   readonly putCalls: Array<{ storeName: string; value: unknown }> = []
   readonly deleteCalls: Array<{ storeName: string; key: IDBValidKey }> = []
   readonly clearCalls: string[] = []
@@ -263,7 +271,10 @@ describe("streaming-player persist-store", () => {
 
       expect(mock.database.putCalls).toHaveLength(1)
       expect(
-        mock.database.putCalls[0]!.value as { id: number; packet: StreamingPacketPayload }
+        mock.database.putCalls[0]!.value as {
+          id: number
+          packet: StreamingPacketPayload
+        }
       ).toMatchObject({
         id: 2,
         packet: expect.objectContaining({ seq: 2 }),

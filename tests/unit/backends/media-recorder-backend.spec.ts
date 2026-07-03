@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { createMediaRecorderBackend } from "@/input/backends/media-recorder-backend"
-import type { InputBackendContext } from "@/input/backends/types"
-import { InputBackendUnavailableError } from "@/input/backends/types"
-import { RecorderWarningCode } from "@/types"
+import { createMediaRecorderBackend } from "../../../src/input/backends/media-recorder-backend"
+import type { InputBackendContext } from "../../../src/input/backends/types"
+import { InputBackendUnavailableError } from "../../../src/input/backends/types"
+import { RecorderWarningCode } from "../../../src"
 
 const createWebMExtractScopeMock = vi.hoisted(() => vi.fn())
 const webmExtractMock = vi.hoisted(() => vi.fn())
 
-vi.mock("@/input/webm-pcm-extractor", () => ({
+vi.mock("../../../src/input/webm-pcm-extractor", () => ({
   createWebMExtractScope: createWebMExtractScopeMock,
   webmExtract: webmExtractMock,
 }))

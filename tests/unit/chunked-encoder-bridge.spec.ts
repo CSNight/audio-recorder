@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { ChunkedEncoderBridge } from "@/workers/chunked-encoder-bridge"
-import { pcmStreamEncoder } from "@/codecs/base/pcm-chunked-encoder"
-import { wavStreamEncoder } from "@/codecs/base/wav-chunked-encoder"
+import { ChunkedEncoderBridge } from "../../src/workers/chunked-encoder-bridge"
+import { pcmStreamEncoder, wavStreamEncoder } from "../../src/codecs/base"
 
 function mono(samples: number[]): Int16Array[] {
   return [new Int16Array(samples)]

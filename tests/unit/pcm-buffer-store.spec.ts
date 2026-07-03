@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { ComplexPcmBufferStore } from "@/buffer/complex-pcm-buffer-store"
-import { InMemoryPcmBufferStore } from "@/buffer/in-memory-pcm-buffer-store"
-import { createPcmBufferStore } from "@/buffer/pcm-buffer-store"
-import { PersistPcmBufferStore } from "@/buffer/persist-pcm-buffer-store"
-import { createAudioFrame } from "@/utils/audio-frame"
+import { ComplexPcmBufferStore } from "../../src/buffer/complex-pcm-buffer-store"
+import { InMemoryPcmBufferStore } from "../../src/buffer/in-memory-pcm-buffer-store"
+import { createPcmBufferStore } from "../../src/buffer/pcm-buffer-store"
+import { PersistPcmBufferStore } from "../../src/buffer/persist-pcm-buffer-store"
+import { createAudioFrame } from "../../src/utils/audio-frame"
 
 describe("InMemoryPcmBufferStore", () => {
   it("appends frames and returns a merged snapshot", () => {

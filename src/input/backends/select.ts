@@ -1,13 +1,13 @@
-import { createAudioWorkletBackend } from "@/input/backends/audio-worklet-backend"
-import { createMediaRecorderBackend } from "@/input/backends/media-recorder-backend"
-import { createScriptProcessorBackend } from "@/input/backends/script-processor-backend"
+import { createAudioWorkletBackend } from "./audio-worklet-backend"
+import { createMediaRecorderBackend } from "./media-recorder-backend"
+import { createScriptProcessorBackend } from "./script-processor-backend"
 import {
   type InputBackend,
   type InputBackendContext,
   type InputBackendFactory,
   InputBackendUnavailableError,
-} from "@/input/backends/types"
-import { type RecorderInputStrategy, RecorderWarningCode } from "@/types"
+} from "./types"
+import { type RecorderInputStrategy, RecorderWarningCode } from "../../types"
 
 const FACTORIES: Record<RecorderInputStrategy, InputBackendFactory> = {
   "media-recorder": createMediaRecorderBackend,

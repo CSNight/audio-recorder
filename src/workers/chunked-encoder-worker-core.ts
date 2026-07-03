@@ -20,11 +20,11 @@
 import type {
   StreamEncoder,
   StreamEncoderDefinition,
-} from "@/plugins/streaming-export/types"
+} from "../plugins/streaming-export"
 import type {
   EncoderWorkerIncomingMessage,
   EncoderWorkerOutgoingMessage,
-} from "@/types"
+} from "../types"
 
 function postMsg(msg: EncoderWorkerOutgoingMessage, transfer?: Transferable[]) {
   if (transfer) {

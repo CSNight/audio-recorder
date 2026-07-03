@@ -73,9 +73,4 @@ export default defineConfig({
     format: "es",
   },
   plugins: [workerChunksPlugin()],
-  resolve: {
-    alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url)),
-    },
-  },
 })

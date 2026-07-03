@@ -1,20 +1,20 @@
-import type { PcmBufferSnapshot } from "@/buffer/types"
-import type { RecorderController } from "@/core/recorder-controller"
-import type { RecorderLevelEvent } from "@/plugins/level-meter/types"
-import type { RecorderPluginEventContext } from "@/plugins/types"
-import type { RecorderStorageOptions } from "@/storage/types"
+import type { PcmBufferSnapshot } from "./buffer/types"
+import type { RecorderController } from "./core/recorder-controller"
+import type { RecorderLevelEvent } from "./plugins/level-meter"
+import type { RecorderPluginEventContext } from "./plugins/types"
+import type { RecorderStorageOptions } from "./storage"
 import type {
   PcmExportOptions,
   PcmExportResult,
   WavExportOptions,
   WavExportResult,
-} from "@/codecs/base"
-import type { Mp3ExportOptions, Mp3ExportResult } from "@/codecs/mp3"
-import type { FlacExportOptions, FlacExportResult } from "@/codecs/flac"
-import type { OpusExportOptions, OpusExportResult } from "@/codecs/opus"
-import type { G711ExportOptions, G711ExportResult } from "@/codecs/g711"
-import type { AacExportOptions, AacExportResult } from "@/codecs/aac"
-import type { AmrExportOptions, AmrExportResult } from "@/codecs/amr"
+} from "./codecs/base"
+import type { Mp3ExportOptions, Mp3ExportResult } from "./codecs/mp3"
+import type { FlacExportOptions, FlacExportResult } from "./codecs/flac"
+import type { OpusExportOptions, OpusExportResult } from "./codecs/opus"
+import type { G711ExportOptions, G711ExportResult } from "./codecs/g711"
+import type { AacExportOptions, AacExportResult } from "./codecs/aac"
+import type { AmrExportOptions, AmrExportResult } from "./codecs/amr"
 
 export interface EncodedAudioChunk {
   format: string

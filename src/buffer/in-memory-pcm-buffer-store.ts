@@ -1,6 +1,6 @@
-import type { PcmBufferSnapshot, PcmBufferStore } from "@/buffer/types"
-import { mergeChannelChunks } from "@/buffer/pcm-buffer-utils"
-import type { AudioFrame } from "@/types"
+import type { PcmBufferSnapshot, PcmBufferStore } from "./types"
+import { mergeChannelChunks } from "./pcm-buffer-utils"
+import type { AudioFrame } from "../types"
 
 type PcmLayout = {
   sampleRate: number

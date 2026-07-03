@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import type { PcmBufferSnapshot } from "@/buffer/types"
-import { exportPcmSnapshot } from "@/codecs/base/pcm-exporter"
+import type { PcmBufferSnapshot } from "../../src/buffer/types"
+import { exportPcmSnapshot } from "../../src/codecs/base/pcm-exporter"
 
 describe("exportPcmSnapshot", () => {
   it("exports mono PCM as interleaved Int16 data by default", () => {

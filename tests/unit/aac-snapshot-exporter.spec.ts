@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it } from "vitest"
-import type { PcmBufferSnapshot } from "@/buffer/types"
+import type { PcmBufferSnapshot } from "../../src/buffer/types"
 import {
   aacExportEncoder,
   exportAacSnapshot,
-} from "@/codecs/aac/aac-snapshot-exporter"
-import { preloadAacModule } from "@/codecs/aac/aac-wasm-api"
+} from "../../src/codecs/aac/aac-snapshot-exporter"
+import { preloadAacModule } from "../../src/codecs/aac/aac-wasm-api"
 
 function sine(length: number, freq = 440, sampleRate = 48000): Int16Array {
   const out = new Int16Array(length)

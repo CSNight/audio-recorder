@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import type { PcmBufferSnapshot } from "@/buffer/types"
-import { serializePcmSnapshot } from "@/utils/snapshot-codec"
-import { createOpfsPersistencePlugin } from "@/storage/opfs/plugin"
+import type { PcmBufferSnapshot } from "../../src/buffer/types"
+import { serializePcmSnapshot } from "../../src"
+import { createOpfsPersistencePlugin } from "../../src/storage/opfs"
 
 class MockWritableFileStream {
   constructor(private readonly fileHandle: MockFileHandle) {}

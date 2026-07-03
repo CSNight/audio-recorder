@@ -1,5 +1,5 @@
-import type { MaybePromise, PcmBufferSnapshot } from "@/buffer/types"
-import type { AudioFrame } from "@/types"
+import type { MaybePromise, PcmBufferSnapshot } from "../buffer/types"
+import type { AudioFrame } from "../types"
 
 /**
  * 录音帧处理管线接口。

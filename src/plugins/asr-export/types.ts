@@ -1,4 +1,4 @@
-import type { ExportEncoderDefinition } from "@/types"
+import type { ExportEncoderDefinition } from "../../types"
 
 export type AsrExportFormat = "pcm" | "wav"
 

@@ -1,18 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { RecorderController } from "@/core/recorder-controller"
-import { createStreamingExportPlugin } from "@/plugins/streaming-export/plugin"
-import type { RecorderPluginEventContext } from "@/plugins/types"
+import { RecorderController } from "../../src"
 import type {
   StreamEncoderDefinition,
   StreamingPacketPayload,
-} from "@/plugins/streaming-export/types"
+} from "../../src/plugins/streaming-export"
+import { createStreamingExportPlugin } from "../../src/plugins/streaming-export"
+import type { RecorderPluginEventContext } from "../../src/plugins/types"
 import type {
   InputSessionSummary,
   RecorderInputAdapter,
   RecorderInputHandlers,
   RecorderInputSession,
-} from "@/input/types"
-import { createAudioFrame } from "@/utils/audio-frame"
+} from "../../src/input/types"
+import { createAudioFrame } from "../../src/utils/audio-frame"
 
 class FakeStreamingInputSession implements RecorderInputSession {
   constructor(

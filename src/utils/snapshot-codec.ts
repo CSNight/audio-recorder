@@ -1,4 +1,4 @@
-import type { PcmBufferSnapshot } from "@/buffer/types"
+import type { PcmBufferSnapshot } from "../buffer/types"
 
 const SNAPSHOT_VERSION = 1
 

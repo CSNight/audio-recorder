@@ -4,13 +4,13 @@ import type {
   RecorderInputAdapter,
   RecorderInputHandlers,
   RecorderInputSession,
-} from "@/input/types"
-import { RecorderController } from "@/core/recorder-controller"
-import { pcmExportEncoder, wavExportEncoder } from "@/codecs/base"
-import { createAsrExportPlugin } from "@/plugins/asr-export"
-import type { AsrChunkPayload } from "@/plugins/asr-export/types"
-import type { RecorderPluginEventContext } from "@/plugins/types"
-import { createAudioFrame } from "@/utils/audio-frame"
+} from "../../src/input/types"
+import { RecorderController } from "../../src"
+import { pcmExportEncoder, wavExportEncoder } from "../../src/codecs/base"
+import type { AsrChunkPayload } from "../../src/plugins/asr-export"
+import { createAsrExportPlugin } from "../../src/plugins/asr-export"
+import type { RecorderPluginEventContext } from "../../src/plugins/types"
+import { createAudioFrame } from "../../src/utils/audio-frame"
 
 class FakeAsrInputSession implements RecorderInputSession {
   constructor(
