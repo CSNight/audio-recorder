@@ -1,207 +1,208 @@
 <!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="utf-8" />
-  <meta content="width=device-width, initial-scale=1" name="viewport" />
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
     <title>MediaRecorder vs AudioWorklet 双声道 / APM 诊断</title>
     <style>
-        body {
-            font-family: system-ui,
-            -apple-system,
-            "Segoe UI",
-            sans-serif;
-            max-width: 920px;
-            margin: 24px auto;
-            padding: 0 16px;
-            line-height: 1.5;
-            color: #1a1a1a;
-        }
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+        max-width: 920px;
+        margin: 24px auto;
+        padding: 0 16px;
+        line-height: 1.5;
+        color: #1a1a1a;
+      }
 
-        h1 {
-            font-size: 20px;
-        }
+      h1 {
+        font-size: 20px;
+      }
 
-        h2 {
-            font-size: 16px;
-            margin-top: 28px;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 4px;
-        }
+      h2 {
+        font-size: 16px;
+        margin-top: 28px;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 4px;
+      }
 
-        button {
-            font-size: 14px;
-            padding: 8px 14px;
-            margin: 4px 6px 4px 0;
-            cursor: pointer;
-            border: 1px solid #888;
-            border-radius: 6px;
-            background: #f6f6f6;
-        }
+      button {
+        font-size: 14px;
+        padding: 8px 14px;
+        margin: 4px 6px 4px 0;
+        cursor: pointer;
+        border: 1px solid #888;
+        border-radius: 6px;
+        background: #f6f6f6;
+      }
 
-        button:hover {
-            background: #ececec;
-        }
+      button:hover {
+        background: #ececec;
+      }
 
-        label {
-            margin-right: 16px;
-        }
+      label {
+        margin-right: 16px;
+      }
 
-        pre {
-            background: #0f1115;
-            color: #d6e2ff;
-            padding: 12px;
-            border-radius: 8px;
-            overflow-x: auto;
-            font-size: 12.5px;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
+      pre {
+        background: #0f1115;
+        color: #d6e2ff;
+        padding: 12px;
+        border-radius: 8px;
+        overflow-x: auto;
+        font-size: 12.5px;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
 
-        .row {
-            margin: 10px 0;
-        }
+      .row {
+        margin: 10px 0;
+      }
 
-        .hint {
-            color: #555;
-            font-size: 13px;
-        }
+      .hint {
+        color: #555;
+        font-size: 13px;
+      }
 
-        table {
-            border-collapse: collapse;
-            font-size: 13px;
-            margin-top: 8px;
-        }
+      table {
+        border-collapse: collapse;
+        font-size: 13px;
+        margin-top: 8px;
+      }
 
-        th,
-        td {
-            border: 1px solid #ccc;
-            padding: 5px 10px;
-            text-align: left;
-        }
+      th,
+      td {
+        border: 1px solid #ccc;
+        padding: 5px 10px;
+        text-align: left;
+      }
 
-        th {
-            background: #f0f0f0;
-        }
+      th {
+        background: #f0f0f0;
+      }
 
-        .ok {
-            color: #0a7d2c;
-            font-weight: 600;
-        }
+      .ok {
+        color: #0a7d2c;
+        font-weight: 600;
+      }
 
-        .bad {
-            color: #c0271a;
-            font-weight: 600;
-        }
+      .bad {
+        color: #c0271a;
+        font-weight: 600;
+      }
     </style>
-</head>
-<body>
-<h1>MediaRecorder vs AudioWorklet 双声道 / 原生 APM 诊断</h1>
-<p class="hint">
-  该页面纯静态，无需构建，直接在目标浏览器打开即可。它对同一支麦克风分别用 4
-  种路径采集，对比浏览器实际给出的声道数、APM（AEC/NS/AGC）生效情况，以及
-  MediaRecorder 实际编码出的声道数，用来定位"硬件支持双声道但 MediaRecorder
-  录不到双声道"的根因。
-</p>
+  </head>
+  <body>
+    <h1>MediaRecorder vs AudioWorklet 双声道 / 原生 APM 诊断</h1>
+    <p class="hint">
+      该页面纯静态，无需构建，直接在目标浏览器打开即可。它对同一支麦克风分别用 4
+      种路径采集，对比浏览器实际给出的声道数、APM（AEC/NS/AGC）生效情况，以及
+      MediaRecorder 实际编码出的声道数，用来定位"硬件支持双声道但 MediaRecorder
+      录不到双声道"的根因。
+    </p>
 
-<div class="row">
-  <label for="device">音频输入设备：</label>
-  <select
-    id="device"
-    style="font-size: 14px; padding: 4px; min-width: 320px"
-  >
+    <div class="row">
+      <label for="device">音频输入设备：</label>
+      <select
+        id="device"
+        style="font-size: 14px; padding: 4px; min-width: 320px"
+      >
         <option value="">（默认设备 / 不指定 deviceId）</option>
-  </select>
-  <button id="refresh">枚举设备</button>
-  <div class="hint">
+      </select>
+      <button id="refresh">枚举设备</button>
+      <div class="hint">
         先点「枚举设备」（会请求一次麦克风权限以拿到设备 label），再选具体设备。
         选中后所有路径都用
         <code>deviceId:{exact}</code> 请求该设备，逐个物理设备验证。
-  </div>
-</div>
-<div class="row">
-  <label
-  ><input checked name="apm" type="radio" value="off" /> APM 关闭
+      </div>
+    </div>
+    <div class="row">
+      <label
+        ><input checked name="apm" type="radio" value="off" /> APM 关闭
         (echoCancellation/noiseSuppression/autoGainControl = false)</label
-  >
-  <label
-  ><input name="apm" type="radio" value="on" /> APM 开启 (三项 =
+      >
+      <label
+        ><input name="apm" type="radio" value="on" /> APM 开启 (三项 =
         true)</label
-  >
-</div>
-<div class="row">
-  <button id="run">运行全部诊断</button>
-  <button id="clear">清空日志</button>
-</div>
+      >
+    </div>
+    <div class="row">
+      <button id="run">运行全部诊断</button>
+      <button id="clear">清空日志</button>
+    </div>
 
-<h2>结论摘要</h2>
-<div id="summary">尚未运行。</div>
+    <h2>结论摘要</h2>
+    <div id="summary">尚未运行。</div>
 
-<h2>原始日志</h2>
-<pre id="log"></pre>
+    <h2>原始日志</h2>
+    <pre id="log"></pre>
 
-<script type="module">
-  const logEl = document.getElementById("log");
-  const summaryEl = document.getElementById("summary");
+    <script type="module">
+      const logEl = document.getElementById("log")
+      const summaryEl = document.getElementById("summary")
 
-  function log(...args) {
+      function log(...args) {
         const line = args
           .map((a) => (typeof a === "string" ? a : JSON.stringify(a, null, 2)))
           .join(" ")
         logEl.textContent += line + "\n"
         console.log(...args)
-  }
+      }
 
-  function apmConstraints() {
+      function apmConstraints() {
         const on =
-          document.querySelector("input[name=\"apm\"]:checked").value === "on"
+          document.querySelector('input[name="apm"]:checked').value === "on"
         return {
           echoCancellation: on,
           noiseSuppression: on,
-          autoGainControl: on
+          autoGainControl: on,
         }
-  }
+      }
 
-  // 选中具体设备时返回 deviceId:{exact}，否则返回空对象（用默认设备）
-  function deviceConstraint() {
+      // 选中具体设备时返回 deviceId:{exact}，否则返回空对象（用默认设备）
+      function deviceConstraint() {
         const id = document.getElementById("device").value
-    return id ? { deviceId: { exact: id } } : {};
-  }
+        return id ? { deviceId: { exact: id } } : {}
+      }
 
-  // 检测一个 Float32 PCM planar 数据里左右声道是否真的不同
-  // （浏览器有时上报 2 声道但两声道完全相同 = 假立体声）
-  function channelsDiffer(planarL, planarR) {
+      // 检测一个 Float32 PCM planar 数据里左右声道是否真的不同
+      // （浏览器有时上报 2 声道但两声道完全相同 = 假立体声）
+      function channelsDiffer(planarL, planarR) {
         if (!planarL || !planarR) return false
         const n = Math.min(planarL.length, planarR.length, 4096)
         let maxDiff = 0
         for (let i = 0; i < n; i++) {
-          maxDiff = Math.max(maxDiff, Math.abs(planarL[i] - planarR[i]));
+          maxDiff = Math.max(maxDiff, Math.abs(planarL[i] - planarR[i]))
         }
-    return { maxDiff, distinct: maxDiff > 1e-6 };
-  }
+        return { maxDiff, distinct: maxDiff > 1e-6 }
+      }
 
-  async function getStream(channelCount) {
+      async function getStream(channelCount) {
         const constraints = {
           audio: {
             channelCount,
             ...apmConstraints(),
-            ...deviceConstraint()
+            ...deviceConstraint(),
           },
-          video: false
+          video: false,
         }
         log("→ getUserMedia 约束:", constraints.audio)
         const stream = await navigator.mediaDevices.getUserMedia(constraints)
         const track = stream.getAudioTracks()[0]
         const settings = track.getSettings ? track.getSettings() : {}
         log("← track.getSettings():", settings)
-    return { stream, track, settings };
-  }
+        return { stream, track, settings }
+      }
 
-  // 路径 1：getUserMedia 直接请求双声道，AudioWorklet 采集，看实际声道
-  async function probeWorkletStereo() {
+      // 路径 1：getUserMedia 直接请求双声道，AudioWorklet 采集，看实际声道
+      async function probeWorkletStereo() {
         log(
           "\n===== 路径1: getUserMedia(channelCount:2) → AudioContext source ====="
         )
-    const { stream, settings } = await getStream(2);
+        const { stream, settings } = await getStream(2)
         const ctx = new AudioContext()
         const source = ctx.createMediaStreamSource(stream)
         log(
@@ -222,32 +223,32 @@
           sourceChannelCount: source.channelCount,
           capturedChannels: result.channels,
           stereoDistinct: result.distinct,
-          maxDiff: result.maxDiff
+          maxDiff: result.maxDiff,
         }
-  }
+      }
 
-  // 路径 2：getUserMedia 双声道 → 直接喂 MediaRecorder，解析输出声道
-  async function probeMediaRecorderDirect() {
+      // 路径 2：getUserMedia 双声道 → 直接喂 MediaRecorder，解析输出声道
+      async function probeMediaRecorderDirect() {
         log(
           "\n===== 路径2: getUserMedia(channelCount:2) → MediaRecorder 直录 ====="
         )
-    const { stream, settings } = await getStream(2);
+        const { stream, settings } = await getStream(2)
         const out = await recordAndDecode(stream)
         stream.getTracks().forEach((t) => t.stop())
         return {
           path: "mediarecorder/direct",
           requestedChannels: 2,
           settingsChannelCount: settings.channelCount,
-          ...out
+          ...out,
         }
-  }
+      }
 
-  // 路径 3：getUserMedia 双声道 → source→Gain(explicit 2)→Destination → MediaRecorder（当前库做法）
-  async function probeMediaRecorderRouted() {
+      // 路径 3：getUserMedia 双声道 → source→Gain(explicit 2)→Destination → MediaRecorder（当前库做法）
+      async function probeMediaRecorderRouted() {
         log(
           "\n===== 路径3: getUserMedia(channelCount:2) → source→Gain(explicit,2)→MediaStreamDestination → MediaRecorder（绕图） ====="
         )
-    const { stream, settings } = await getStream(2);
+        const { stream, settings } = await getStream(2)
         const ctx = new AudioContext()
         const source = ctx.createMediaStreamSource(stream)
         const gain = ctx.createGain()
@@ -269,12 +270,12 @@
           path: "mediarecorder/routed-gain",
           requestedChannels: 2,
           settingsChannelCount: settings.channelCount,
-          ...out
+          ...out,
         }
-  }
+      }
 
-  // 路径 4：APM 关闭 + 双声道直录 MediaRecorder（验证 APM 是否为 mono 根因）
-  async function probeMediaRecorderApmOff() {
+      // 路径 4：APM 关闭 + 双声道直录 MediaRecorder（验证 APM 是否为 mono 根因）
+      async function probeMediaRecorderApmOff() {
         log(
           "\n===== 路径4: getUserMedia(channelCount:2, APM 全关) → MediaRecorder 直录 ====="
         )
@@ -284,9 +285,9 @@
             echoCancellation: false,
             noiseSuppression: false,
             autoGainControl: false,
-            ...deviceConstraint()
+            ...deviceConstraint(),
           },
-          video: false
+          video: false,
         }
         log("→ getUserMedia 约束:", constraints.audio)
         const stream = await navigator.mediaDevices.getUserMedia(constraints)
@@ -298,13 +299,13 @@
           path: "mediarecorder/apm-off",
           requestedChannels: 2,
           settingsChannelCount: settings.channelCount,
-          ...out
+          ...out,
         }
-  }
+      }
 
-  // 路径 5：channelCount:{exact:2} 强制双声道——设备不支持会直接 reject，
-  // 一锤定音回答"硬件到底支不支持立体声采集"
-  async function probeExactStereo() {
+      // 路径 5：channelCount:{exact:2} 强制双声道——设备不支持会直接 reject，
+      // 一锤定音回答"硬件到底支不支持立体声采集"
+      async function probeExactStereo() {
         log(
           "\n===== 路径5: getUserMedia(channelCount:{exact:2}) 强制双声道 ====="
         )
@@ -312,110 +313,109 @@
           audio: {
             channelCount: { exact: 2 },
             ...apmConstraints(),
-            ...deviceConstraint()
+            ...deviceConstraint(),
           },
-          video: false
+          video: false,
         }
         log("→ getUserMedia 约束:", constraints.audio)
         try {
-          const stream = await navigator.mediaDevices.getUserMedia(constraints);
-          const settings = stream.getAudioTracks()[0].getSettings?.() ?? {};
-          log("← 成功！track.getSettings():", settings);
-          const ctx = new AudioContext();
-          const source = ctx.createMediaStreamSource(stream);
-          const frame = await captureOneFrame(ctx, source, 2);
-          stream.getTracks().forEach((t) => t.stop());
-          await ctx.close();
+          const stream = await navigator.mediaDevices.getUserMedia(constraints)
+          const settings = stream.getAudioTracks()[0].getSettings?.() ?? {}
+          log("← 成功！track.getSettings():", settings)
+          const ctx = new AudioContext()
+          const source = ctx.createMediaStreamSource(stream)
+          const frame = await captureOneFrame(ctx, source, 2)
+          stream.getTracks().forEach((t) => t.stop())
+          await ctx.close()
           return {
             path: "exact-stereo",
             requestedChannels: 2,
             settingsChannelCount: settings.channelCount,
             capturedChannels: frame.channels,
             stereoDistinct: frame.distinct,
-            mimeType: "硬件支持立体声 ✓"
-          };
+            mimeType: "硬件支持立体声 ✓",
+          }
         } catch (err) {
           log(
             "← reject:",
             String(err),
             "→ 说明该设备/浏览器无法提供真双声道采集"
-          );
+          )
           return {
             path: "exact-stereo",
             requestedChannels: 2,
             settingsChannelCount: "—",
             capturedChannels: 0,
-            decodeError: "REJECTED: 硬件不支持立体声采集"
-          };
+            decodeError: "REJECTED: 硬件不支持立体声采集",
+          }
         }
-  }
+      }
 
-  // 列出所有音频输入设备，辅助判断是否有立体声设备可选
-  async function dumpDevices() {
+      // 列出所有音频输入设备，辅助判断是否有立体声设备可选
+      async function dumpDevices() {
         try {
-          const selectedId = document.getElementById("device").value;
-          const devices = await navigator.mediaDevices.enumerateDevices();
-          const mics = devices.filter((d) => d.kind === "audioinput");
-          log("\n音频输入设备列表（★ = 本次测试选中）:");
+          const selectedId = document.getElementById("device").value
+          const devices = await navigator.mediaDevices.enumerateDevices()
+          const mics = devices.filter((d) => d.kind === "audioinput")
+          log("\n音频输入设备列表（★ = 本次测试选中）:")
           for (const m of mics) {
-            const mark = m.deviceId === selectedId ? "★ " : "  ";
+            const mark = m.deviceId === selectedId ? "★ " : "  "
             log(
               `${mark}- ${m.label || "(未授权前 label 为空)"} [${m.deviceId.slice(0, 12)}…]`
-            );
+            )
           }
-          if (!selectedId) log("  （本次未指定 deviceId，使用浏览器默认设备）");
+          if (!selectedId) log("  （本次未指定 deviceId，使用浏览器默认设备）")
         } catch (e) {
-          log("enumerateDevices 失败:", String(e));
+          log("enumerateDevices 失败:", String(e))
         }
-  }
+      }
 
-  // 用 ScriptProcessor 抓一帧，返回声道数和左右是否不同
-  function captureOneFrame(ctx, source, ch) {
+      // 用 ScriptProcessor 抓一帧，返回声道数和左右是否不同
+      function captureOneFrame(ctx, source, ch) {
         return new Promise((resolve) => {
-          const sp = ctx.createScriptProcessor(4096, ch, ch);
-          let done = false;
+          const sp = ctx.createScriptProcessor(4096, ch, ch)
+          let done = false
           sp.onaudioprocess = (e) => {
-            if (done) return;
-            done = true;
-            const buf = e.inputBuffer;
-            const channels = buf.numberOfChannels;
-            let diff = { distinct: false, maxDiff: 0 };
+            if (done) return
+            done = true
+            const buf = e.inputBuffer
+            const channels = buf.numberOfChannels
+            let diff = { distinct: false, maxDiff: 0 }
             if (channels >= 2) {
               diff = channelsDiffer(
                 buf.getChannelData(0),
                 buf.getChannelData(1)
-              );
+              )
             }
-            sp.onaudioprocess = null;
+            sp.onaudioprocess = null
             try {
-              source.disconnect();
-              sp.disconnect();
-            } catch {
-            }
+              source.disconnect()
+              sp.disconnect()
+            } catch {}
             resolve({
               channels,
               distinct: diff.distinct,
-              maxDiff: diff.maxDiff
-            });
-          };
-          source.connect(sp);
-          sp.connect(ctx.destination);
+              maxDiff: diff.maxDiff,
+            })
+          }
+          source.connect(sp)
+          sp.connect(ctx.destination)
           // 兜底超时
           setTimeout(() => {
             if (!done) {
-              done = true;
-              resolve({ channels: 0, distinct: false, maxDiff: 0 });
+              done = true
+              resolve({ channels: 0, distinct: false, maxDiff: 0 })
             }
-          }, 1500);
+          }, 1500)
         })
-  }
+      }
 
-  // 录 ~600ms，用 decodeAudioData 解码出实际声道数
-  async function recordAndDecode(stream) {
+      // 录 ~600ms，用 decodeAudioData 解码出实际声道数
+      async function recordAndDecode(stream) {
         const mimeCandidates = [
           "audio/webm; codecs=pcm",
           "audio/webm; codecs=opus",
-          "audio/webm"
+          "audio/webm",
         ]
         const mimeType =
           mimeCandidates.find(
@@ -432,7 +432,7 @@
           mimeType ? { mimeType } : undefined
         )
         mr.ondataavailable = (e) => {
-          if (e.data && e.data.size) chunks.push(e.data);
+          if (e.data && e.data.size) chunks.push(e.data)
         }
         const stopped = new Promise((res) => (mr.onstop = res))
         mr.start()
@@ -440,48 +440,48 @@
         mr.stop()
         await stopped
 
-    const blob = new Blob(chunks, { type: mimeType || "audio/webm" });
+        const blob = new Blob(chunks, { type: mimeType || "audio/webm" })
         const arrayBuf = await blob.arrayBuffer()
         let decodedChannels = null
         let decodeError = null
         try {
-          const ctx = new AudioContext();
-          const audioBuf = await ctx.decodeAudioData(arrayBuf.slice(0));
-          decodedChannels = audioBuf.numberOfChannels;
-          let distinct = false;
+          const ctx = new AudioContext()
+          const audioBuf = await ctx.decodeAudioData(arrayBuf.slice(0))
+          decodedChannels = audioBuf.numberOfChannels
+          let distinct = false
           if (decodedChannels >= 2) {
             const d = channelsDiffer(
               audioBuf.getChannelData(0),
               audioBuf.getChannelData(1)
-            );
-            distinct = d.distinct;
+            )
+            distinct = d.distinct
           }
-          await ctx.close();
+          await ctx.close()
           log(
             "decodeAudioData → numberOfChannels =",
             decodedChannels,
             "| 左右声道不同 =",
             distinct
-          );
+          )
           return {
             mimeType,
             bytes: arrayBuf.byteLength,
             decodedChannels,
-            stereoDistinct: distinct
-          };
+            stereoDistinct: distinct,
+          }
         } catch (err) {
-          decodeError = String(err);
-          log("decodeAudioData 失败:", decodeError);
+          decodeError = String(err)
+          log("decodeAudioData 失败:", decodeError)
           return {
             mimeType,
             bytes: arrayBuf.byteLength,
             decodedChannels: null,
-            decodeError
-          };
+            decodeError,
+          }
         }
-  }
+      }
 
-  function renderSummary(rows) {
+      function renderSummary(rows) {
         const cell = (v) => (v === undefined || v === null ? "—" : String(v))
         const channelClass = (n) => (n === 2 ? "ok" : n === 1 ? "bad" : "")
         let html =
@@ -491,7 +491,7 @@
           "</tr></thead><tbody>"
         for (const r of rows) {
           const actual =
-            r.capturedChannels ?? r.decodedChannels ?? r.sourceChannelCount;
+            r.capturedChannels ?? r.decodedChannels ?? r.sourceChannelCount
           html +=
             "<tr>" +
             `<td>${cell(r.path)}</td>` +
@@ -500,40 +500,40 @@
             `<td class="${channelClass(actual)}">${cell(actual)}</td>` +
             `<td>${r.stereoDistinct === undefined ? "—" : r.stereoDistinct ? "是" : "否"}</td>` +
             `<td>${cell(r.decodeError ?? r.mimeType ?? "")}</td>` +
-            "</tr>";
+            "</tr>"
         }
         html += "</tbody></table>"
         summaryEl.innerHTML = html
-  }
+      }
 
-  document.getElementById("run").addEventListener("click", async () => {
+      document.getElementById("run").addEventListener("click", async () => {
         logEl.textContent = ""
         summaryEl.textContent = "运行中..."
         const rows = []
         try {
-          rows.push(await probeWorkletStereo());
+          rows.push(await probeWorkletStereo())
         } catch (e) {
-          log("路径1 异常:", String(e));
+          log("路径1 异常:", String(e))
         }
         try {
-          rows.push(await probeMediaRecorderDirect());
+          rows.push(await probeMediaRecorderDirect())
         } catch (e) {
-          log("路径2 异常:", String(e));
+          log("路径2 异常:", String(e))
         }
         try {
-          rows.push(await probeMediaRecorderRouted());
+          rows.push(await probeMediaRecorderRouted())
         } catch (e) {
-          log("路径3 异常:", String(e));
+          log("路径3 异常:", String(e))
         }
         try {
-          rows.push(await probeMediaRecorderApmOff());
+          rows.push(await probeMediaRecorderApmOff())
         } catch (e) {
-          log("路径4 异常:", String(e));
+          log("路径4 异常:", String(e))
         }
         try {
-          rows.push(await probeExactStereo());
+          rows.push(await probeExactStereo())
         } catch (e) {
-          log("路径5 异常:", String(e));
+          log("路径5 异常:", String(e))
         }
         await dumpDevices()
         renderSummary(rows)
@@ -542,62 +542,62 @@
           "解读：若路径1(worklet)能拿到 2 且左右不同，而路径2(MR直录)解码为 1，" +
             "说明 MediaRecorder 链路被降成单声道；对比路径4(APM全关)可判断是否由 APM 导致。"
         )
-  })
+      })
 
-  document.getElementById("clear").addEventListener("click", () => {
+      document.getElementById("clear").addEventListener("click", () => {
         logEl.textContent = ""
         summaryEl.textContent = "已清空。"
-  })
+      })
 
-  // 枚举音频输入设备并填充下拉框。先请求一次权限以拿到设备 label，
-  // 否则未授权时 label 为空、无法分辨设备。
-  async function populateDevices() {
+      // 枚举音频输入设备并填充下拉框。先请求一次权限以拿到设备 label，
+      // 否则未授权时 label 为空、无法分辨设备。
+      async function populateDevices() {
         const select = document.getElementById("device")
         try {
           // 触发权限（拿到 label）；立即关掉这条临时流
           const probe = await navigator.mediaDevices.getUserMedia({
-            audio: true
-          });
-          probe.getTracks().forEach((t) => t.stop());
+            audio: true,
+          })
+          probe.getTracks().forEach((t) => t.stop())
         } catch (e) {
-          log("请求麦克风权限失败（无法获取设备 label）:", String(e));
+          log("请求麦克风权限失败（无法获取设备 label）:", String(e))
         }
         try {
-          const devices = await navigator.mediaDevices.enumerateDevices();
-          const mics = devices.filter((d) => d.kind === "audioinput");
-          const prev = select.value;
+          const devices = await navigator.mediaDevices.enumerateDevices()
+          const mics = devices.filter((d) => d.kind === "audioinput")
+          const prev = select.value
           select.innerHTML =
-            "<option value=\"\">（默认设备 / 不指定 deviceId）</option>";
+            '<option value="">（默认设备 / 不指定 deviceId）</option>'
           for (const m of mics) {
-            const opt = document.createElement("option");
-            opt.value = m.deviceId;
-            opt.textContent = `${m.label || "(无 label)"} [${m.deviceId.slice(0, 8)}…]`;
-            select.appendChild(opt);
+            const opt = document.createElement("option")
+            opt.value = m.deviceId
+            opt.textContent = `${m.label || "(无 label)"} [${m.deviceId.slice(0, 8)}…]`
+            select.appendChild(opt)
           }
           // 尽量保留之前的选择
-          if (mics.some((m) => m.deviceId === prev)) select.value = prev;
-          log(`已枚举到 ${mics.length} 个音频输入设备，请在上方下拉选择。`);
+          if (mics.some((m) => m.deviceId === prev)) select.value = prev
+          log(`已枚举到 ${mics.length} 个音频输入设备，请在上方下拉选择。`)
         } catch (e) {
-          log("enumerateDevices 失败:", String(e));
+          log("enumerateDevices 失败:", String(e))
         }
-  }
+      }
 
-  document
+      document
         .getElementById("refresh")
         .addEventListener("click", populateDevices)
 
-  log("环境信息:");
-  log("userAgent =", navigator.userAgent);
-  log(
+      log("环境信息:")
+      log("userAgent =", navigator.userAgent)
+      log(
         "MediaRecorder PCM 支持 =",
         window.MediaRecorder &&
-    MediaRecorder.isTypeSupported &&
-    MediaRecorder.isTypeSupported("audio/webm; codecs=pcm")
-  )
-  log(
+          MediaRecorder.isTypeSupported &&
+          MediaRecorder.isTypeSupported("audio/webm; codecs=pcm")
+      )
+      log(
         "用法：先点「枚举设备」选中一支具体麦克风（强烈建议逐个物理设备测，不要只测 default），" +
-    "再切 APM 开/关各跑一次「运行全部诊断」。重点看路径5(exact:2)是否 reject、以及任何显示 2 声道的行『左右声道不同』是否为『是』。"
-  )
-</script>
-</body>
+          "再切 APM 开/关各跑一次「运行全部诊断」。重点看路径5(exact:2)是否 reject、以及任何显示 2 声道的行『左右声道不同』是否为『是』。"
+      )
+    </script>
+  </body>
 </html>

@@ -1,7 +1,10 @@
 import { createPcmBufferStore } from "../buffer/pcm-buffer-store"
 import type { RecorderInputAdapter, RecorderInputSession } from "../input/types"
 import { checkRecorderCapability } from "../input/capability-check"
-import type { RecorderPlugin, RecorderPluginEventContext, } from "../plugins/types"
+import type {
+  RecorderPlugin,
+  RecorderPluginEventContext,
+} from "../plugins/types"
 import type {
   AudioFrame,
   EncoderMap,
@@ -15,7 +18,11 @@ import type {
   RecorderSessionSummary,
   RecorderStateChangeEvent,
 } from "../types"
-import { RecorderInputSource, RecorderState, RecorderWarningCode, } from "../types"
+import {
+  RecorderInputSource,
+  RecorderState,
+  RecorderWarningCode,
+} from "../types"
 import { PcmFramePipeline } from "../pipeline/pcm-frame-pipeline"
 import type { RecorderFramePipeline } from "../pipeline/types"
 import { PluginHost } from "../plugins/plugin-host"

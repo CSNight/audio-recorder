@@ -10,7 +10,7 @@ should review the upstream license texts and their own distribution model.
 ## Codec Dependencies
 
 | Artifact                           | Build script                  | Upstream library                                | Version | License                                                    |
-|------------------------------------|-------------------------------|-------------------------------------------------|--------:|------------------------------------------------------------|
+| ---------------------------------- | ----------------------------- | ----------------------------------------------- | ------: | ---------------------------------------------------------- |
 | `src/codecs/opus/libopus.wasm.mjs` | `scripts/wasm/build-opus.mjs` | libopus                                         |   1.6.1 | BSD-style, commonly distributed as BSD-3-Clause            |
 | `src/codecs/mp3/libmp3.wasm.mjs`   | `scripts/wasm/build-mp3.mjs`  | LAME                                            |   3.100 | LGPL                                                       |
 | `src/codecs/flac/libflac.wasm.mjs` | `scripts/wasm/build-flac.mjs` | libFLAC                                         |   1.4.3 | BSD-style, commonly distributed as BSD-3-Clause            |
@@ -23,7 +23,7 @@ should review the upstream license texts and their own distribution model.
 The build scripts pin source archives and checksums:
 
 | Library      | Source URL in build script                                                                            | Checksum type |
-|--------------|-------------------------------------------------------------------------------------------------------|---------------|
+| ------------ | ----------------------------------------------------------------------------------------------------- | ------------- |
 | libopus      | `https://downloads.xiph.org/releases/opus/opus-1.6.1.tar.gz`                                          | SHA-256       |
 | LAME         | `https://sourceforge.net/projects/lame/files/lame/3.100/lame-3.100.tar.gz/download`                   | SHA-256       |
 | libFLAC      | `https://downloads.xiph.org/releases/flac/flac-1.4.3.tar.xz`                                          | SHA-256       |

@@ -105,7 +105,7 @@ import {
 Exports:
 
 | Export                                                | Description                        |
-|-------------------------------------------------------|------------------------------------|
+| ----------------------------------------------------- | ---------------------------------- |
 | `createRecorder(options?)`                            | Create a recorder controller       |
 | `listMicrophoneDevices()`                             | Enumerate microphone devices       |
 | `checkRecorderCapability()`                           | Return a browser capability report |
@@ -119,7 +119,7 @@ Exports:
 ### `createRecorder(options?)`
 
 | Option                         | Type                                                                  | Default  | Notes                       |
-|--------------------------------|-----------------------------------------------------------------------|----------|-----------------------------|
+| ------------------------------ | --------------------------------------------------------------------- | -------- | --------------------------- |
 | `sampleRate`                   | `number`                                                              | `-`      | Requested input sample rate |
 | `channelCount`                 | `number`                                                              | `-`      | Requested channel count     |
 | `echoCancellation`             | `boolean`                                                             | `true`   | Input constraint            |
@@ -134,7 +134,7 @@ Exports:
 Returns:
 
 | Type                 | Description                  |
-|----------------------|------------------------------|
+| -------------------- | ---------------------------- |
 | `RecorderController` | Recorder controller instance |
 
 ### `storage`
@@ -144,7 +144,7 @@ Recorder persistence is configured through `createRecorder({ storage })`.
 `RecorderStorageOptions`:
 
 | Field                   | Type                                 | Default | Description                             |
-|-------------------------|--------------------------------------|---------|-----------------------------------------|
+| ----------------------- | ------------------------------------ | ------- | --------------------------------------- |
 | `mode`                  | `"memory" \| "persistent" \| "auto"` | `-`     | Buffer mode                             |
 | `memoryThresholdBytes`  | `number`                             | `-`     | Switch threshold for `auto` mode        |
 | `persistenceChunkBytes` | `number`                             | `-`     | Target chunk size for persistence flush |
@@ -159,14 +159,14 @@ Subscribe to recorder or plugin events.
 Parameters:
 
 | Name       | Type                     | Description    |
-|------------|--------------------------|----------------|
+| ---------- | ------------------------ | -------------- |
 | `event`    | `keyof RecorderEventMap` | Event name     |
 | `listener` | `(payload) => void`      | Event listener |
 
 Returns:
 
 | Type         | Description          |
-|--------------|----------------------|
+| ------------ | -------------------- |
 | `() => void` | Unsubscribe function |
 
 #### `off(event, listener)`
@@ -176,14 +176,14 @@ Remove an event listener.
 Parameters:
 
 | Name       | Type                     | Description        |
-|------------|--------------------------|--------------------|
+| ---------- | ------------------------ | ------------------ |
 | `event`    | `keyof RecorderEventMap` | Event name         |
 | `listener` | `(payload) => void`      | Listener to remove |
 
 Returns:
 
 | Type   | Description     |
-|--------|-----------------|
+| ------ | --------------- |
 | `void` | No return value |
 
 #### `getState()`
@@ -191,7 +191,7 @@ Returns:
 Returns:
 
 | Type            | Description            |
-|-----------------|------------------------|
+| --------------- | ---------------------- |
 | `RecorderState` | Current recorder state |
 
 #### `getRuntimeInfo()`
@@ -199,7 +199,7 @@ Returns:
 Returns:
 
 | Type                  | Description                             |
-|-----------------------|-----------------------------------------|
+| --------------------- | --------------------------------------- |
 | `RecorderRuntimeInfo` | Requested and actual input runtime info |
 
 #### `getLatestSummary()`
@@ -207,7 +207,7 @@ Returns:
 Returns:
 
 | Type                     | Description             |
-|--------------------------|-------------------------|
+| ------------------------ | ----------------------- |
 | `RecorderSessionSummary` | Current session summary |
 
 #### `use(plugin)`
@@ -217,13 +217,13 @@ Register a plugin.
 Parameters:
 
 | Name     | Type             | Description     |
-|----------|------------------|-----------------|
+| -------- | ---------------- | --------------- |
 | `plugin` | `RecorderPlugin` | Plugin instance |
 
 Returns:
 
 | Type            | Description                          |
-|-----------------|--------------------------------------|
+| --------------- | ------------------------------------ |
 | `Promise<void>` | Resolves when plugin setup completes |
 
 #### `registerEncoder(definition)`
@@ -233,13 +233,13 @@ Register a snapshot encoder.
 Parameters:
 
 | Name         | Type                      | Description                              |
-|--------------|---------------------------|------------------------------------------|
+| ------------ | ------------------------- | ---------------------------------------- |
 | `definition` | `ExportEncoderDefinition` | Encoder definition for `exportEncoded()` |
 
 Returns:
 
 | Type   | Description     |
-|--------|-----------------|
+| ------ | --------------- |
 | `void` | No return value |
 
 #### `exportEncoded(type, options?)`
@@ -249,20 +249,20 @@ Export the current PCM snapshot with a registered encoder.
 Parameters:
 
 | Name      | Type                         | Description                             |
-|-----------|------------------------------|-----------------------------------------|
+| --------- | ---------------------------- | --------------------------------------- |
 | `type`    | `keyof EncoderMap \| string` | Encoder type                            |
 | `options` | encoder-specific             | Export options for the selected encoder |
 
 Returns:
 
 | Type               | Description                                     |
-|--------------------|-------------------------------------------------|
+| ------------------ | ----------------------------------------------- |
 | `Promise<TResult>` | Encoded result returned by the selected encoder |
 
 Common built-in result types:
 
 | Type           | Result             |
-|----------------|--------------------|
+| -------------- | ------------------ |
 | `pcm`          | `PcmExportResult`  |
 | `wav`          | `WavExportResult`  |
 | `mp3`          | `Mp3ExportResult`  |
@@ -279,13 +279,13 @@ Open a recorder session.
 Parameters:
 
 | Name      | Type                   | Description                 |
-|-----------|------------------------|-----------------------------|
+| --------- | ---------------------- | --------------------------- |
 | `options` | `RecorderInputOptions` | Per-session input overrides |
 
 `RecorderInputOptions` fields:
 
 | Field                          | Type                                                                  | Default  | Description                                    |
-|--------------------------------|-----------------------------------------------------------------------|----------|------------------------------------------------|
+| ------------------------------ | --------------------------------------------------------------------- | -------- | ---------------------------------------------- |
 | `sampleRate`                   | `number`                                                              | `-`      | Requested sample rate                          |
 | `channelCount`                 | `number`                                                              | `-`      | Requested channel count                        |
 | `echoCancellation`             | `boolean`                                                             | `true`   | Enable echo cancellation                       |
@@ -298,7 +298,7 @@ Parameters:
 Returns:
 
 | Type                           | Description                             |
-|--------------------------------|-----------------------------------------|
+| ------------------------------ | --------------------------------------- |
 | `Promise<RecorderRuntimeInfo>` | Actual runtime info after session opens |
 
 #### `start()`
@@ -306,7 +306,7 @@ Returns:
 Returns:
 
 | Type                           | Description          |
-|--------------------------------|----------------------|
+| ------------------------------ | -------------------- |
 | `Promise<RecorderRuntimeInfo>` | Updated runtime info |
 
 #### `pause()`
@@ -314,7 +314,7 @@ Returns:
 Returns:
 
 | Type   | Description     |
-|--------|-----------------|
+| ------ | --------------- |
 | `void` | No return value |
 
 #### `resume()`
@@ -322,7 +322,7 @@ Returns:
 Returns:
 
 | Type                           | Description          |
-|--------------------------------|----------------------|
+| ------------------------------ | -------------------- |
 | `Promise<RecorderRuntimeInfo>` | Updated runtime info |
 
 #### `stop()`
@@ -330,7 +330,7 @@ Returns:
 Returns:
 
 | Type                              | Description           |
-|-----------------------------------|-----------------------|
+| --------------------------------- | --------------------- |
 | `Promise<RecorderSessionSummary>` | Final session summary |
 
 #### `close()`
@@ -338,7 +338,7 @@ Returns:
 Returns:
 
 | Type            | Description                                |
-|-----------------|--------------------------------------------|
+| --------------- | ------------------------------------------ |
 | `Promise<void>` | Resolves when session resources are closed |
 
 #### `destroy()`
@@ -346,13 +346,13 @@ Returns:
 Returns:
 
 | Type            | Description                      |
-|-----------------|----------------------------------|
+| --------------- | -------------------------------- |
 | `Promise<void>` | Resolves when teardown completes |
 
 ### Subpaths
 
 | Package path                                       | Exports                              |
-|----------------------------------------------------|--------------------------------------|
+| -------------------------------------------------- | ------------------------------------ |
 | `@csnight/audio-recorder/codecs/base`              | PCM and WAV encoders / decoders      |
 | `@csnight/audio-recorder/codecs/mp3`               | MP3 encoder                          |
 | `@csnight/audio-recorder/codecs/flac`              | FLAC encoder                         |
@@ -374,7 +374,7 @@ Returns:
 Fired when recorder state changes.
 
 | Field           | Type                     | Description                |
-|-----------------|--------------------------|----------------------------|
+| --------------- | ------------------------ | -------------------------- |
 | `controller`    | `RecorderController`     | Recorder instance          |
 | `sessionId`     | `string`                 | Current session identifier |
 | `emittedAt`     | `number`                 | Event timestamp in ms      |
@@ -388,7 +388,7 @@ Fired when recorder state changes.
 Fired asynchronously for accepted PCM frames.
 
 | Field         | Type                     | Description                |
-|---------------|--------------------------|----------------------------|
+| ------------- | ------------------------ | -------------------------- |
 | `controller`  | `RecorderController`     | Recorder instance          |
 | `sessionId`   | `string`                 | Current session identifier |
 | `emittedAt`   | `number`                 | Event timestamp in ms      |
@@ -399,7 +399,7 @@ Fired asynchronously for accepted PCM frames.
 `frame` fields:
 
 | Field        | Type           | Description             |
-|--------------|----------------|-------------------------|
+| ------------ | -------------- | ----------------------- |
 | `channels`   | `number`       | Channel count           |
 | `sampleRate` | `number`       | Frame sample rate       |
 | `timestamp`  | `number`       | Frame timestamp in ms   |
@@ -411,7 +411,7 @@ Fired asynchronously for accepted PCM frames.
 Fired for warnings and errors.
 
 | Field         | Type                     | Description                |
-|---------------|--------------------------|----------------------------|
+| ------------- | ------------------------ | -------------------------- |
 | `controller`  | `RecorderController`     | Recorder instance          |
 | `sessionId`   | `string`                 | Current session identifier |
 | `emittedAt`   | `number`                 | Event timestamp in ms      |
@@ -422,7 +422,7 @@ Fired for warnings and errors.
 `issue` variants:
 
 | Variant   | Fields                                            |
-|-----------|---------------------------------------------------|
+| --------- | ------------------------------------------------- |
 | `warning` | `{ kind: "warning", warning: { code, message } }` |
 | `error`   | `{ kind: "error", error: Error }`                 |
 
@@ -458,7 +458,7 @@ recorder.on("plugin:level", ({ payload }) => {
 The following runtime and event types are exported from `@csnight/audio-recorder/plugins/level-meter`.
 
 | Export                     | Description                       |
-|----------------------------|-----------------------------------|
+| -------------------------- | --------------------------------- |
 | `createLevelMeterPlugin()` | Create the level meter plugin     |
 | `RecorderLevel`            | Level payload body type           |
 | `RecorderLevelChannel`     | Per-channel level type            |
@@ -471,7 +471,7 @@ None.
 Event payload: `plugin:level`
 
 | Field         | Type                     | Description                |
-|---------------|--------------------------|----------------------------|
+| ------------- | ------------------------ | -------------------------- |
 | `controller`  | `RecorderController`     | Recorder instance          |
 | `sessionId`   | `string`                 | Current session identifier |
 | `emittedAt`   | `number`                 | Event timestamp in ms      |
@@ -483,7 +483,7 @@ Event payload: `plugin:level`
 `payload.level` fields:
 
 | Field      | Type                     | Description                           |
-|------------|--------------------------|---------------------------------------|
+| ---------- | ------------------------ | ------------------------------------- |
 | `peak`     | `number`                 | Frame peak value normalized to `0..1` |
 | `rms`      | `number`                 | Frame RMS value normalized to `0..1`  |
 | `channels` | `RecorderLevelChannel[]` | Per-channel level array               |
@@ -533,7 +533,7 @@ recorder.on("plugin:stream", ({ payload }) => {
 The following types are exported from `@csnight/audio-recorder/plugins/streaming-export`.
 
 | Export                                 | Description                                           |
-|----------------------------------------|-------------------------------------------------------|
+| -------------------------------------- | ----------------------------------------------------- |
 | `createStreamingExportPlugin(options)` | Create a streaming export plugin                      |
 | `StreamEncoderDefinition`              | Public stream encoder definition passed by the caller |
 | `StreamingPacketPayload`               | Stream packet payload                                 |
@@ -542,7 +542,7 @@ The following types are exported from `@csnight/audio-recorder/plugins/streaming
 Options: `StreamingExportPluginOptions`
 
 | Field                     | Type                        | Default | Description                                                                                                             |
-|---------------------------|-----------------------------|---------|-------------------------------------------------------------------------------------------------------------------------|
+| ------------------------- | --------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `format`                  | `string`                    | `-`     | Output format key; must match a `StreamEncoderDefinition` in `encoders`                                                 |
 | `encoderOptions`          | `unknown`                   | `-`     | Encoder-specific options passed to `definition.create(options)` and `bridge.reset(options)`                             |
 | `encoders`                | `StreamEncoderDefinition[]` | `-`     | Available stream encoders; must include the selected `format`                                                           |
@@ -555,7 +555,7 @@ Options: `StreamingExportPluginOptions`
 `StreamEncoderDefinition` fields:
 
 | Field           | Type                          | Description                                            |
-|-----------------|-------------------------------|--------------------------------------------------------|
+| --------------- | ----------------------------- | ------------------------------------------------------ |
 | `format`        | `string`                      | Encoder format key                                     |
 | `workerFactory` | `() => Worker`                | Optional Worker factory used by `ChunkedEncoderBridge` |
 | `preload`       | `() => Promise<void>`         | Optional preload hook called during plugin `setup()`   |
@@ -564,7 +564,7 @@ Options: `StreamingExportPluginOptions`
 Event payload: `plugin:stream`
 
 | Field         | Type                     | Description                   |
-|---------------|--------------------------|-------------------------------|
+| ------------- | ------------------------ | ----------------------------- |
 | `controller`  | `RecorderController`     | Recorder instance             |
 | `sessionId`   | `string`                 | Current session identifier    |
 | `emittedAt`   | `number`                 | Event timestamp in ms         |
@@ -576,7 +576,7 @@ Event payload: `plugin:stream`
 `StreamingPacketPayload` fields:
 
 | Field           | Type                                   | Description                                                                               |
-|-----------------|----------------------------------------|-------------------------------------------------------------------------------------------|
+| --------------- | -------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `streamId`      | `string`                               | Logical stream ID; stable across sessions and reconnects                                  |
 | `sessionId`     | `string`                               | Streaming session ID generated on each `start()`                                          |
 | `seq`           | `number`                               | Monotonic packet index within the session                                                 |
@@ -628,7 +628,7 @@ recorder.on("plugin:asr:chunk", ({ payload }) => {
 The following types are exported from `@csnight/audio-recorder/plugins/asr-export`.
 
 | Export                           | Description                 |
-|----------------------------------|-----------------------------|
+| -------------------------------- | --------------------------- |
 | `createAsrExportPlugin(options)` | Create an ASR export plugin |
 | `AsrChunkPayload`                | ASR chunk payload           |
 | `AsrExportPluginOptions`         | Plugin options              |
@@ -636,7 +636,7 @@ The following types are exported from `@csnight/audio-recorder/plugins/asr-expor
 Options: `AsrExportPluginOptions`
 
 | Field             | Type                                       | Default | Description                      |
-|-------------------|--------------------------------------------|---------|----------------------------------|
+| ----------------- | ------------------------------------------ | ------- | -------------------------------- |
 | `format`          | `"pcm" \| "wav"`                           | `"pcm"` | Chunk output format              |
 | `encoders`        | `ExportEncoderDefinition[]`                | `-`     | Available snapshot encoders      |
 | `sampleRate`      | `8000 \| 16000 \| 24000 \| 32000 \| 48000` | `16000` | Output sample rate               |
@@ -647,7 +647,7 @@ Options: `AsrExportPluginOptions`
 Event payload: `plugin:asr:chunk`
 
 | Field         | Type                     | Description                |
-|---------------|--------------------------|----------------------------|
+| ------------- | ------------------------ | -------------------------- |
 | `controller`  | `RecorderController`     | Recorder instance          |
 | `sessionId`   | `string`                 | Current session identifier |
 | `emittedAt`   | `number`                 | Event timestamp in ms      |
@@ -659,7 +659,7 @@ Event payload: `plugin:asr:chunk`
 `AsrChunkPayload` fields:
 
 | Field         | Type             | Description           |
-|---------------|------------------|-----------------------|
+| ------------- | ---------------- | --------------------- |
 | `format`      | `"pcm" \| "wav"` | Output format         |
 | `chunk`       | `Uint8Array`     | Encoded bytes         |
 | `seq`         | `number`         | Monotonic chunk index |
@@ -714,7 +714,7 @@ player.destroy()
 Exports from `@csnight/audio-recorder/plugins/streaming-player`:
 
 | Export                           | Description                                                             |
-|----------------------------------|-------------------------------------------------------------------------|
+| -------------------------------- | ----------------------------------------------------------------------- |
 | `createStreamingPlayer(options)` | Create and initialize a streaming player                                |
 | `PersistStore`                   | Public history-store interface for custom persist-store implementations |
 | `StreamingPlayerOptions`         | Player creation options                                                 |
@@ -725,7 +725,7 @@ Exports from `@csnight/audio-recorder/plugins/streaming-player`:
 Options: `StreamingPlayerOptions`
 
 | Field             | Type                                                  | Default      | Description                                                                                   |
-|-------------------|-------------------------------------------------------|--------------|-----------------------------------------------------------------------------------------------|
+| ----------------- | ----------------------------------------------------- | ------------ | --------------------------------------------------------------------------------------------- |
 | `decoders`        | `AudioDecoderDefinition[]`                            | **required** | Decoder definitions; each maps a `format` string to a decode function                         |
 | `targetLatencyMs` | `number`                                              | `300`        | Startup pad and jitter target depth before playback starts                                    |
 | `maxBufferMs`     | `number`                                              | `3000`       | Maximum live backlog across `ReorderBuffer + JitterBuffer`; excess triggers drop-old          |
@@ -753,7 +753,7 @@ Options: `StreamingPlayerOptions`
 Handle: `StreamingPlayerHandle`
 
 | Member            | Type                        | Description                                                                                                                   |
-|-------------------|-----------------------------|-------------------------------------------------------------------------------------------------------------------------------|
+| ----------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `state`           | `StreamingPlayerState`      | Current state: `idle \| buffering \| playing \| paused \| stopped`                                                            |
 | `bufferedMs`      | `number`                    | Total playback headroom in milliseconds (`ReorderBuffer + JitterBuffer + pending decode + scheduled audio`)                   |
 | `droppedPackets`  | `number`                    | Cumulative dropped packet count                                                                                               |
@@ -794,7 +794,7 @@ const recorder = createRecorder({
 #### API
 
 | Export                          | Description                       |
-|---------------------------------|-----------------------------------|
+| ------------------------------- | --------------------------------- |
 | `createOpfsPersistencePlugin()` | Create an OPFS persistence plugin |
 
 Use with the main recorder `storage` option:
@@ -832,7 +832,7 @@ const recorder = createRecorder({
 #### API
 
 | Export                               | Description                            |
-|--------------------------------------|----------------------------------------|
+| ------------------------------------ | -------------------------------------- |
 | `createIndexedDbPersistencePlugin()` | Create an IndexedDB persistence plugin |
 
 Use with the main recorder `storage` option:
@@ -937,7 +937,7 @@ Available selections are driven by the build script and currently map to the ded
 ### Relevant scripts
 
 | Command                                       | Description                       |
-|-----------------------------------------------|-----------------------------------|
+| --------------------------------------------- | --------------------------------- |
 | `npm run build:wasm`                          | Build all WASM codecs             |
 | `npm run build:wasm:select -- --codec=<list>` | Build only selected WASM codecs   |
 | `npm run benchmark:codecs`                    | Run codec benchmarks              |
@@ -946,7 +946,7 @@ Available selections are driven by the build script and currently map to the ded
 ### Script entrypoints
 
 | Path                            | Description                        |
-|---------------------------------|------------------------------------|
+| ------------------------------- | ---------------------------------- |
 | `scripts/wasm/build-docker.mjs` | Main Docker-based WASM build entry |
 | `scripts/wasm/build.mjs`        | Shared WASM build orchestration    |
 | `scripts/wasm/build-aac.mjs`    | AAC build                          |
@@ -962,7 +962,7 @@ Based on direct API usage in `src/` and `vite.config.ts` target `es2022`.
 ### Main library
 
 | Module                      | Chrome | Firefox | Safari | Notes                                                                 |
-|-----------------------------|-------:|--------:|-------:|-----------------------------------------------------------------------|
+| --------------------------- | -----: | ------: | -----: | --------------------------------------------------------------------- |
 | Core recorder               |     66 |      76 |   14.1 | `AudioWorkletNode` path is the stable baseline                        |
 | Auto input fallback         |     66 |      76 |   14.1 | Falls back to `audio-worklet` when PCM `MediaRecorder` is unavailable |
 | `media-recorder` path       |    105 |       - |      - | Uses `MediaRecorder.isTypeSupported("audio/webm; codecs=pcm")`        |
@@ -971,7 +971,7 @@ Based on direct API usage in `src/` and `vite.config.ts` target `es2022`.
 ### Plugins
 
 | Plugin             | Chrome | Firefox | Safari | Notes                                |
-|--------------------|-------:|--------:|-------:|--------------------------------------|
+| ------------------ | -----: | ------: | -----: | ------------------------------------ |
 | `level-meter`      |     66 |      76 |   14.1 | PCM frame consumer                   |
 | `streaming-export` |     66 |      76 |   14.1 | Worker-based chunk export            |
 | `asr-export`       |     66 |      76 |   14.1 | PCM chunking and registered encoders |
@@ -979,7 +979,7 @@ Based on direct API usage in `src/` and `vite.config.ts` target `es2022`.
 ### Codecs
 
 | Codec | Chrome | Firefox | Safari | Notes                       |
-|-------|-------:|--------:|-------:|-----------------------------|
+| ----- | -----: | ------: | -----: | --------------------------- |
 | PCM   |     57 |      52 |     11 | Pure typed-array processing |
 | WAV   |     57 |      52 |     11 | Pure file packaging         |
 | G.711 |     57 |      52 |     11 | Pure arithmetic             |
@@ -992,7 +992,7 @@ Based on direct API usage in `src/` and `vite.config.ts` target `es2022`.
 ### Storage
 
 | Module              | Chrome | Firefox | Safari | Notes                              |
-|---------------------|-------:|--------:|-------:|------------------------------------|
+| ------------------- | -----: | ------: | -----: | ---------------------------------- |
 | `storage/indexeddb` |     24 |      16 |      8 | Standard IndexedDB                 |
 | `storage/opfs`      |    102 |     111 |   15.2 | `navigator.storage.getDirectory()` |
 
@@ -1003,7 +1003,7 @@ Latest recorded run: 2026-06-28.
 ### Summary
 
 | Codec | Variant | Scenario  | Avg ms |    RTF x |   Bytes |
-|-------|---------|-----------|-------:|---------:|--------:|
+| ----- | ------- | --------- | -----: | -------: | ------: |
 | pcm   | default | snapshot  |   0.48 | 31493.03 | 1440000 |
 | pcm   | default | streaming |   3.82 |  3987.75 | 1440000 |
 | wav   | default | snapshot  |   1.06 | 14286.82 | 1440044 |
@@ -1026,7 +1026,7 @@ Latest recorded run: 2026-06-28.
 ### SIMD
 
 | Codec | Variant | Scenario  | off/on |
-|-------|---------|-----------|-------:|
+| ----- | ------- | --------- | -----: |
 | flac  | default | snapshot  |  1.370 |
 | flac  | default | streaming |  1.305 |
 | opus  | ogg     | snapshot  |  1.130 |

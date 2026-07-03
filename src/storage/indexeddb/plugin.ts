@@ -1,4 +1,7 @@
-import { deserializePcmSnapshot, serializePcmSnapshot, } from "@csnight/audio-recorder"
+import {
+  deserializePcmSnapshot,
+  serializePcmSnapshot,
+} from "@csnight/audio-recorder"
 import type {
   RecorderPersistencePlugin,
   RecorderPersistenceSession,

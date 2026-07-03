@@ -99,12 +99,12 @@
 
 当前代码已经远离最初的“全局脚本库”形态，但文档仍残留多处过期表述，主要问题有：
 
-| 问题      | 说明                                                        |
-|---------|-----------------------------------------------------------|
-| 文档与代码脱节 | 文档仍使用 `capture/registry/encoders` 等旧路径或旧抽象名               |
-| 阶段描述滞后  | README 仍以 `Phase 3` 为主，而代码已落到输入降级、chunk plugin、MP3、持久化子路径 |
-| 当前与规划混写 | 已落地能力和未来阶段能力没有清晰分界                                        |
-| 对外边界不清  | 根入口、子路径、插件事件、编码器 DI 的使用方式需要重新收敛                           |
+| 问题           | 说明                                                                              |
+| -------------- | --------------------------------------------------------------------------------- |
+| 文档与代码脱节 | 文档仍使用 `capture/registry/encoders` 等旧路径或旧抽象名                         |
+| 阶段描述滞后   | README 仍以 `Phase 3` 为主，而代码已落到输入降级、chunk plugin、MP3、持久化子路径 |
+| 当前与规划混写 | 已落地能力和未来阶段能力没有清晰分界                                              |
+| 对外边界不清   | 根入口、子路径、插件事件、编码器 DI 的使用方式需要重新收敛                        |
 
 因此本次文档整理的核心原则是：
 
@@ -171,17 +171,17 @@ window.Recorder = ...
 
 当前实际分层如下：
 
-| 层        | 当前目录           | 职责                                   |
-|----------|----------------|--------------------------------------|
-| Core     | `src/core`     | 控制器、状态机、事件总线                         |
-| Input    | `src/input`    | 取流、约束诊断、后端选择、session 装配              |
-| Pipeline | `src/pipeline` | PCM 帧进入缓冲前的统一入口                      |
-| Buffer   | `src/buffer`   | 内存缓冲、持久化缓冲、snapshot 合并               |
-| Codecs   | `src/codecs`   | PCM/WAV/MP3 快照导出与 chunk 编码定义         |
-| Plugins  | `src/plugins`  | level-meter、streaming-export 及插件宿主   |
-| Storage  | `src/storage`  | 持久化协议、OPFS / IndexedDB 插件            |
-| Workers  | `src/workers`  | chunked encoder bridge 与 Worker core |
-| Utils    | `src/utils`    | 音频帧转换、重采样、snapshot 序列化               |
+| 层       | 当前目录       | 职责                                     |
+| -------- | -------------- | ---------------------------------------- |
+| Core     | `src/core`     | 控制器、状态机、事件总线                 |
+| Input    | `src/input`    | 取流、约束诊断、后端选择、session 装配   |
+| Pipeline | `src/pipeline` | PCM 帧进入缓冲前的统一入口               |
+| Buffer   | `src/buffer`   | 内存缓冲、持久化缓冲、snapshot 合并      |
+| Codecs   | `src/codecs`   | PCM/WAV/MP3 快照导出与 chunk 编码定义    |
+| Plugins  | `src/plugins`  | level-meter、streaming-export 及插件宿主 |
+| Storage  | `src/storage`  | 持久化协议、OPFS / IndexedDB 插件        |
+| Workers  | `src/workers`  | chunked encoder bridge 与 Worker core    |
+| Utils    | `src/utils`    | 音频帧转换、重采样、snapshot 序列化      |
 
 ## 4. 参考其他录音库后的实践结论
 
@@ -287,14 +287,14 @@ export interface AudioFrame {
 
 ### 5.4 多声道支持优先级
 
-| 格式/链路           | 优先级 | 当前状态                      |
-|-----------------|-----|---------------------------|
-| PCM snapshot    | 最高  | 已支持                       |
-| WAV snapshot    | 最高  | 已支持                       |
-| MP3 snapshot    | 高   | 已支持 1/2 声道主路径             |
-| 输入 runtime info | 最高  | 已支持 requested / actual 区分 |
-| chunked encoder | 高   | PCM/WAV/MP3 已有实现          |
-| 3+ 声道完整生态       | 低   | 暂不作为当前阶段承诺                |
+| 格式/链路         | 优先级 | 当前状态                       |
+| ----------------- | ------ | ------------------------------ |
+| PCM snapshot      | 最高   | 已支持                         |
+| WAV snapshot      | 最高   | 已支持                         |
+| MP3 snapshot      | 高     | 已支持 1/2 声道主路径          |
+| 输入 runtime info | 最高   | 已支持 requested / actual 区分 |
+| chunked encoder   | 高     | PCM/WAV/MP3 已有实现           |
+| 3+ 声道完整生态   | 低     | 暂不作为当前阶段承诺           |
 
 ## 6. 浏览器兼容性策略
 
@@ -728,13 +728,13 @@ await recorder.use(
 
 尚未实现（本阶段目标）：
 
-| 格式               | 编码    | 解码 | 说明                                           |
-|------------------|-------|----|----------------------------------------------|
-| AMR              | ✗     | ✗  | vendor `engine/beta-amr*.js`，约 626KB         |
-| OGG/Opus         | ✗     | ✗  | vendor `engine/beta-ogg*.js`，约 1.2MB         |
-| WebM             | ✗（导出） | 部分 | 当前 `webm-pcm-extractor.ts` 仅用于采集解析，不是导出编码器   |
-| G711 A-law/U-law | ✗     | ✗  | vendor `engine/g711x.js`，纯 JS 实现，无需大型 engine |
-| 统一解码入口           | —     | ✗  | PCM / WAV / MP3 解码 API 尚不存在                  |
+| 格式             | 编码      | 解码 | 说明                                                        |
+| ---------------- | --------- | ---- | ----------------------------------------------------------- |
+| AMR              | ✗         | ✗    | vendor `engine/beta-amr*.js`，约 626KB                      |
+| OGG/Opus         | ✗         | ✗    | vendor `engine/beta-ogg*.js`，约 1.2MB                      |
+| WebM             | ✗（导出） | 部分 | 当前 `webm-pcm-extractor.ts` 仅用于采集解析，不是导出编码器 |
+| G711 A-law/U-law | ✗         | ✗    | vendor `engine/g711x.js`，纯 JS 实现，无需大型 engine       |
+| 统一解码入口     | —         | ✗    | PCM / WAV / MP3 解码 API 尚不存在                           |
 
 ### 5.2 各格式编码器实施规范
 
@@ -878,12 +878,12 @@ export async function decodeAudio(
 
 解码器分层：
 
-| 格式               | 解码方式                                 | 依赖             |
-|------------------|--------------------------------------|----------------|
-| PCM              | 软解码（类型转换）                            | 无              |
-| WAV              | 软解码（header 解析 + PCM 提取）              | 无              |
-| G711             | 软解码（A-law/U-law 反变换）                 | 无（与编码器同文件）     |
-| MP3 / OGG / WebM | 原生 `decodeAudioData`                 | `AudioContext` |
+| 格式             | 解码方式                                  | 依赖                 |
+| ---------------- | ----------------------------------------- | -------------------- |
+| PCM              | 软解码（类型转换）                        | 无                   |
+| WAV              | 软解码（header 解析 + PCM 提取）          | 无                   |
+| G711             | 软解码（A-law/U-law 反变换）              | 无（与编码器同文件） |
+| MP3 / OGG / WebM | 原生 `decodeAudioData`                    | `AudioContext`       |
 | AMR              | 原生 `decodeAudioData` 或 AMR engine 解码 | 视浏览器支持         |
 
 设计约束：
@@ -942,14 +942,14 @@ streaming-export 插件当前只内置 PCM / WAV，MP3 通过 codec entry 注册
 
 ### 6.1 插件总览
 
-| 编号 | 插件名                        | 子路径                           | vendor 参照                                                          | 优先级 |
-|----|----------------------------|-------------------------------|--------------------------------------------------------------------|-----|
-| ①  | 流播放器（StreamingPlayer）      | `plugins/streaming-player`    | `extensions/buffer_stream.player.js`                               | 高   |
-| ②  | 变速变调导出（SonicExport）        | `plugins/sonic-export`        | `extensions/sonic.js` + `teach.sonic.transform.js`                 | 中   |
-| ③  | 频谱 FFT（FrequencyHistogram） | `plugins/frequency-histogram` | `extensions/frequency.histogram.view.js` + `extensions/lib.fft.js` | 中   |
-| ④  | DTMF 编解码                   | `plugins/dtmf`                | `extensions/dtmf.encode.js` + `extensions/dtmf.decode.js`          | 中   |
-| ⑤  | 简谱转 PCM                    | `plugins/nmn2pcm`             | `extensions/create-audio.nmn2pcm.js`                               | 低   |
-| ⑥  | DSP 滤波器                    | `plugins/dsp`                 | 无直接参照（高通/低通/噪声门算法）                                                 | 中   |
+| 编号 | 插件名                         | 子路径                        | vendor 参照                                                        | 优先级 |
+| ---- | ------------------------------ | ----------------------------- | ------------------------------------------------------------------ | ------ |
+| ①    | 流播放器（StreamingPlayer）    | `plugins/streaming-player`    | `extensions/buffer_stream.player.js`                               | 高     |
+| ②    | 变速变调导出（SonicExport）    | `plugins/sonic-export`        | `extensions/sonic.js` + `teach.sonic.transform.js`                 | 中     |
+| ③    | 频谱 FFT（FrequencyHistogram） | `plugins/frequency-histogram` | `extensions/frequency.histogram.view.js` + `extensions/lib.fft.js` | 中     |
+| ④    | DTMF 编解码                    | `plugins/dtmf`                | `extensions/dtmf.encode.js` + `extensions/dtmf.decode.js`          | 中     |
+| ⑤    | 简谱转 PCM                     | `plugins/nmn2pcm`             | `extensions/create-audio.nmn2pcm.js`                               | 低     |
+| ⑥    | DSP 滤波器                     | `plugins/dsp`                 | 无直接参照（高通/低通/噪声门算法）                                 | 中     |
 
 ### 6.2 流播放器插件（StreamingPlayer）
 
@@ -1434,24 +1434,24 @@ fileURLToPath(new URL("./src/plugins/sonic-export/index.ts", import.meta.url)),
 
 - 流播放器：录音时可实时听到录音声音，暂停/恢复/停止行为正确
 - 变速变调导出（SonicExport）：
-    - **互斥检测**：`use(sonicExportPlugin)` 与 `use(streamingExportPlugin)` 同时注册时，`PluginHost` 在 `setup`
-      阶段抛出互斥错误，录音无法启动
-    - **实时流**：录音过程中 `plugin:stream` 事件持续触发，携带经 Sonic 处理后的编码分片（≥200ms 累积后推送）；停止录音时
-      `onStop` 刷出残余帧，最终分片正常发出
-    - **离线转换**：录音结束后调用 `transformSnapshot(snapshot, { speed: 0.5 })`，返回 `Int16Array` 时长约为原始时长 2
-      倍，音调保持不变（WSOLA 算法）；调用 `transform(pcm, sampleRate, { pitch: 1.5 })` 同样能独立工作
-    - **bypass 验证**：`SonicExportPlugin` 的 `onFrame` 不修改主缓冲区，录音核心的 `PcmSnapshot` 保存的是原始
-      PCM，与未挂载插件时完全一致
+  - **互斥检测**：`use(sonicExportPlugin)` 与 `use(streamingExportPlugin)` 同时注册时，`PluginHost` 在 `setup`
+    阶段抛出互斥错误，录音无法启动
+  - **实时流**：录音过程中 `plugin:stream` 事件持续触发，携带经 Sonic 处理后的编码分片（≥200ms 累积后推送）；停止录音时
+    `onStop` 刷出残余帧，最终分片正常发出
+  - **离线转换**：录音结束后调用 `transformSnapshot(snapshot, { speed: 0.5 })`，返回 `Int16Array` 时长约为原始时长 2
+    倍，音调保持不变（WSOLA 算法）；调用 `transform(pcm, sampleRate, { pitch: 1.5 })` 同样能独立工作
+  - **bypass 验证**：`SonicExportPlugin` 的 `onFrame` 不修改主缓冲区，录音核心的 `PcmSnapshot` 保存的是原始
+    PCM，与未挂载插件时完全一致
 - 频谱 FFT：录音时每帧可收到 `plugin:frequency-histogram:data` 事件，数组长度符合 `barCount`
 - DTMF 编码：`encodeDtmf(["1","2","3"])` 输出可被电话系统识别的 DTMF 音频
 - DTMF 解码：播放标准 DTMF 音频时插件能正确识别按键序列
 - 简谱转 PCM：`nmn2pcm("1234567")` 输出可播放的 PCM 数据
 - DSP 滤波器：
-    - **onBeforeFrame 链路**：挂载高通滤波插件后，录音导出的 PCM/WAV/MP3 文件中低频噪声明显衰减（与未挂载对比可量化），而非仅影响监听播放
-    - **onBeforeStop 冲洗**：停止录音时 `onBeforeStop` 被调用，IIR 滤波器残余状态被正确冲洗并附加到末尾帧，导出文件结尾无截断失真
-    - **噪声门**：静音段（低于阈值）被正确置零，动态段正常通过；噪声门 `enabled=false` 时 `onBeforeFrame` 直接透传原帧，不产生任何副作用
-    - **多插件串联**：同时挂载高通 + 噪声门时，`onBeforeFrame` 按注册顺序依次调用，前一插件的输出帧作为下一插件的输入帧，最终写入缓冲的帧是经所有
-      DSP 处理后的结果
+  - **onBeforeFrame 链路**：挂载高通滤波插件后，录音导出的 PCM/WAV/MP3 文件中低频噪声明显衰减（与未挂载对比可量化），而非仅影响监听播放
+  - **onBeforeStop 冲洗**：停止录音时 `onBeforeStop` 被调用，IIR 滤波器残余状态被正确冲洗并附加到末尾帧，导出文件结尾无截断失真
+  - **噪声门**：静音段（低于阈值）被正确置零，动态段正常通过；噪声门 `enabled=false` 时 `onBeforeFrame` 直接透传原帧，不产生任何副作用
+  - **多插件串联**：同时挂载高通 + 噪声门时，`onBeforeFrame` 按注册顺序依次调用，前一插件的输出帧作为下一插件的输入帧，最终写入缓冲的帧是经所有
+    DSP 处理后的结果
 - 所有插件独立启停，不影响核心控制器和其他插件
 - `npm run typecheck` 通过，`npm run build` 成功
 

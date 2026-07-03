@@ -1,5 +1,8 @@
 import type { RecorderPlugin } from "../types"
-import type { StreamingExportPluginOptions, StreamingPacketPayload, } from "./types"
+import type {
+  StreamingExportPluginOptions,
+  StreamingPacketPayload,
+} from "./types"
 import { ChunkedEncoderBridge } from "../../workers/chunked-encoder-bridge"
 import type { AudioFrame } from "../../types"
 

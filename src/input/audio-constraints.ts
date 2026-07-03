@@ -1,4 +1,8 @@
-import { type RecorderInputOptions, type RecorderIssue, RecorderWarningCode, } from "../types"
+import {
+  type RecorderInputOptions,
+  type RecorderIssue,
+  RecorderWarningCode,
+} from "../types"
 
 /**
  * 由录音输入参数构建 getUserMedia 音频约束。

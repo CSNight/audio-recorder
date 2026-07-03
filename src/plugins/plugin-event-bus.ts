@@ -1,5 +1,9 @@
 import { EventBus } from "../core/event-bus"
-import type { RecorderPluginEventBus, RecorderPluginEventContext, RecorderPluginEventMap, } from "./types"
+import type {
+  RecorderPluginEventBus,
+  RecorderPluginEventContext,
+  RecorderPluginEventMap,
+} from "./types"
 import type { RecorderEventContext } from "../types"
 
 /**
