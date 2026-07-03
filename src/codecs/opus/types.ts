@@ -2,9 +2,11 @@
  * Opus codec type definitions
  */
 
+export type OpusSampleRate = 8000 | 12000 | 16000 | 24000 | 48000
+
 export interface OpusEncoderOptions {
   /** Sample rate (only 8000, 12000, 16000, 24000, 48000 are supported by libopus) */
-  sampleRate: 8000 | 12000 | 16000 | 24000 | 48000
+  sampleRate: OpusSampleRate
   /** Number of channels (1-8) */
   channels: number
   /** Bitrate in bits per second (default: 64000, or 'auto'/'max') */
@@ -27,12 +29,14 @@ export interface OpusEncoderOptions {
 
 export interface OpusDecoderOptions {
   /** Sample rate (only 8000, 12000, 16000, 24000, 48000 are supported by libopus) */
-  sampleRate: 8000 | 12000 | 16000 | 24000 | 48000
+  sampleRate: OpusSampleRate
   /** Number of channels (1-8) */
   channels: number
 }
 
 export interface OpusExportOptions {
+  /** Optional output sample rate; when omitted, reuses the input PCM sample rate. */
+  sampleRate?: OpusSampleRate
   /** Container format (default: 'ogg') */
   container?: "ogg" | "webm"
   /** Pre-skip samples at 48kHz (default: 312) */
@@ -51,12 +55,14 @@ export interface OpusExportOptions {
   dtx?: boolean
   /** Expected packet loss percentage (0-100, default: 0) */
   packetLossPercent?: number
+  /** Whether to use high-quality resampling when sampleRate differs from the input. */
+  isHQ?: boolean
 }
 
 export interface OpusExportResult {
   data: Uint8Array
   mimeType: string
-  sampleRate: number
+  sampleRate: OpusSampleRate
   channels: number
 }
 
@@ -64,7 +70,7 @@ export interface OpusExportResult {
  * Opus encoder handle (returned by createOpusEncoder)
  */
 export interface OpusEncoderHandle {
-  readonly sampleRate: number
+  readonly sampleRate: OpusSampleRate
   readonly channels: number
   readonly frameSize: number
 

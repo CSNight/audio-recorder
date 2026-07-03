@@ -14,6 +14,7 @@ import type {
   OpusError,
 } from "./types"
 import { OpusError as OpusErrorClass } from "./types"
+import { OPUS_SAMPLE_RATES } from "./sample-rate"
 
 // Application constants (from opus_defines.h)
 const OPUS_APPLICATION_VOIP = 2048
@@ -30,7 +31,7 @@ const OPUS_SET_VBR_REQUEST = 4006
 
 const OPUS_AUTO = -1000
 const OPUS_BITRATE_MAX = -1
-
+const OPUS_SAMPLE_RATE_SET = new Set<number>(OPUS_SAMPLE_RATES)
 let modulePromise: Promise<LibopusModule> | undefined
 let moduleCache: LibopusModule | undefined
 
@@ -122,6 +123,11 @@ export function createOpusEncoder(
   const module = moduleCache
 
   const sampleRate = options.sampleRate
+  if (!OPUS_SAMPLE_RATE_SET.has(sampleRate)) {
+    throw new RangeError(
+      `Opus encoder supports only 8000, 12000, 16000, 24000, or 48000 Hz, received ${sampleRate}.`
+    )
+  }
   const channels = options.channels
   const application = mapApplication(options.application ?? "audio")
   const frameSize = options.frameSize ?? Math.floor((sampleRate / 1000) * 20) // 20ms default

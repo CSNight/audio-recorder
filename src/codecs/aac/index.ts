@@ -4,5 +4,6 @@ export type {
   AacEncoderOptions,
   AacExportOptions,
   AacExportResult,
+  AacSampleRate,
 } from "./types"
 export { createAacEncoder } from "./aac-wasm-api"

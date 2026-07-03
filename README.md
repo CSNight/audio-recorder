@@ -360,7 +360,7 @@ Returns:
 | `@csnight/audio-recorder/codecs/opus`              | Opus encoder                         |
 | `@csnight/audio-recorder/codecs/aac`               | AAC encoder                          |
 | `@csnight/audio-recorder/codecs/amr`               | AMR encoder                          |
-| `@csnight/audio-recorder/codecs/ac3`               | AC3 / E-AC3 encoders                |
+| `@csnight/audio-recorder/codecs/ac3`               | AC3 / E-AC3 encoders                 |
 | `@csnight/audio-recorder/codecs/g711`              | G.711 encoder                        |
 | `@csnight/audio-recorder/plugins/level-meter`      | `createLevelMeterPlugin()`           |
 | `@csnight/audio-recorder/plugins/streaming-export` | `createStreamingExportPlugin()`      |
@@ -850,6 +850,15 @@ createRecorder({
 
 ## Codecs
 
+Export encoders resolve `sampleRate` with the same rule:
+
+- if `options.sampleRate` is provided and supported by the encoder, it is used directly
+- if `options.sampleRate` is provided but not supported, the encoder uses the nearest supported sample rate
+- if `options.sampleRate` is omitted and the input snapshot sample rate is supported, the input sample rate is reused
+- if `options.sampleRate` is omitted and the input snapshot sample rate is not supported, the encoder uses the nearest supported sample rate
+
+For codecs whose supported sample-rate set depends on other options, the nearest-match lookup is constrained by those options, for example `amr` with `bandMode: "nb" | "wb"` and `ac3` vs `eac3`.
+
 ### `codecs/base`
 
 Core PCM and WAV support.
@@ -892,6 +901,7 @@ AAC export based on a WASM encoder.
 AMR export based on a WASM encoder.
 
 - supports `nb` and `wb`
+- sample-rate resolution is constrained by `bandMode`: `nb` resolves within 8 kHz and `wb` resolves within 16 kHz
 - intended for telephony and speech-oriented pipelines
 
 ### `codecs/ac3`
@@ -899,6 +909,7 @@ AMR export based on a WASM encoder.
 AC3 / E-AC3 export based on a WASM encoder.
 
 - exposes both `ac3` and `eac3` snapshot encoders from one subpath
+- sample-rate resolution is constrained by the selected codec, so `ac3` and `eac3` may resolve to different nearest supported rates
 - intended for Dolby Digital compatible delivery and transcoding workflows
 
 ### `codecs/g711`

@@ -5,6 +5,10 @@ export type AmrBandMode = "nb" | "wb"
 export interface AmrExportOptions {
   /** 频带模式，默认 "nb"（AMR-NB） */
   bandMode?: AmrBandMode
+  /** 目标采样率；仅支持 8000（NB）或 16000（WB） */
+  sampleRate?: 8000 | 16000
+  /** 是否使用高保真重采样算法，默认 false（仅固定目标采样率重采样时生效） */
+  isHQ?: boolean
 }
 
 /** AMR 导出结果 */

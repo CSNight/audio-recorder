@@ -6,6 +6,10 @@ import {
   preloadAc3Module,
   resolveAc3EncoderOptions,
 } from "./ac3-wasm-api"
+import {
+  isSupportSampleRate as isAc3SupportSampleRate,
+  resolveExportSampleRate,
+} from "./sample-rate"
 import type {
   Ac3ExportOptions,
   Ac3ExportResult,
@@ -26,35 +30,6 @@ function interleave(planar: Int16Array[], channels: number, frameSize: number) {
   return interleaved
 }
 
-function normalizeSnapshot(
-  snapshot: PcmBufferSnapshot,
-  options: Ac3ExportOptions
-): {
-  snapshot: {
-    sampleRate: number
-    channels: number
-    durationMs: number
-    planar: Int16Array[]
-  }
-  encoderOptions: ResolvedAc3EncoderOptions
-} {
-  const encoderOptions = resolveAc3EncoderOptions(
-    options,
-    options.sampleRate ?? snapshot.sampleRate,
-    snapshot.channels
-  )
-
-  const normalized =
-    encoderOptions.sampleRate === snapshot.sampleRate
-      ? snapshot
-      : resample(snapshot, encoderOptions.sampleRate, {})
-
-  return {
-    snapshot: normalized,
-    encoderOptions,
-  }
-}
-
 function mimeTypeForCodec(codec: ResolvedAc3EncoderOptions["codec"]): string {
   return codec === "ac3" ? "audio/ac3" : "audio/eac3"
 }
@@ -63,18 +38,32 @@ export function exportAc3Snapshot(
   snapshot: PcmBufferSnapshot,
   options: Ac3ExportOptions = {}
 ): Ac3ExportResult {
-  const normalized = normalizeSnapshot(snapshot, options)
-  const encoder = createAc3Encoder(normalized.encoderOptions)
+  const codec = options.codec ?? "ac3"
+  const targetSampleRate = resolveExportSampleRate(
+    options.sampleRate,
+    snapshot.sampleRate,
+    codec
+  )
+  const normalized =
+    targetSampleRate === snapshot.sampleRate
+      ? snapshot
+      : resample(snapshot, targetSampleRate, { isHQ: !!options.isHQ })
+  const encoderOptions = resolveAc3EncoderOptions(
+    {
+      ...options,
+      codec,
+      sampleRate: targetSampleRate,
+    },
+    targetSampleRate,
+    normalized.channels
+  )
+  const encoder = createAc3Encoder(encoderOptions)
   const chunks: Uint8Array[] = []
-  const totalSamples = normalized.snapshot.planar[0]?.length ?? 0
+  const totalSamples = normalized.planar[0]?.length ?? 0
 
   try {
-    for (
-      let offset = 0;
-      offset < totalSamples;
-      offset += encoder.frameSize
-    ) {
-      const chunkPlanar = normalized.snapshot.planar.map((channel) => {
+    for (let offset = 0; offset < totalSamples; offset += encoder.frameSize) {
+      const chunkPlanar = normalized.planar.map((channel) => {
         const slice = channel.subarray(offset, offset + encoder.frameSize)
         if (slice.length === encoder.frameSize) {
           return slice
@@ -87,7 +76,7 @@ export function exportAc3Snapshot(
 
       const interleaved = interleave(
         chunkPlanar,
-        normalized.snapshot.channels,
+        normalized.channels,
         encoder.frameSize
       )
 
@@ -117,11 +106,11 @@ export function exportAc3Snapshot(
 
   return {
     data,
-    mimeType: mimeTypeForCodec(normalized.encoderOptions.codec),
-    codec: normalized.encoderOptions.codec,
-    sampleRate: normalized.encoderOptions.sampleRate,
-    channels: normalized.snapshot.channels,
-    bitrate: normalized.encoderOptions.bitrate,
+    mimeType: mimeTypeForCodec(encoderOptions.codec),
+    codec: encoderOptions.codec,
+    sampleRate: encoderOptions.sampleRate,
+    channels: normalized.channels,
+    bitrate: encoderOptions.bitrate,
   }
 }
 
@@ -131,6 +120,7 @@ export const ac3ExportEncoder: ExportEncoderDefinition<
   Ac3ExportResult
 > = {
   type: "ac3",
+  isSupportSampleRate: (sampleRate) => isAc3SupportSampleRate(sampleRate, "ac3"),
   preload: preloadAc3Module,
   export: (snapshot, options) =>
     exportAc3Snapshot(snapshot, { ...options, codec: "ac3" }),
@@ -142,6 +132,7 @@ export const eac3ExportEncoder: ExportEncoderDefinition<
   Ac3ExportResult
 > = {
   type: "eac3",
+  isSupportSampleRate: (sampleRate) => isAc3SupportSampleRate(sampleRate, "eac3"),
   preload: preloadAc3Module,
   export: (snapshot, options) =>
     exportAc3Snapshot(snapshot, { ...options, codec: "eac3" }),

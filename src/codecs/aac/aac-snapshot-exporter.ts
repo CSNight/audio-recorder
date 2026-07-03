@@ -1,7 +1,14 @@
 import type { PcmBufferSnapshot } from "../../buffer/types"
 import type { ExportEncoderDefinition } from "../../types"
 import { resample } from "@csnight/audio-recorder"
-import { createAacEncoder, preloadAacModule } from "./aac-wasm-api"
+import {
+  createAacEncoder,
+  preloadAacModule,
+} from "./aac-wasm-api"
+import {
+  isSupportSampleRate,
+  resolveExportSampleRate,
+} from "./sample-rate"
 import type { AacExportOptions, AacExportResult } from "./types"
 
 function interleave(planar: Int16Array[], channels: number, frameSize: number) {
@@ -47,14 +54,17 @@ export function exportAacSnapshot(
   snapshot: PcmBufferSnapshot,
   options: AacExportOptions = {}
 ): AacExportResult {
-  const targetSampleRate = options.sampleRate ?? snapshot.sampleRate
+  const targetSampleRate = resolveExportSampleRate(
+    options.sampleRate,
+    snapshot.sampleRate
+  )
   const normalized =
     targetSampleRate === snapshot.sampleRate
       ? snapshot
-      : resample(snapshot, targetSampleRate, {})
+      : resample(snapshot, targetSampleRate, { isHQ: !!options.isHQ })
 
   const encoder = createAacEncoder({
-    sampleRate: normalized.sampleRate,
+    sampleRate: targetSampleRate,
     channels: normalized.channels,
     bitrate: options.bitrate ?? 128_000,
   })
@@ -102,7 +112,7 @@ export function exportAacSnapshot(
   return {
     data,
     mimeType: "audio/aac",
-    sampleRate: normalized.sampleRate,
+    sampleRate: encoder.sampleRate,
     channels: normalized.channels,
     bitrate: encoder.bitrate,
   }
@@ -114,6 +124,7 @@ export const aacExportEncoder: ExportEncoderDefinition<
   AacExportResult
 > = {
   type: "aac",
+  isSupportSampleRate,
   preload: preloadAacModule,
   export: (snapshot, options) => exportAacSnapshot(snapshot, options),
 }

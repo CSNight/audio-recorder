@@ -13,14 +13,28 @@
 
 import type { PcmBufferSnapshot } from "../../buffer/types"
 import type { ExportEncoderDefinition } from "../../types"
-import { createOpusEncoder, preloadOpusModule } from "./opus-wasm-api"
+import { resample } from "@csnight/audio-recorder"
+import type { ResampledPcm } from "../../utils/resample"
+import {
+  createOpusEncoder,
+  preloadOpusModule,
+} from "./opus-wasm-api"
+import {
+  isSupportSampleRate,
+  resolveExportSampleRate,
+} from "./sample-rate"
 import { OggMuxer } from "./muxers/ogg"
 import { WebmMuxer } from "./muxers/webm"
 import type {
   OpusEncoderOptions,
   OpusExportOptions,
   OpusExportResult,
+  OpusSampleRate,
 } from "./types"
+
+type NormalizedOpusSnapshot = (PcmBufferSnapshot | ResampledPcm) & {
+  sampleRate: OpusSampleRate
+}
 
 /**
  * 交织 planar PCM 数据
@@ -42,14 +56,14 @@ function interleave(planar: Int16Array[], channels: number): Int16Array {
  * 导出为 OGG 容器格式
  */
 function exportOpusOgg(
-  snapshot: PcmBufferSnapshot,
+  snapshot: NormalizedOpusSnapshot,
   options: OpusExportOptions = {}
 ): OpusExportResult {
   const { sampleRate, channels, planar } = snapshot
 
   // 创建 Opus 编码器
   const encoderOptions: OpusEncoderOptions = {
-    sampleRate: sampleRate as any,
+    sampleRate,
     channels,
     bitrate: options.bitrate ?? 128000,
     application: options.application ?? "audio",
@@ -137,14 +151,14 @@ function exportOpusOgg(
  * 导出为 WebM 容器格式
  */
 function exportOpusWebm(
-  snapshot: PcmBufferSnapshot,
+  snapshot: NormalizedOpusSnapshot,
   options: OpusExportOptions = {}
 ): OpusExportResult {
   const { sampleRate, channels, planar } = snapshot
 
   // 创建 Opus 编码器
   const encoderOptions: OpusEncoderOptions = {
-    sampleRate: sampleRate as any,
+    sampleRate,
     channels,
     bitrate: options.bitrate ?? 128000,
     application: options.application ?? "audio",
@@ -230,12 +244,21 @@ export function exportOpusSnapshot(
   snapshot: PcmBufferSnapshot,
   options: OpusExportOptions = {}
 ): OpusExportResult {
+  const targetSampleRate = resolveExportSampleRate(
+    options.sampleRate,
+    snapshot.sampleRate
+  )
+  const normalized = (
+    targetSampleRate === snapshot.sampleRate
+      ? snapshot
+      : resample(snapshot, targetSampleRate, { isHQ: !!options.isHQ })
+  ) as NormalizedOpusSnapshot
   const container = options.container ?? "ogg"
 
   if (container === "webm") {
-    return exportOpusWebm(snapshot, options)
+    return exportOpusWebm(normalized, options)
   } else {
-    return exportOpusOgg(snapshot, options)
+    return exportOpusOgg(normalized, options)
   }
 }
 
@@ -245,6 +268,7 @@ export const oggExportEncoder: ExportEncoderDefinition<
   OpusExportResult
 > = {
   type: "ogg",
+  isSupportSampleRate,
   preload: preloadOpusModule,
   export: (snapshot, options) =>
     exportOpusSnapshot(snapshot, { ...options, container: "ogg" }),
@@ -256,6 +280,7 @@ export const webmExportEncoder: ExportEncoderDefinition<
   OpusExportResult
 > = {
   type: "webm",
+  isSupportSampleRate,
   preload: preloadOpusModule,
   export: (snapshot, options) =>
     exportOpusSnapshot(snapshot, { ...options, container: "webm" }),

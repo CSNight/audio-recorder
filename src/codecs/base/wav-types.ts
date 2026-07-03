@@ -4,6 +4,8 @@ export interface WavExportOptions {
   sampleRate?: number
   /** 导出位深，默认 16 */
   bitRate?: 8 | 16
+  /** 是否使用高保真重采样算法，默认 false（仅 sampleRate 触发重采样时生效） */
+  isHQ?: boolean
 }
 
 /** WAV 导出结果 */

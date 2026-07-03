@@ -7,6 +7,7 @@ import type {
   ResolvedAc3EncoderOptions,
 } from "./types"
 import { Ac3Error } from "./types"
+import { AC3_SAMPLE_RATES, EAC3_SAMPLE_RATES } from "./sample-rate"
 
 type LibAc3Module = {
   HEAPF32: Float32Array
@@ -26,14 +27,12 @@ type LibAc3Module = {
   _close_encoder(ctx: number): void
 }
 
-const AC3_SAMPLE_RATES = new Set<Ac3SampleRate>([32000, 44100, 48000])
-const EAC3_SAMPLE_RATES = new Set<Ac3SampleRate>([
-  16000, 22050, 24000, 32000, 44100, 48000,
-])
 const DEFAULT_BITRATE: Record<Ac3Codec, number> = {
   ac3: 384000,
   eac3: 192000,
 }
+const AC3_SAMPLE_RATE_SET = new Set<number>(AC3_SAMPLE_RATES)
+const EAC3_SAMPLE_RATE_SET = new Set<number>(EAC3_SAMPLE_RATES)
 
 let modulePromise: Promise<LibAc3Module> | undefined
 let moduleCache: LibAc3Module | undefined
@@ -54,9 +53,10 @@ function assertSampleRate(
   codec: Ac3Codec,
   sampleRate: number
 ): asserts sampleRate is Ac3SampleRate {
-  const supported =
-    codec === "ac3" ? AC3_SAMPLE_RATES : EAC3_SAMPLE_RATES
-  if (!supported.has(sampleRate as Ac3SampleRate)) {
+  const supportedSampleRates =
+    codec === "ac3" ? AC3_SAMPLE_RATE_SET : EAC3_SAMPLE_RATE_SET
+
+  if (!supportedSampleRates.has(sampleRate)) {
     throw new RangeError(
       `${codec.toUpperCase()} encoder does not support sampleRate ${sampleRate}.`
     )

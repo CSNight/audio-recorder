@@ -6,6 +6,7 @@ import type {
   Mp3WasmEncoderHandle,
   ResolvedMp3EncoderOptions,
 } from "./types"
+import { MP3_SAMPLE_RATES } from "./sample-rate"
 
 type LibMp3Module = {
   HEAP16: Int16Array
@@ -34,12 +35,9 @@ type LibMp3Module = {
   _close_lame(ctx: number): void
 }
 
-const MP3_SAMPLE_RATES = new Set<Mp3SampleRate>([
-  8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000,
-])
-
 let modulePromise: Promise<LibMp3Module> | undefined
 let moduleCache: LibMp3Module | undefined
+const MP3_SAMPLE_RATE_SET = new Set<number>(MP3_SAMPLE_RATES)
 
 function getDefaultChannelMode(channels: number): Mp3ChannelMode {
   return channels > 1 ? "stereo" : "mono"
@@ -48,7 +46,7 @@ function getDefaultChannelMode(channels: number): Mp3ChannelMode {
 function assertSampleRate(
   sampleRate: number
 ): asserts sampleRate is Mp3SampleRate {
-  if (!MP3_SAMPLE_RATES.has(sampleRate as Mp3SampleRate)) {
+  if (!MP3_SAMPLE_RATE_SET.has(sampleRate)) {
     throw new RangeError(
       `MP3 encoder requires a standard sampleRate, received ${sampleRate}.`
     )

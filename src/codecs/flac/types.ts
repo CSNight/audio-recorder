@@ -16,10 +16,14 @@ export interface FlacEncoderOptions {
 }
 
 export interface FlacExportOptions {
+  /** 导出采样率，默认沿用输入 PCM 的采样率；与输入不同时会触发重采样 */
+  sampleRate?: number
   /** Bits per sample (default: 16) */
   bitsPerSample?: 8 | 12 | 16 | 20 | 24 | 32
   /** Compression level (default: 5) */
   compressionLevel?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
+  /** 是否使用高保真重采样算法，默认 false（仅 sampleRate 触发重采样时生效） */
+  isHQ?: boolean
 }
 
 export interface FlacExportResult {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { Ac3Error } from "../../src/codecs/ac3/types"
+import { Ac3Error } from "../../src/codecs/ac3"
 
 function createMockAc3Module(overrides: Partial<any> = {}) {
   const HEAPF32 = new Float32Array(64)
@@ -140,7 +140,9 @@ describe("ac3-wasm-api", () => {
 
     module.__queuePackets(Uint8Array.from([1, 2, 3]), Uint8Array.from([4, 5]))
     expect(
-      encoder.encode(new Int16Array([0, 32767, -32768, 16384, 1, 2, 3, 4, 5, 6, 7, 8]))
+      encoder.encode(
+        new Int16Array([0, 32767, -32768, 16384, 1, 2, 3, 4, 5, 6, 7, 8])
+      )
     ).toEqual([new Uint8Array([1, 2, 3]), new Uint8Array([4, 5])])
     expect(Array.from(module.HEAPF32.slice(1, 5))).toEqual([
       0,

@@ -30,6 +30,8 @@ export interface Mp3ExportOptions {
   channelMode?: Mp3ChannelMode
   /** LAME 编码质量，0 到 9，数值越小质量越高，默认 2 */
   quality?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+  /** 是否使用高保真重采样算法，默认 false（仅 sampleRate 触发重采样时生效） */
+  isHQ?: boolean
 }
 
 /** 解析补全默认值后的完整 MP3 编码选项 */

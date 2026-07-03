@@ -11,6 +11,10 @@ import type { PcmBufferSnapshot } from "../../buffer/types"
 import type { ExportEncoderDefinition } from "../../types"
 import { resample } from "@csnight/audio-recorder"
 import { encodeAlaw, encodeUlaw } from "./g711-encoder"
+import {
+  isSupportSampleRate,
+  resolveExportSampleRate,
+} from "./sample-rate"
 import type { G711ExportOptions, G711ExportResult } from "./types"
 
 export function exportG711Snapshot(
@@ -18,10 +22,18 @@ export function exportG711Snapshot(
   options: G711ExportOptions = {}
 ): G711ExportResult {
   const variant = options.variant ?? "alaw"
-  const targetSampleRate = options.sampleRate ?? snapshot.sampleRate
+  const targetSampleRate = resolveExportSampleRate(
+    options.sampleRate,
+    snapshot.sampleRate
+  )
   const encodeFn = variant === "ulaw" ? encodeUlaw : encodeAlaw
 
-  const normalized = resample(snapshot, targetSampleRate, {})
+  const normalized =
+    targetSampleRate === snapshot.sampleRate
+      ? snapshot
+      : resample(snapshot, targetSampleRate, {
+          isHQ: !!options.isHQ,
+        })
 
   const mono = normalized.planar[0] ?? new Int16Array(0)
   const data = new Uint8Array(mono.length)
@@ -44,5 +56,6 @@ export const g711ExportEncoder: ExportEncoderDefinition<
   G711ExportResult
 > = {
   type: "g711",
+  isSupportSampleRate,
   export: (snapshot, options) => exportG711Snapshot(snapshot, options),
 }

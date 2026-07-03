@@ -9,7 +9,12 @@
 
 import type { PcmBufferSnapshot } from "../../buffer/types"
 import type { ExportEncoderDefinition } from "../../types"
+import { resample } from "@csnight/audio-recorder"
 import { createFlacEncoder, preloadFlacModule } from "./flac-wasm-api"
+import {
+  isSupportSampleRate,
+  resolveExportSampleRate,
+} from "./sample-rate"
 import type {
   FlacEncoderOptions,
   FlacExportOptions,
@@ -39,7 +44,15 @@ export function exportFlacSnapshot(
   snapshot: PcmBufferSnapshot,
   options: FlacExportOptions = {}
 ): FlacExportResult {
-  const { sampleRate, channels, planar } = snapshot
+  const targetSampleRate = resolveExportSampleRate(
+    options.sampleRate,
+    snapshot.sampleRate
+  )
+  const normalized =
+    targetSampleRate === snapshot.sampleRate
+      ? snapshot
+      : resample(snapshot, targetSampleRate, { isHQ: !!options.isHQ })
+  const { sampleRate, channels, planar } = normalized
 
   // 创建 FLAC 编码器
   const encoderOptions: FlacEncoderOptions = {
@@ -106,6 +119,7 @@ export const flacExportEncoder: ExportEncoderDefinition<
   FlacExportResult
 > = {
   type: "flac",
+  isSupportSampleRate,
   preload: preloadFlacModule,
   export: (snapshot, options) => exportFlacSnapshot(snapshot, options),
 }

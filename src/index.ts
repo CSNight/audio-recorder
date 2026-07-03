@@ -47,6 +47,10 @@ export {
 } from "./types"
 export { resample } from "./utils/resample"
 export {
+  pickNearestSupportedSampleRate,
+  isPositiveIntegerSampleRate,
+} from "./utils/sample-rate"
+export {
   serializePcmSnapshot,
   deserializePcmSnapshot,
 } from "./utils/snapshot-codec"

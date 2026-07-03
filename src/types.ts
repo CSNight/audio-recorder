@@ -211,6 +211,11 @@ export interface ExportEncoderDefinition<
 > {
   type: TType
   /**
+   * 判断某个采样率是否可被该编码器“直接接受为目标采样率”。
+   * 仅用于调用方预判/禁用 UI，不参与导出流程内部决策。
+   */
+  isSupportSampleRate?(sampleRate: number, options?: TOptions): boolean
+  /**
    * 【可选】预加载编码器所需资源（如 WASM 模块）。
    * 幂等，可多次调用，内部由单例 Promise 保证只加载一次。
    * exportEncoded() 在调用 export() 之前会显式 await 此方法。

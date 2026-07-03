@@ -1,5 +1,7 @@
 import type { PcmBufferSnapshot } from "../../buffer/types"
-import { exportPcmSnapshot } from "./pcm-exporter"
+import { resample } from "@csnight/audio-recorder"
+import { createPcmExportResult } from "./pcm-exporter"
+import { resolveExportSampleRate } from "./sample-rate"
 import type { WavExportOptions, WavExportResult } from "./wav-types"
 import { createWavHeader } from "./wav-header"
 
@@ -10,7 +12,15 @@ export function exportWavSnapshot(
   snapshot: PcmBufferSnapshot,
   options: WavExportOptions = {}
 ): WavExportResult {
-  const pcm = exportPcmSnapshot(snapshot, options)
+  const targetSampleRate = resolveExportSampleRate(
+    options.sampleRate,
+    snapshot.sampleRate
+  )
+  const normalized =
+    targetSampleRate === snapshot.sampleRate
+      ? snapshot
+      : resample(snapshot, targetSampleRate, { isHQ: !!options.isHQ })
+  const pcm = createPcmExportResult(normalized, options.bitRate)
   const bytesPerSample = pcm.bitRate / 8
   const payloadSize = pcm.data.length * bytesPerSample
   const header = createWavHeader({

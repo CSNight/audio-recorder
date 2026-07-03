@@ -848,6 +848,15 @@ createRecorder({
 
 ## 编码器
 
+所有导出编码器在 `sampleRate` 上都遵循同一套解析规则：
+
+- 如果显式传入了 `options.sampleRate`，且当前编码器支持该采样率，则直接使用
+- 如果显式传入了 `options.sampleRate`，但当前编码器不支持，则自动选择最近的受支持采样率
+- 如果没有传入 `options.sampleRate`，且输入快照的实际采样率受支持，则沿用实际采样率
+- 如果没有传入 `options.sampleRate`，且输入快照的实际采样率不受支持，则自动选择最近的受支持采样率
+
+对于“受支持采样率集合会被其他选项约束”的编码器，最近值的选择会在该受限集合内进行，例如 `amr` 的 `bandMode: "nb" | "wb"`，以及 `ac3` 和 `eac3` 两种模式。
+
 ### `codecs/base`
 
 核心 PCM / WAV 支持。
@@ -890,6 +899,7 @@ createRecorder({
 基于 WASM 编码器的 AMR 导出。
 
 - 支持 `nb` 和 `wb`
+- 采样率解析受 `bandMode` 约束：`nb` 只会解析到 8 kHz，`wb` 只会解析到 16 kHz
 - 面向电话语音和 speech pipeline
 
 ### `codecs/ac3`
@@ -897,6 +907,7 @@ createRecorder({
 基于 WASM 编码器的 AC3 / E-AC3 导出。
 
 - 同一子路径同时暴露 `ac3` 和 `eac3` 两种快照编码器
+- 采样率解析受所选 codec 约束，因此 `ac3` 和 `eac3` 可能会解析到不同的最近受支持采样率
 - 适合 Dolby Digital 兼容分发或转码流程
 
 ### `codecs/g711`

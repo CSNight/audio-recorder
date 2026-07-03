@@ -1,6 +1,12 @@
 import type { PcmBufferSnapshot } from "../../buffer/types"
 import type { PcmExportOptions, PcmExportResult } from "./pcm-types"
 import { resample } from "@csnight/audio-recorder"
+import { resolveExportSampleRate } from "./sample-rate"
+
+type PcmLikeSnapshot = Pick<
+  PcmBufferSnapshot,
+  "sampleRate" | "channels" | "durationMs" | "planar"
+>
 
 function normalizeBitRate(bitRate: PcmExportOptions["bitRate"]): 8 | 16 {
   if (bitRate === undefined) {
@@ -18,16 +24,30 @@ export function exportPcmSnapshot(
   snapshot: PcmBufferSnapshot,
   options: PcmExportOptions = {}
 ): PcmExportResult {
-  const targetSampleRate = options.sampleRate ?? snapshot.sampleRate
-  const bitRate = normalizeBitRate(options.bitRate)
-  const normalized = resample(snapshot, targetSampleRate, options)
-  const interleaved = interleaveChannels(normalized.planar, normalized.channels)
+  const targetSampleRate = resolveExportSampleRate(
+    options.sampleRate,
+    snapshot.sampleRate
+  )
+  const normalized =
+    targetSampleRate === snapshot.sampleRate
+      ? snapshot
+      : resample(snapshot, targetSampleRate, { isHQ: !!options.isHQ })
+
+  return createPcmExportResult(normalized, options.bitRate)
+}
+
+export function createPcmExportResult(
+  snapshot: PcmLikeSnapshot,
+  bitRateOption: PcmExportOptions["bitRate"]
+): PcmExportResult {
+  const bitRate = normalizeBitRate(bitRateOption)
+  const interleaved = interleaveChannels(snapshot.planar, snapshot.channels)
 
   return {
-    sampleRate: normalized.sampleRate,
-    channels: normalized.channels,
+    sampleRate: snapshot.sampleRate,
+    channels: snapshot.channels,
     bitRate,
-    durationMs: normalized.durationMs,
+    durationMs: snapshot.durationMs,
     data: bitRate === 16 ? interleaved : convertInt16ToInt8(interleaved),
   }
 }

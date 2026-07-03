@@ -39,6 +39,14 @@ const FLAC__STREAM_ENCODER_INIT_STATUS_ALREADY_INITIALIZED = 13
 let modulePromise: Promise<LibFlacModule> | undefined
 let moduleCache: LibFlacModule | undefined
 
+function assertSampleRate(sampleRate: number): void {
+  if (!Number.isInteger(sampleRate) || sampleRate < 1 || sampleRate > 1048575) {
+    throw new RangeError(
+      `FLAC encoder requires sampleRate to be an integer between 1 and 1048575, received ${sampleRate}.`
+    )
+  }
+}
+
 function toFlacTotalSamplesEstimate(totalSamples: number): bigint {
   if (!Number.isSafeInteger(totalSamples) || totalSamples < 0) {
     throw new FlacError(
@@ -144,6 +152,8 @@ export function createFlacEncoder(
   const channels = options.channels
   const bitsPerSample = options.bitsPerSample ?? 16
   const compressionLevel = options.compressionLevel ?? 5
+
+  assertSampleRate(sampleRate)
 
   // Create encoder
   const encoderPtr = module._FLAC__stream_encoder_new()

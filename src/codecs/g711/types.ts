@@ -7,6 +7,8 @@ export interface G711ExportOptions {
   variant?: G711Variant
   /** 输出采样率；G.711 标准为 8000 Hz，省略时沿用输入采样率 */
   sampleRate?: number
+  /** 是否使用高保真重采样算法，默认 false（仅 sampleRate 触发重采样时生效） */
+  isHQ?: boolean
 }
 
 /** G.711 导出结果 */

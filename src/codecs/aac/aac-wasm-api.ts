@@ -1,5 +1,9 @@
-import type { AacEncoderHandle, AacEncoderOptions } from "./types"
+import type {
+  AacEncoderHandle,
+  AacEncoderOptions,
+} from "./types"
 import { AacError } from "./types"
+import { AAC_SAMPLE_RATES } from "./sample-rate"
 
 type LibAacModule = {
   HEAPF32: Float32Array
@@ -18,10 +22,10 @@ type LibAacModule = {
 
 let modulePromise: Promise<LibAacModule> | undefined
 let moduleCache: LibAacModule | undefined
+const AAC_SAMPLE_RATE_SET = new Set<number>(AAC_SAMPLE_RATES)
 
 const AAC_SAMPLES_PER_FRAME = 1024
 const AAC_MAX_BITS_PER_CHANNEL_PER_FRAME = 6144
-
 // Clamp bitrate before init to avoid FFmpeg AAC-LC frame-limit warnings.
 function normalizeAacBitrate(
   sampleRate: number,
@@ -80,6 +84,12 @@ export function createAacEncoder(options: AacEncoderOptions): AacEncoderHandle {
   if (!moduleCache) {
     throw new Error(
       "AAC WASM module is not loaded. Call preloadAacModule() and await it before creating an encoder."
+    )
+  }
+
+  if (!AAC_SAMPLE_RATE_SET.has(options.sampleRate)) {
+    throw new RangeError(
+      `AAC encoder requires an MPEG-4 sampleRate, received ${options.sampleRate}.`
     )
   }
 

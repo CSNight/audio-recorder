@@ -5,21 +5,29 @@ import {
   createAmrEncoder,
   getAmrMimeType,
   getAmrStreamHeader,
-  getAmrTargetSampleRate,
   preloadAmrModules,
 } from "./amr-wasm-api"
+import {
+  isSupportSampleRate,
+  resolveExportBandMode,
+  resolveExportSampleRate,
+} from "./sample-rate"
 import type { AmrExportOptions, AmrExportResult } from "./types"
 
 export function exportAmrSnapshot(
   snapshot: PcmBufferSnapshot,
   options: AmrExportOptions = {}
 ): AmrExportResult {
-  const bandMode = options.bandMode ?? "nb"
-  const targetSampleRate = getAmrTargetSampleRate(bandMode)
+  const targetSampleRate = resolveExportSampleRate(
+    options.sampleRate,
+    snapshot.sampleRate,
+    options.bandMode
+  )
   const normalized =
-    snapshot.sampleRate === targetSampleRate
+    targetSampleRate === snapshot.sampleRate
       ? snapshot
-      : resample(snapshot, targetSampleRate, {})
+      : resample(snapshot, targetSampleRate, { isHQ: !!options.isHQ })
+  const bandMode = resolveExportBandMode(options.bandMode, targetSampleRate)
 
   const encoder = createAmrEncoder({ bandMode })
   const mono = normalized.planar[0] ?? new Int16Array(0)
@@ -65,6 +73,7 @@ export const amrExportEncoder: ExportEncoderDefinition<
   AmrExportResult
 > = {
   type: "amr",
+  isSupportSampleRate,
   preload: preloadAmrModules,
   export: (snapshot, options) => exportAmrSnapshot(snapshot, options),
 }

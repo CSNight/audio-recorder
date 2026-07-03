@@ -6,6 +6,8 @@ export interface Ac3ExportOptions {
   codec?: Ac3Codec
   bitrate?: number
   sampleRate?: Ac3SampleRate
+  /** 是否使用高保真重采样算法，默认 false（仅 sampleRate 触发重采样时生效） */
+  isHQ?: boolean
 }
 
 export interface Ac3EncoderOptions {

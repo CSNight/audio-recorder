@@ -42,16 +42,16 @@ describe("amrExportEncoder", () => {
     expect(amrExportEncoder.type).toBe("amr")
   })
 
-  it("defaults to AMR-NB and resamples to 8000Hz", () => {
+  it("defaults to the nearest AMR-supported sample rate from the input", () => {
     const snapshot = makeSnapshot(16000, 1, 16000)
     const result = exportAmrSnapshot(snapshot)
-    const header = new TextDecoder().decode(result.data.subarray(0, 6))
+    const header = new TextDecoder().decode(result.data.subarray(0, 9))
 
-    expect(result.bandMode).toBe("nb")
-    expect(result.sampleRate).toBe(8000)
+    expect(result.bandMode).toBe("wb")
+    expect(result.sampleRate).toBe(16000)
     expect(result.channels).toBe(1)
-    expect(result.mimeType).toBe("audio/amr")
-    expect(header).toBe("#!AMR\n")
+    expect(result.mimeType).toBe("audio/amr-wb")
+    expect(header).toBe("#!AMR-WB\n")
   })
 
   it("supports AMR-WB via bandMode option", () => {

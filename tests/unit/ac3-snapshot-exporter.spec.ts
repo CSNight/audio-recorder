@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { PcmBufferSnapshot } from "../../src/buffer/types"
-import type { Ac3EncoderHandle } from "../../src/codecs/ac3/types"
+import type { Ac3EncoderHandle } from "../../src/codecs/ac3"
 
 const preloadAc3Module = vi.fn(async () => {})
 const createAc3Encoder = vi.fn<(options: unknown) => Ac3EncoderHandle>()
@@ -23,15 +23,19 @@ vi.mock("../../src/codecs/ac3/ac3-wasm-api", () => ({
       (((options.codec as string | undefined) ?? "ac3") === "ac3"
         ? 384000
         : 192000),
-    sampleRate: ((options.sampleRate as number | undefined) ??
-      sampleRate) as 16000 | 22050 | 24000 | 32000 | 44100 | 48000,
+    sampleRate: ((options.sampleRate as number | undefined) ?? sampleRate) as
+      | 16000
+      | 22050
+      | 24000
+      | 32000
+      | 44100
+      | 48000,
     channels,
   }),
 }))
 
-const { ac3ExportEncoder, eac3ExportEncoder, exportAc3Snapshot } = await import(
-  "../../src/codecs/ac3/ac3-snapshot-exporter"
-)
+const { ac3ExportEncoder, eac3ExportEncoder, exportAc3Snapshot } =
+  await import("../../src/codecs/ac3/ac3-snapshot-exporter")
 
 function sine(length: number, freq = 440, sampleRate = 48000): Int16Array {
   const out = new Int16Array(length)

@@ -6,5 +6,6 @@ export type {
   OpusExportResult,
   OpusEncoderHandle,
   OpusDecoderHandle,
+  OpusSampleRate,
 } from "./types"
 export { createOpusEncoder, createOpusDecoder } from "./opus-wasm-api"
