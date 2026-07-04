@@ -13,10 +13,10 @@
  */
 
 import type {
+  EncoderWorkerOutgoingMessage,
   StreamEncoder,
   StreamEncoderDefinition,
-} from "../plugins/streaming-export"
-import type { EncoderWorkerOutgoingMessage } from "../types"
+} from "../types"
 
 export interface StreamEncoderBridgeOptions {
   format: string

@@ -31,6 +31,11 @@ export interface RecorderPluginContext {
 
 export interface RecorderPlugin {
   name: string
+  /**
+   * 互斥插件名前缀列表。
+   * 例如声明 ["streaming-export"] 时，会拦截 "streaming-export:wav" 这类同族插件。
+   */
+  exclusiveWith?: string[]
   setup(context: RecorderPluginContext): void | Promise<void>
   onStart?(): void
   onFrame?(frame: AudioFrame): void

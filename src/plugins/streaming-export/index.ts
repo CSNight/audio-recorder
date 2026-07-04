@@ -5,10 +5,4 @@
  * 当前仅支持 PCM/WAV，对应定义从 @csnight/audio-recorder/codecs/base 导入。
  */
 export { createStreamingExportPlugin } from "./plugin"
-export type {
-  StreamEncoder,
-  StreamEncoderDefinition,
-  StreamingExportFormat,
-  StreamingPacketPayload,
-  StreamingExportPluginOptions,
-} from "./types"
+export type { StreamingExportPluginOptions } from "./types"

@@ -1,4 +1,4 @@
-import type { StreamingPacketPayload } from "../streaming-export"
+import type { StreamingPacketPayload } from "../../types"
 
 /**
  * JitterBuffer：累积至 targetLatencyMs 后开始出队。

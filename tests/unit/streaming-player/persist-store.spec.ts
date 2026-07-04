@@ -3,7 +3,7 @@ import {
   IndexedDbPersistStore,
   MemoryPersistStore,
 } from "../../../src/plugins/streaming-player/persist-store"
-import type { StreamingPacketPayload } from "../../../src/plugins/streaming-export"
+import type { StreamingPacketPayload } from "../../../src"
 
 function makePacket(seq: number, durationMs = 20): StreamingPacketPayload {
   return {

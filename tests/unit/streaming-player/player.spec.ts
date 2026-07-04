@@ -4,8 +4,10 @@ import type {
   StreamingPlayerOptions,
 } from "../../../src/plugins/streaming-player"
 import { createStreamingPlayer } from "../../../src/plugins/streaming-player"
-import type { StreamingPacketPayload } from "../../../src/plugins/streaming-export"
-import type { EncodedAudioChunk } from "../../../src/types"
+import type {
+  EncodedAudioChunk,
+  StreamingPacketPayload,
+} from "../../../src/types"
 
 // ── 工具函数 ────────────────────────────────────────────────────────────────
 

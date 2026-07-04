@@ -28,6 +28,7 @@ export type {
 export type {
   AudioFrame,
   AudioInputDevice,
+  AudioDecoderDefinition,
   CreateRecorderOptions,
   RecorderEventMap,
   RecorderFrameEvent,
@@ -39,6 +40,10 @@ export type {
   RecorderSessionSummary,
   RecorderStateChangeEvent,
   RecorderWarning,
+  StreamEncoder,
+  StreamEncoderDefinition,
+  StreamingExportFormat,
+  StreamingPacketPayload,
 } from "./types"
 export {
   RecorderInputSource,

@@ -3,7 +3,7 @@ import type {
   StreamingPlayerOptions,
   StreamingPlayerState,
 } from "./types"
-import type { StreamingPacketPayload } from "../streaming-export"
+import type { StreamingPacketPayload } from "../../types"
 import { ReorderBuffer } from "./reorder-buffer"
 import { JitterBuffer } from "./jitter-buffer"
 import type { PersistStore } from "./persist-store"

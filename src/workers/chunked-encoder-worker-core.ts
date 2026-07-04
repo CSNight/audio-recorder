@@ -18,12 +18,10 @@
  *   { type: "error",     message: string,            seqId: number }
  */
 import type {
-  StreamEncoder,
-  StreamEncoderDefinition,
-} from "../plugins/streaming-export"
-import type {
   EncoderWorkerIncomingMessage,
   EncoderWorkerOutgoingMessage,
+  StreamEncoder,
+  StreamEncoderDefinition,
 } from "../types"
 
 function postMsg(msg: EncoderWorkerOutgoingMessage, transfer?: Transferable[]) {

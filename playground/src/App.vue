@@ -647,7 +647,10 @@ async function exportAudio(format) {
   const formatLabel = getExportFormatLabel(format)
   await runLoggedAction(
     async () => {
-      const result = await recorder.exportEncoded(format, buildExportOptions(format))
+      const result = await recorder.exportEncoded(
+        format,
+        buildExportOptions(format)
+      )
       state.lastExportResult = {
         ...(state.lastExportResult ?? {}),
         [format]: result,
@@ -911,7 +914,8 @@ function isExportFormatSupported(format) {
 
 function getExportResultByteLength(result) {
   if (result?.data instanceof Uint8Array) return result.data.byteLength
-  if (result?.arrayBuffer instanceof ArrayBuffer) return result.arrayBuffer.byteLength
+  if (result?.arrayBuffer instanceof ArrayBuffer)
+    return result.arrayBuffer.byteLength
   if (result?.blob instanceof Blob) return result.blob.size
   return 0
 }

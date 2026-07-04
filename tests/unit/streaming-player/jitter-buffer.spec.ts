@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { JitterBuffer } from "../../../src/plugins/streaming-player/jitter-buffer"
-import type { StreamingPacketPayload } from "../../../src/plugins/streaming-export"
+import type { StreamingPacketPayload } from "../../../src"
 
 function makePacket(seq: number, durationMs = 20): StreamingPacketPayload {
   return {

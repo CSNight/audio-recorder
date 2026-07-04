@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { ReorderBuffer } from "../../../src/plugins/streaming-player/reorder-buffer"
-import type { StreamingPacketPayload } from "../../../src/plugins/streaming-export"
+import type { StreamingPacketPayload } from "../../../src"
 
 function makePacket(seq: number, durationMs = 20): StreamingPacketPayload {
   return {

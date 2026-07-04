@@ -1,7 +1,4 @@
-import type {
-  StreamEncoder,
-  StreamEncoderDefinition,
-} from "../../plugins/streaming-export"
+import type { StreamEncoder, StreamEncoderDefinition } from "../../types"
 
 /** PCM StreamEncoder 选项 */
 export interface PcmChunkedEncoderOptions {

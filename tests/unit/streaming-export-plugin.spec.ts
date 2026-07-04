@@ -1,9 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { RecorderController } from "../../src"
-import type {
-  StreamEncoderDefinition,
-  StreamingPacketPayload,
-} from "../../src/plugins/streaming-export"
+import type { StreamEncoderDefinition, StreamingPacketPayload } from "../../src"
 import { createStreamingExportPlugin } from "../../src/plugins/streaming-export"
 import type { RecorderPluginEventContext } from "../../src/plugins/types"
 import type {
