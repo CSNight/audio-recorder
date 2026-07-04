@@ -56,13 +56,27 @@ const PERSISTENCE_PLUGIN_FACTORIES = {
   [PLAYGROUND_PERSISTENCE_BACKEND.opfs]: createOpfsPersistencePlugin,
 }
 
+const EXPORT_FORMAT_ACTIONS = [
+  { type: "pcm", label: "PCM", encoder: pcmExportEncoder },
+  { type: "wav", label: "WAV", encoder: wavExportEncoder },
+  { type: "mp3", label: "MP3", encoder: mp3ExportEncoder },
+  { type: "g711", label: "G.711", encoder: g711ExportEncoder },
+  { type: "aac", label: "AAC", encoder: aacExportEncoder },
+  { type: "amr", label: "AMR", encoder: amrExportEncoder },
+  { type: "ac3", label: "AC3", encoder: ac3ExportEncoder },
+  { type: "eac3", label: "E-AC3", encoder: eac3ExportEncoder },
+  { type: "ogg", label: "Opus OGG", encoder: oggExportEncoder },
+  { type: "webm", label: "Opus WebM", encoder: webmExportEncoder },
+  { type: "flac", label: "FLAC", encoder: flacExportEncoder },
+]
+
 const state = reactive({
   sourceMode: PLAYGROUND_SOURCE_MODE.externalTone,
   storageMode: PLAYGROUND_STORAGE_MODE.memory,
   persistenceBackend: PLAYGROUND_PERSISTENCE_BACKEND.indexeddb,
   requestedChannelCount: 1,
   amrBandMode: "nb",
-  ac3SampleRate: 48000,
+  exportSampleRateInput: "",
   inputStrategy: "auto",
   memoryThresholdBytes: 256 * 1024,
   pendingActionLabel: "",
@@ -162,7 +176,48 @@ const summaryRows = computed(() =>
 
 const storageRows = computed(() => toKvRows(state.storageDiagnostics))
 
-const hasExportResult = computed(() => state.lastExportResult !== null)
+const hasExportResult = computed(
+  () =>
+    state.lastExportResult !== null &&
+    Object.keys(state.lastExportResult).length > 0
+)
+
+// 空值表示“不指定”，null 表示输入了非法 sampleRate。
+const selectedExportSampleRate = computed(() => {
+  const rawValue = state.exportSampleRateInput
+  if (rawValue === "" || rawValue === null || rawValue === undefined) {
+    return undefined
+  }
+
+  const sampleRate = Number(rawValue)
+  return Number.isInteger(sampleRate) && sampleRate > 0 ? sampleRate : null
+})
+
+const canExportAudio = computed(
+  () =>
+    state.pendingActionLabel === "" &&
+    state.recorderState === RecorderState.Stopped &&
+    state.summary !== null
+)
+
+const exportActions = computed(() =>
+  EXPORT_FORMAT_ACTIONS.map((action) => ({
+    ...action,
+    disabled: !canExportAudio.value || !isExportFormatSupported(action.type),
+  }))
+)
+
+const exportHint = computed(() => {
+  if (selectedExportSampleRate.value === null) {
+    return "sampleRate 需要填写为正整数，修正后才会恢复编码按钮可点击状态。"
+  }
+
+  if (selectedExportSampleRate.value === undefined) {
+    return "当前未显式指定 sampleRate；停止录音后会自动回填实际 sampleRate，并在点击按钮时调用对应编码器。"
+  }
+
+  return `当前导出 sampleRate 为 ${selectedExportSampleRate.value} Hz，按钮可点击状态按各编码器的 isSupportSampleRate 结果更新。`
+})
 
 const topMetrics = computed(() => [
   {
@@ -269,40 +324,17 @@ const topSnapshotGroups = computed(() => [
 const exportStats = computed(() => {
   if (!state.lastExportResult) return []
 
-  return [
-    {
-      label: "PCM",
-      value: formatBytes(state.lastExportResult.pcm.data.byteLength),
-    },
-    {
-      label: "WAV",
-      value: formatBytes(state.lastExportResult.wav.arrayBuffer.byteLength),
-    },
-    {
-      label: "Sample Rate",
-      value: `${state.lastExportResult.wav.sampleRate} Hz`,
-    },
-    {
-      label: "Channels / Bit Depth",
-      value: `${state.lastExportResult.wav.channels}ch / ${state.lastExportResult.wav.bitRate}bit`,
-    },
-    {
-      label: "FLAC",
-      value: formatBytes(state.lastExportResult.flac.data.byteLength),
-    },
-    {
-      label: "AAC",
-      value: formatBytes(state.lastExportResult.aac.data.byteLength),
-    },
-    {
-      label: "AC3",
-      value: formatBytes(state.lastExportResult.ac3.data.byteLength),
-    },
-    {
-      label: "E-AC3",
-      value: formatBytes(state.lastExportResult.eac3.data.byteLength),
-    },
-  ]
+  return EXPORT_FORMAT_ACTIONS.flatMap(({ type, label }) => {
+    const result = state.lastExportResult?.[type]
+    if (!result) return []
+
+    return [
+      {
+        label,
+        value: `${formatBytes(getExportResultByteLength(result))} · ${result.sampleRate} Hz`,
+      },
+    ]
+  })
 })
 
 const canOpen = computed(
@@ -402,6 +434,7 @@ function resetRealtimeState() {
   state.frameCount = 0
   state.lastFrameDurationMs = 0
   state.levelPercent = 0
+  state.exportSampleRateInput = ""
   state.exportedBytes = null
   state.realtimeChunkCount = 0
   state.realtimeChunkBytes = 0
@@ -560,45 +593,11 @@ async function stopRecorder() {
   await runLoggedAction(
     async () => {
       state.summary = await recorder.stop()
-      const [
-        pcmResult,
-        wavResult,
-        mp3Result,
-        g711Result,
-        opusOggResult,
-        opusWebmResult,
-        flacResult,
-        aacResult,
-        amrResult,
-        ac3Result,
-        eac3Result,
-      ] = await Promise.all([
-        recorder.exportEncoded("pcm"),
-        recorder.exportEncoded("wav"),
-        recorder.exportEncoded("mp3"),
-        recorder.exportEncoded("g711"),
-        recorder.exportEncoded("ogg"),
-        recorder.exportEncoded("webm"),
-        recorder.exportEncoded("flac"),
-        recorder.exportEncoded("aac"),
-        recorder.exportEncoded("amr", { bandMode: state.amrBandMode }),
-        recorder.exportEncoded("ac3", { sampleRate: state.ac3SampleRate }),
-        recorder.exportEncoded("eac3", { sampleRate: state.ac3SampleRate }),
-      ])
-      state.exportedBytes = pcmResult.data.byteLength
-      state.lastExportResult = {
-        pcm: pcmResult,
-        wav: wavResult,
-        mp3: mp3Result,
-        g711: g711Result,
-        opusOgg: opusOggResult,
-        opusWebm: opusWebmResult,
-        flac: flacResult,
-        aac: aacResult,
-        amr: amrResult,
-        ac3: ac3Result,
-        eac3: eac3Result,
-      }
+      state.exportSampleRateInput = String(
+        state.runtimeInfo?.actualSampleRate ?? state.summary.sampleRate ?? ""
+      )
+      state.exportedBytes = null
+      state.lastExportResult = null
       state.storageDiagnostics = await collectStorageDiagnostics()
       state.activePersistenceBackend =
         state.storageDiagnostics?.persistedEntries > 0
@@ -606,11 +605,11 @@ async function stopRecorder() {
           : null
       appendLog(
         "info",
-        `录音已停止，PCM ${pcmResult.data.byteLength} byte，WAV ${wavResult.arrayBuffer.byteLength} byte，实时导出 chunk ${state.realtimeChunkCount} 个。`
+        `录音已停止，实际 sampleRate ${state.summary.sampleRate} Hz，实时导出 chunk ${state.realtimeChunkCount} 个。`
       )
     },
     "",
-    "正在停止并导出..."
+    "正在停止录音..."
   )
 }
 
@@ -631,8 +630,41 @@ async function closeRecorder() {
   )
 }
 
-function downloadPCM() {
-  const result = state.lastExportResult?.pcm
+async function exportAudio(format) {
+  if (!canExportAudio.value) {
+    appendLog("warning", "请先完成一次录音并保持 stopped 状态，再执行导出。")
+    return
+  }
+
+  if (!isExportFormatSupported(format)) {
+    appendLog(
+      "warning",
+      `${getExportFormatLabel(format)} 当前不支持所选 sampleRate。`
+    )
+    return
+  }
+
+  const formatLabel = getExportFormatLabel(format)
+  await runLoggedAction(
+    async () => {
+      const result = await recorder.exportEncoded(format, buildExportOptions(format))
+      state.lastExportResult = {
+        ...(state.lastExportResult ?? {}),
+        [format]: result,
+      }
+      state.exportedBytes = getExportResultByteLength(result)
+      triggerExportDownload(format, result)
+      appendLog(
+        "info",
+        `${formatLabel} 导出完成，${formatBytes(state.exportedBytes)}，sampleRate ${result.sampleRate} Hz。`
+      )
+    },
+    "",
+    `正在导出 ${formatLabel}...`
+  )
+}
+
+function downloadPCM(result = state.lastExportResult?.pcm) {
   if (!result) return
   const blob = new Blob([result.data.buffer], {
     type: "application/octet-stream",
@@ -643,8 +675,7 @@ function downloadPCM() {
   )
 }
 
-function downloadWAV() {
-  const result = state.lastExportResult?.wav
+function downloadWAV(result = state.lastExportResult?.wav) {
   if (!result) return
   triggerDownload(
     result.blob,
@@ -652,8 +683,7 @@ function downloadWAV() {
   )
 }
 
-function downloadMP3() {
-  const result = state.lastExportResult?.mp3
+function downloadMP3(result = state.lastExportResult?.mp3) {
   if (!result) return
   triggerDownload(
     new Blob([result.data.buffer], { type: "audio/mpeg" }),
@@ -661,8 +691,7 @@ function downloadMP3() {
   )
 }
 
-function downloadG711() {
-  const result = state.lastExportResult?.g711
+function downloadG711(result = state.lastExportResult?.g711) {
   if (!result) return
   triggerDownload(
     new Blob([result.data.buffer], { type: "audio/basic" }),
@@ -670,8 +699,7 @@ function downloadG711() {
   )
 }
 
-function downloadAAC() {
-  const result = state.lastExportResult?.aac
+function downloadAAC(result = state.lastExportResult?.aac) {
   if (!result) return
   triggerDownload(
     new Blob([result.data.buffer], { type: result.mimeType }),
@@ -679,8 +707,7 @@ function downloadAAC() {
   )
 }
 
-function downloadAMR() {
-  const result = state.lastExportResult?.amr
+function downloadAMR(result = state.lastExportResult?.amr) {
   if (!result) return
   const extension = result.bandMode === "wb" ? "awb" : "amr"
   triggerDownload(
@@ -689,8 +716,7 @@ function downloadAMR() {
   )
 }
 
-function downloadAC3() {
-  const result = state.lastExportResult?.ac3
+function downloadAC3(result = state.lastExportResult?.ac3) {
   if (!result) return
   triggerDownload(
     new Blob([result.data.buffer], { type: result.mimeType }),
@@ -698,8 +724,7 @@ function downloadAC3() {
   )
 }
 
-function downloadEAC3() {
-  const result = state.lastExportResult?.eac3
+function downloadEAC3(result = state.lastExportResult?.eac3) {
   if (!result) return
   triggerDownload(
     new Blob([result.data.buffer], { type: result.mimeType }),
@@ -707,8 +732,7 @@ function downloadEAC3() {
   )
 }
 
-function downloadOpusOgg() {
-  const result = state.lastExportResult?.opusOgg
+function downloadOpusOgg(result = state.lastExportResult?.ogg) {
   if (!result) return
   triggerDownload(
     new Blob([result.data.buffer], { type: "audio/ogg; codecs=opus" }),
@@ -716,8 +740,7 @@ function downloadOpusOgg() {
   )
 }
 
-function downloadOpusWebm() {
-  const result = state.lastExportResult?.opusWebm
+function downloadOpusWebm(result = state.lastExportResult?.webm) {
   if (!result) return
   triggerDownload(
     new Blob([result.data.buffer], { type: "audio/webm; codecs=opus" }),
@@ -725,8 +748,7 @@ function downloadOpusWebm() {
   )
 }
 
-function downloadFLAC() {
-  const result = state.lastExportResult?.flac
+function downloadFLAC(result = state.lastExportResult?.flac) {
   if (!result) return
   triggerDownload(
     new Blob([result.data.buffer], { type: "audio/flac" }),
@@ -851,6 +873,87 @@ function getStorageModeLabel(mode) {
 
 function getPersistenceBackendLabel(backend) {
   return backend === PLAYGROUND_PERSISTENCE_BACKEND.opfs ? "OPFS" : "IndexedDB"
+}
+
+function getExportAction(format) {
+  return EXPORT_FORMAT_ACTIONS.find((action) => action.type === format) ?? null
+}
+
+function getExportFormatLabel(format) {
+  return getExportAction(format)?.label ?? format
+}
+
+function buildExportOptions(format) {
+  const sampleRate = selectedExportSampleRate.value
+  const options = {}
+
+  if (sampleRate !== undefined && sampleRate !== null) {
+    options.sampleRate = sampleRate
+  }
+
+  if (format === "amr") {
+    options.bandMode = state.amrBandMode
+  }
+
+  return Object.keys(options).length > 0 ? options : undefined
+}
+
+function isExportFormatSupported(format) {
+  const sampleRate = selectedExportSampleRate.value
+  if (sampleRate === null) return false
+  if (sampleRate === undefined) return true
+
+  const encoder = getExportAction(format)?.encoder
+  if (typeof encoder?.isSupportSampleRate !== "function") return true
+
+  return encoder.isSupportSampleRate(sampleRate, buildExportOptions(format))
+}
+
+function getExportResultByteLength(result) {
+  if (result?.data instanceof Uint8Array) return result.data.byteLength
+  if (result?.arrayBuffer instanceof ArrayBuffer) return result.arrayBuffer.byteLength
+  if (result?.blob instanceof Blob) return result.blob.size
+  return 0
+}
+
+function triggerExportDownload(format, result) {
+  switch (format) {
+    case "pcm":
+      downloadPCM(result)
+      return
+    case "wav":
+      downloadWAV(result)
+      return
+    case "mp3":
+      downloadMP3(result)
+      return
+    case "g711":
+      downloadG711(result)
+      return
+    case "aac":
+      downloadAAC(result)
+      return
+    case "amr":
+      downloadAMR(result)
+      return
+    case "ac3":
+      downloadAC3(result)
+      return
+    case "eac3":
+      downloadEAC3(result)
+      return
+    case "ogg":
+      downloadOpusOgg(result)
+      return
+    case "webm":
+      downloadOpusWebm(result)
+      return
+    case "flac":
+      downloadFLAC(result)
+      return
+    default:
+      return
+  }
 }
 
 function formatBytes(bytes) {
@@ -1391,58 +1494,27 @@ onBeforeUnmount(() => {
               </select>
             </label>
             <label class="field field-inline-compact">
-              <span>AC3 采样率</span>
-              <select v-model.number="state.ac3SampleRate">
-                <option :value="32000">32000</option>
-                <option :value="44100">44100</option>
-                <option :value="48000">48000</option>
-              </select>
+              <span>导出 sampleRate</span>
+              <input
+                v-model="state.exportSampleRateInput"
+                min="1"
+                placeholder="留空表示不指定"
+                step="1"
+                type="number"
+              />
             </label>
           </div>
 
-          <p class="panel-note">
-            停止录音后自动生成完整导出快照，下载区仅展示最终产物。
-          </p>
+          <p class="panel-note">{{ exportHint }}</p>
 
           <div class="download-grid">
-            <button :disabled="!state.lastExportResult" @click="downloadPCM">
-              PCM
-            </button>
-            <button :disabled="!state.lastExportResult" @click="downloadWAV">
-              WAV
-            </button>
-            <button :disabled="!state.lastExportResult" @click="downloadMP3">
-              MP3
-            </button>
-            <button :disabled="!state.lastExportResult" @click="downloadG711">
-              G.711
-            </button>
-            <button :disabled="!state.lastExportResult" @click="downloadAAC">
-              AAC
-            </button>
-            <button :disabled="!state.lastExportResult" @click="downloadAMR">
-              AMR
-            </button>
-            <button :disabled="!state.lastExportResult" @click="downloadAC3">
-              AC3
-            </button>
-            <button :disabled="!state.lastExportResult" @click="downloadEAC3">
-              E-AC3
-            </button>
             <button
-              :disabled="!state.lastExportResult"
-              @click="downloadOpusOgg"
+              v-for="action in exportActions"
+              :key="action.type"
+              :disabled="action.disabled"
+              @click="exportAudio(action.type)"
             >
-              Opus OGG
-            </button>
-            <button
-              :disabled="!state.lastExportResult"
-              @click="downloadOpusWebm"
-            >
-              Opus WebM
-            </button>
-            <button :disabled="!state.lastExportResult" @click="downloadFLAC">
-              FLAC
+              {{ action.label }}
             </button>
           </div>
 
@@ -1461,7 +1533,7 @@ onBeforeUnmount(() => {
           </div>
           <div v-else class="empty-state">
             <strong>导出结果待生成</strong>
-            <p>执行一次 stop() 后，这里会出现各编码格式的快照和下载入口。</p>
+            <p>停止录音后点击任一编码按钮，才会触发对应格式导出并下载。</p>
           </div>
         </section>
 
