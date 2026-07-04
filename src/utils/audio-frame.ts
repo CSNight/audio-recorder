@@ -45,3 +45,14 @@ export function createAudioFrame(
     planar,
   }
 }
+
+/** 深拷贝一帧 PCM，供主链路插件失败时回退到“进入该插件前”的安全副本。 */
+export function cloneAudioFrame(frame: AudioFrame): AudioFrame {
+  return {
+    channels: frame.channels,
+    sampleRate: frame.sampleRate,
+    timestamp: frame.timestamp,
+    durationMs: frame.durationMs,
+    planar: frame.planar.map((channel) => new Int16Array(channel)),
+  }
+}

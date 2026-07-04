@@ -14,6 +14,7 @@
 - [`level-meter`](#level-meter)
 - [`streaming-export`](#streaming-export)
 - [`sonic-export`](#sonic-export)
+- [`dsp`](#dsp)
 - [`asr-export`](#asr-export)
 - [`streaming-player`](#streaming-player)
 - [存储](#存储)
@@ -87,7 +88,7 @@ console.log(summary.durationMs, wav.arrayBuffer.byteLength)
 - 录音事件：`statechange`、`frame:async`、`issue`
 - 快照导出：`pcm`、`wav`、`mp3`、`flac`、`ogg`、`webm`、`g711`、`aac`、`amr`、`ac3`、`eac3`
 - 持久化后端：`storage/opfs`、`storage/indexeddb`
-- 内置插件：`level-meter`、`streaming-export`、`sonic-export`、`asr-export`
+- 内置插件：`level-meter`、`streaming-export`、`sonic-export`、`dsp`、`asr-export`
 
 ## API
 
@@ -368,23 +369,24 @@ import {
 
 ### 子路径
 
-| Package path                                       | Exports                              |
-| -------------------------------------------------- | ------------------------------------ |
-| `@csnight/audio-recorder/codecs/base`              | PCM / WAV 编码器与解码器             |
-| `@csnight/audio-recorder/codecs/mp3`               | MP3 编码器                           |
-| `@csnight/audio-recorder/codecs/flac`              | FLAC 编码器                          |
-| `@csnight/audio-recorder/codecs/opus`              | Opus 编码器                          |
-| `@csnight/audio-recorder/codecs/aac`               | AAC 编码器                           |
-| `@csnight/audio-recorder/codecs/amr`               | AMR 编码器                           |
-| `@csnight/audio-recorder/codecs/ac3`               | AC3 / E-AC3 编码器                   |
-| `@csnight/audio-recorder/codecs/g711`              | G.711 编码器                         |
-| `@csnight/audio-recorder/plugins/level-meter`      | `createLevelMeterPlugin()`           |
-| `@csnight/audio-recorder/plugins/streaming-export` | `createStreamingExportPlugin()`      |
-| `@csnight/audio-recorder/plugins/sonic-export`     | `createSonicExportPlugin()`          |
-| `@csnight/audio-recorder/plugins/asr-export`       | `createAsrExportPlugin()`            |
-| `@csnight/audio-recorder/plugins/streaming-player` | `createStreamingPlayer()`            |
-| `@csnight/audio-recorder/storage/opfs`             | `createOpfsPersistencePlugin()`      |
-| `@csnight/audio-recorder/storage/indexeddb`        | `createIndexedDbPersistencePlugin()` |
+| Package path                                       | Exports                                                                        |
+| -------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `@csnight/audio-recorder/codecs/base`              | PCM / WAV 编码器与解码器                                                       |
+| `@csnight/audio-recorder/codecs/mp3`               | MP3 编码器                                                                     |
+| `@csnight/audio-recorder/codecs/flac`              | FLAC 编码器                                                                    |
+| `@csnight/audio-recorder/codecs/opus`              | Opus 编码器                                                                    |
+| `@csnight/audio-recorder/codecs/aac`               | AAC 编码器                                                                     |
+| `@csnight/audio-recorder/codecs/amr`               | AMR 编码器                                                                     |
+| `@csnight/audio-recorder/codecs/ac3`               | AC3 / E-AC3 编码器                                                             |
+| `@csnight/audio-recorder/codecs/g711`              | G.711 编码器                                                                   |
+| `@csnight/audio-recorder/plugins/level-meter`      | `createLevelMeterPlugin()`                                                     |
+| `@csnight/audio-recorder/plugins/streaming-export` | `createStreamingExportPlugin()`                                                |
+| `@csnight/audio-recorder/plugins/sonic-export`     | `createSonicExportPlugin()`                                                    |
+| `@csnight/audio-recorder/plugins/dsp`              | `createHighpassPlugin()` / `createLowpassPlugin()` / `createNoiseGatePlugin()` |
+| `@csnight/audio-recorder/plugins/asr-export`       | `createAsrExportPlugin()`                                                      |
+| `@csnight/audio-recorder/plugins/streaming-player` | `createStreamingPlayer()`                                                      |
+| `@csnight/audio-recorder/storage/opfs`             | `createOpfsPersistencePlugin()`                                                |
+| `@csnight/audio-recorder/storage/indexeddb`        | `createIndexedDbPersistencePlugin()`                                           |
 
 ### 事件
 
@@ -692,6 +694,84 @@ Event payload: `plugin:stream`
 | `payload`     | `StreamingPacketPayload` | 编码流式 packet 负载 |
 
 `StreamingPacketPayload` 字段与上面的 `streaming-export` 一致。
+
+### `dsp`
+
+#### Introduction
+
+主链路 DSP 插件族。这组插件会在 `onBeforeFrame()` 中同步运行，位置在 PCM 帧进入录音 buffer、会话摘要、`frame:async`、快照导出以及后续插件 `onFrame()` 之前。当前内置三种实现：`highpass`、`lowpass`、`noise-gate`。
+
+其中 `highpass` 和 `lowpass` 还实现了 `onFlush()`，因此在 `stop()` 阶段产生的尾帧会重新写回同一条录音主链。当前这一版只支持“长度不变”的逐帧处理；混响/回声尾音、lookahead 压缩、变速类变长输出、FFT 重建类效果器都不在当前支持范围内。
+
+事件：
+
+- 无
+
+#### Quick Start
+
+```ts
+import { createRecorder } from "@csnight/audio-recorder"
+import { wavExportEncoder } from "@csnight/audio-recorder/codecs/base"
+import {
+  createHighpassPlugin,
+  createNoiseGatePlugin,
+} from "@csnight/audio-recorder/plugins/dsp"
+
+const recorder = createRecorder({
+  encoders: [wavExportEncoder],
+})
+
+await recorder.use(createHighpassPlugin({ cutoffHz: 120 }))
+await recorder.use(createNoiseGatePlugin({ thresholdDb: -42 }))
+
+await recorder.open()
+await recorder.start()
+
+const summary = await recorder.stop()
+const wav = await recorder.exportEncoded("wav", { bitRate: 16 })
+
+console.log(summary.durationMs, wav.arrayBuffer.byteLength)
+```
+
+#### API
+
+以下 API 从 `@csnight/audio-recorder/plugins/dsp` 子路径导出。
+
+| Export                    | Description         |
+| ------------------------- | ------------------- |
+| `createHighpassPlugin()`  | 创建高通滤波插件    |
+| `createLowpassPlugin()`   | 创建低通滤波插件    |
+| `createNoiseGatePlugin()` | 创建噪声门插件      |
+| `DspFilterOptions`        | cutoff 参数共享类型 |
+| `NoiseGatePluginOptions`  | 噪声门参数类型      |
+
+`createHighpassPlugin(options?)`
+
+| Field      | Type     | Default | Description        |
+| ---------- | -------- | ------- | ------------------ |
+| `cutoffHz` | `number` | `120`   | 高通截止频率（Hz） |
+
+`createLowpassPlugin(options?)`
+
+| Field      | Type     | Default | Description        |
+| ---------- | -------- | ------- | ------------------ |
+| `cutoffHz` | `number` | `3400`  | 低通截止频率（Hz） |
+
+`createNoiseGatePlugin(options?)`
+
+| Field         | Type     | Default | Description                 |
+| ------------- | -------- | ------- | --------------------------- |
+| `thresholdDb` | `number` | `-45`   | 低于该 RMS 阈值时衰减当前帧 |
+| `attackMs`    | `number` | `10`    | 增益打开平滑时间            |
+| `releaseMs`   | `number` | `80`    | 增益关闭平滑时间            |
+
+介绍：
+
+- 多个 DSP 插件按 `recorder.use()` 注册顺序串联执行。
+- `onBeforeFrame()` 必须保持帧时间轴和格式稳定。宿主会强制保留 `timestamp`、`durationMs`、`sampleRate`、`channels` 以及每声道长度，只接收变换后的 PCM 样本数据。
+- DSP 插件在 `onBeforeFrame()` 中抛错时，宿主会发出 `issue` 错误，并回退到该插件处理前的帧。
+- `onFlush()` 产出的尾帧会先校验当前录音会话的采样率与声道数，再继续经过下游 `onBeforeFrame()` 插件，最后才写入主链路。
+- `highpass` 和 `lowpass` 只会输出有界尾帧；`noise-gate` 不会产出 flush 帧。
 
 ### `asr-export`
 
@@ -1088,6 +1168,7 @@ npm run build:wasm:select -- --codec=aac,amr,ac3
 | `level-meter`      |     66 |      76 |   14.1 | PCM 帧消费者               |
 | `streaming-export` |     66 |      76 |   14.1 | Worker 分片导出            |
 | `sonic-export`     |     66 |      76 |   14.1 | 旁路 Sonic 处理 + 分片导出 |
+| `dsp`              |     66 |      76 |   14.1 | 主链路逐帧 DSP + 有界尾帧  |
 | `asr-export`       |     66 |      76 |   14.1 | PCM 切块 + 编码器          |
 
 ### 编码器
@@ -1166,15 +1247,17 @@ createRecorder
   -> BrowserInputAdapter
   -> BrowserInputSession
   -> input backend
+  -> PluginHost.onBeforeFrame
   -> PcmFramePipeline
   -> PcmBufferStore
-  -> encoders / plugins / persistence
+  -> onFrame / encoders / persistence
 ```
 
 说明：
 
 - 根入口不会自动注册编码器
 - 插件都是显式启用的独立子路径
+- `dsp` 插件会直接改写主链路 PCM，并可在 `stop()` 时补出有界尾帧
 - `streaming-export`、`sonic-export`、`asr-export` 是独立扩展
 - `opfs` 和 `indexeddb` 是可选持久化后端
 

@@ -5,9 +5,9 @@
 ## 文档结构
 
 - [architecture/execution-chain.md](./architecture/execution-chain.md)
-  当前代码实现的执行链路、模块职责、状态机、输入降级策略、插件与导出路径。
+  当前代码实现的执行链路、模块职责、状态机、输入降级策略、DSP 主链路插件、流式导出与子路径边界。
 - [plans/recorder-ts-master-plan.md](./plans/recorder-ts-master-plan.md)
-  TypeScript 化长期主方案、阶段计划、实施约束与保留的未来阶段内容。
+  TypeScript 化长期主方案、阶段计划、实施约束，以及已落地的 `streaming-player`、`sonic-export`、`dsp` 现状说明。
 
 ## 推荐阅读顺序
 

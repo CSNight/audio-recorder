@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  cloneAudioFrame,
   createAudioFrame,
   resolveChannelCount,
   toInt16Sample,
@@ -75,5 +76,19 @@ describe("audio frame utilities", () => {
     expect(Array.from(frame.planar[0] ?? [])).toEqual([8192])
     expect(Array.from(frame.planar[1] ?? [])).toEqual([-8192])
     expect(Array.from(frame.planar[2] ?? [])).toEqual([32767])
+  })
+
+  it("clones frames without sharing planar buffers", () => {
+    const source = createAudioFrame(
+      [new Float32Array([0, 0.25, -0.25])],
+      16_000,
+      9
+    )
+    const cloned = cloneAudioFrame(source)
+
+    cloned.planar[0]![1] = 123
+
+    expect(Array.from(source.planar[0] ?? [])).toEqual([0, 8192, -8192])
+    expect(Array.from(cloned.planar[0] ?? [])).toEqual([0, 123, -8192])
   })
 })

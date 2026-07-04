@@ -16,7 +16,7 @@
 1. 控制层：`RecorderController` 负责生命周期、状态机、事件分发、编码器注册和插件宿主。
 2. 输入层：`BrowserInputAdapter` 负责取流、选择输入后端，并把原始音频帧交给 `BrowserInputSession`。
 3. 缓冲与导出层：`PcmFramePipeline + PcmBufferStore` 负责积累 PCM 快照，编码器负责全量导出或实时分片编码。
-4. 插件层：Level Meter、StreamingExport、SonicExport、ASR Export 等插件通过 `PluginHost` 接入，以 `plugin:` 前缀事件对外输出。
+4. 插件层：Level Meter、StreamingExport、SonicExport、DSP、ASR Export 等插件通过 `PluginHost` 接入，以 `plugin:` 前缀事件或主链路帧变换方式对外生效。
 5. 扩展层：持久化后端、Worker bridge 通过显式子路径接入，不污染根入口。
 
 ## 1. 模块职责图
@@ -39,13 +39,15 @@ flowchart LR
     J --> L1[LevelMeterPlugin]
     J --> L2[StreamingExportPlugin]
     J --> L3[SonicExportPlugin]
-    J --> L4[AsrExportPlugin]
+    J --> L4[DspPlugins]
+    J --> L5[AsrExportPlugin]
     L2 --> M[ChunkedEncoderBridge]
-    L3 --> M
-    M --> N[Worker / Main Thread Encoder]
-    B --> O[Snapshot Encoders]
-    H --> P[Persistence Plugin]
-    Q[playground] --> A
+    L3 --> N[SonicStreamEncoderBridge]
+    M --> O[Worker / Main Thread Encoder]
+    N --> O
+    B --> P[Snapshot Encoders]
+    H --> Q[Persistence Plugin]
+    R[playground] --> A
 ```
 
 ## 2. 主入口链路
@@ -111,9 +113,10 @@ sequenceDiagram
 - `open()` 会先重置旧 pipeline，再为新 session 创建新的 buffer store
 - `start()` 时缓存是否存在 `frame:async` 监听器，减少热路径开销
 - `handleFrame()` 同时推进三条链：
-  - 写入 `framePipeline`
-  - 更新 `runtimeInfo` 与 `summary`
-  - 通知 `PluginHost`
+  - 先经过 `PluginHost.processBeforeFrame()` 执行主链路 DSP 变换
+  - 再写入 `framePipeline` 并更新 `runtimeInfo` / `summary`
+  - 最后再广播给 `PluginHost.onFrame()` 与 `frame:async`
+- `stop()` 时会先执行 `PluginHost.flushDspFrames()`，把尾帧回灌进同一条主链路，再调用插件 `onStop()`
 - `issue` 事件会统一通过 `handleIssue()` 发出，warning 同时写 `console.warn`
 
 ## 4. 参数合并链路
@@ -257,10 +260,11 @@ flowchart TD
   A[InputBackend] --> B[BrowserInputSession.acceptFrame]
   B --> C[createAudioFrame]
   C --> D[RecorderController.handleFrame]
-  D --> E[PcmFramePipeline.acceptFrame]
-  D --> F[PluginHost.onFrame]
-  D --> G[frame:async event]
-  E --> H[PcmBufferStore]
+  D --> E[PluginHost.processBeforeFrame]
+  E --> F[PcmFramePipeline.acceptFrame]
+  E --> G[PluginHost.onFrame]
+  E --> H[frame:async event]
+  F --> I[PcmBufferStore]
 ```
 
 其中：
@@ -268,6 +272,8 @@ flowchart TD
 - `PcmFramePipeline` 位于 [`src/pipeline/pcm-frame-pipeline.ts`](/E:/ai-base-workspace/audio-recorder/src/pipeline/pcm-frame-pipeline.ts)
 - 真实缓冲实现位于 `src/buffer/`
 - `frame:async` 只在存在监听器时才异步派发
+- `onBeforeFrame()` 是主链路串联变换点，影响后续 buffer、summary、导出和下游插件
+- `onFlush()` 只在 `stop()` 阶段补出尾帧，补出的帧也会走同一条 commit 链路
 
 ## 10. 缓冲与持久化链路
 
@@ -328,7 +334,7 @@ flowchart LR
 
 插件宿主位于 [`src/plugins/plugin-host.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/plugin-host.ts)。
 
-当前内置且稳定的插件能力有四个：
+当前内置且稳定的插件能力有五个：
 
 ### 12.1 Level Meter
 
@@ -379,12 +385,24 @@ interface StreamingPacketPayload {
 功能：
 
 - 在旁路中累积实时 PCM 帧，并在累计时长达到 `blockMs` 后执行一次 Sonic 处理
-- 保留原始声道布局，处理结果通过 `ChunkedEncoderBridge` 编码
+- 保留原始声道布局，处理结果通过本地 stream encoder bridge 编码
 - 通过 `plugin:stream` 输出与 `streaming-export` 相同的 `StreamingPacketPayload`
 - 不改写主录音缓冲；录音快照和快照导出仍保持原始 PCM
 - 通过 `exclusiveWith: ["streaming-export"]` 与 `streaming-export` 互斥，业务层可在 idle 状态下用 `recorder.unuse()` 切换插件族
 
-### 12.4 ASR Export
+### 12.4 DSP
+
+入口：[`src/plugins/dsp/index.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/dsp/index.ts)
+
+功能：
+
+- 通过 `onBeforeFrame()` 在主链路上直接处理 PCM 帧
+- 当前内置 `highpass`、`lowpass`、`noise-gate` 三种同步逐帧处理器
+- `highpass` / `lowpass` 通过 `onFlush()` 在 `stop()` 时补出有限尾帧
+- 处理后的 PCM 会直接影响录音缓冲、摘要、快照导出以及后续插件看到的帧
+- 当前不支持变长输出、复杂 lookahead 或 FFT 重建类效果器
+
+### 12.5 ASR Export
 
 入口：[`src/plugins/asr-export/index.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/asr-export/index.ts)
 
@@ -395,16 +413,20 @@ interface StreamingPacketPayload {
 - 支持自定义分块时长 `chunkDurationMs`
 - 通过 `plugin:asr:chunk` 输出数据包
 
-## 13. ChunkedEncoderBridge
+## 13. 流式编码 bridge
 
-位于 [
-`src/plugins/chunked-encoder-bridge.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/chunked-encoder-bridge.ts)。
+当前存在两套 bridge：
 
-这是 StreamingExport、SonicExport 和 ASR Export 共享的流式编码核心，负责：
+- [`src/workers/chunked-encoder-bridge.ts`](/E:/ai-base-workspace/audio-recorder/src/workers/chunked-encoder-bridge.ts)
+  - `streaming-export` 使用的通用流式编码 bridge
+- [`src/plugins/sonic-export/encoder-bridge.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/sonic-export/encoder-bridge.ts)
+  - `sonic-export` 使用的本地 bridge，实现语义与通用 bridge 保持一致，但与独立入口解耦，避免构建时生成公共 chunk
+
+两者共同负责：
 
 - 在 Worker 和主线程之间透明地调度编码任务
-- 维护 `sequenceIndex` 和时间戳
-- 管理 Worker 生命周期和降级逻辑
+- 管理 ready / pending / flush / dispose 状态
+- 在 Worker 不可用时按配置降级到主线程编码
 
 ## 14. 导出链路
 
@@ -436,6 +458,7 @@ flowchart LR
 
 补充说明：
 
+- `dsp` 插件如果已注册，会先改写主链路 PCM，因此会同时影响快照导出和实时插件消费到的帧
 - `StreamingExportPlugin` 直接编码原始实时 PCM
 - `SonicExportPlugin` 先在旁路中做 Sonic 处理，再把结果送入同一个 `StreamingPacketPayload` 协议
 - 两者互斥，当前主库只允许在 idle 状态下通过 `recorder.unuse(name)` 切换
@@ -488,6 +511,7 @@ flowchart LR
 @csnight/audio-recorder/plugins/level-meter       — 音量插件
 @csnight/audio-recorder/plugins/streaming-export  — 实时流导出插件
 @csnight/audio-recorder/plugins/sonic-export      — Sonic 实时流导出插件
+@csnight/audio-recorder/plugins/dsp               — 主链路 DSP 滤波插件
 @csnight/audio-recorder/plugins/asr-export        — ASR 导出插件
 @csnight/audio-recorder/storage/opfs              — OPFS 持久化后端
 @csnight/audio-recorder/storage/indexeddb         — IndexedDB 持久化后端

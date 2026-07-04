@@ -38,6 +38,12 @@ export default defineConfig({
         ),
       },
       {
+        find: "@csnight/audio-recorder/plugins/dsp",
+        replacement: fileURLToPath(
+          new URL("../dist/plugins/dsp/index.js", import.meta.url)
+        ),
+      },
+      {
         find: "@csnight/audio-recorder/storage/indexeddb",
         replacement: fileURLToPath(
           new URL("../dist/storage/indexeddb/index.js", import.meta.url)

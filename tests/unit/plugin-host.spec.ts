@@ -240,6 +240,177 @@ describe("PluginHost", () => {
     )
   })
 
+  it("processes onBeforeFrame in registration order and falls back to the pre-plugin frame on failure", async () => {
+    const { host, emitIssue } = createHost()
+    const frame = createAudioFrame(
+      [new Float32Array([0.25, -0.25])],
+      16_000,
+      10
+    )
+
+    await host.use({
+      name: "double",
+      setup() {
+        return
+      },
+      onBeforeFrame(input) {
+        const channel = input.planar[0]
+        if (!channel) {
+          return
+        }
+        channel[0] = (channel[0] ?? 0) * 2
+      },
+    })
+    await host.use({
+      name: "broken-transform",
+      setup() {
+        return
+      },
+      onBeforeFrame(input) {
+        const channel = input.planar[0]
+        if (!channel) {
+          throw new Error("missing channel")
+        }
+        channel[1] = 777
+        throw new Error("transform failed")
+      },
+    })
+    await host.use({
+      name: "offset",
+      setup() {
+        return
+      },
+      onBeforeFrame(input) {
+        const channel = input.planar[0]
+        if (!channel) {
+          return
+        }
+        channel[1] = (channel[1] ?? 0) + 100
+      },
+    })
+
+    const processed = host.processBeforeFrame(frame)
+
+    expect(Array.from(processed.planar[0] ?? [])).toEqual([16384, -8092])
+    expect(Array.from(frame.planar[0] ?? [])).toEqual([8192, -8192])
+    expect(emitIssue).toHaveBeenCalledWith({
+      kind: "error",
+      error: expect.objectContaining({
+        message:
+          'Recorder plugin "broken-transform" failed during onBeforeFrame.',
+      }),
+    })
+  })
+
+  it("pipes earlier onFlush tail frames through later onBeforeFrame hooks", async () => {
+    const { host } = createHost()
+    let emitted = false
+
+    await host.use({
+      name: "tail-producer",
+      setup() {
+        return
+      },
+      onFlush() {
+        if (emitted) {
+          return
+        }
+        emitted = true
+        return [createAudioFrame([new Float32Array([0.25, -0.25])], 16_000, 20)]
+      },
+    })
+    await host.use({
+      name: "tail-transformer",
+      setup() {
+        return
+      },
+      onBeforeFrame(input) {
+        const channel = input.planar[0]
+        if (!channel) {
+          return
+        }
+        channel[0] = (channel[0] ?? 0) * -1
+        channel[1] = (channel[1] ?? 0) * -1
+      },
+    })
+
+    const flushed = host.flushDspFrames()
+
+    expect(flushed).toHaveLength(1)
+    expect(Array.from(flushed[0]?.planar[0] ?? [])).toEqual([-8192, 8192])
+  })
+
+  it("drains onFlush across multiple rounds until all plugins stop producing tail frames", async () => {
+    const { host } = createHost()
+    let pendingTailFrames = 2
+    let absorbedFrames = 0
+
+    await host.use({
+      name: "multi-round-producer",
+      setup() {
+        return
+      },
+      onFlush() {
+        if (pendingTailFrames <= 0) {
+          return
+        }
+
+        pendingTailFrames -= 1
+        return [
+          createAudioFrame(
+            [new Float32Array([pendingTailFrames === 1 ? 0.25 : 0.125])],
+            16_000,
+            pendingTailFrames === 1 ? 20 : 30
+          ),
+        ]
+      },
+    })
+    await host.use({
+      name: "tail-absorber",
+      setup() {
+        return
+      },
+      onBeforeFrame() {
+        absorbedFrames += 1
+      },
+    })
+
+    const flushed = host.flushDspFrames()
+
+    expect(flushed).toHaveLength(2)
+    expect(absorbedFrames).toBe(2)
+    expect(Array.from(flushed[0]?.planar[0] ?? [])).toEqual([8192])
+    expect(Array.from(flushed[1]?.planar[0] ?? [])).toEqual([4096])
+  })
+
+  it("rejects flush frames that change the recorder format", async () => {
+    const { host, emitIssue } = createHost()
+
+    await host.use({
+      name: "invalid-flush-format",
+      setup() {
+        return
+      },
+      onFlush() {
+        return [createAudioFrame([new Float32Array([0.25])], 8_000, 20)]
+      },
+    })
+
+    const flushed = host.flushDspFrames({
+      sampleRate: 16_000,
+      channels: 1,
+    })
+
+    expect(flushed).toEqual([])
+    expect(emitIssue).toHaveBeenCalledWith({
+      kind: "error",
+      error: expect.objectContaining({
+        message:
+          'Recorder plugin "invalid-flush-format" failed during onFlush.',
+      }),
+    })
+  })
+
   it("wraps non-Error runtime hook failures and keeps later hooks running", async () => {
     const { host, emitIssue } = createHost()
     const calls: string[] = []

@@ -141,6 +141,26 @@ input:hover {
   background: #101722;
 }
 
+input[type="checkbox"] {
+  appearance: auto;
+  width: auto;
+  height: auto;
+  min-height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  accent-color: var(--accent);
+  transition: none;
+}
+
+input[type="checkbox"]:hover {
+  border: 0;
+  background: transparent;
+}
+
 input[type="range"] {
   accent-color: var(--accent);
   padding-inline: 0;
@@ -541,6 +561,46 @@ code {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
+}
+
+.checkbox-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.checkbox-card {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 10px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.024);
+  transition:
+    border-color 180ms ease,
+    background 180ms ease;
+}
+
+.checkbox-card:hover {
+  border-color: var(--line-strong);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.checkbox-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.checkbox-head strong {
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
+.checkbox-note {
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 0.86rem;
 }
 
 .stats-grid {

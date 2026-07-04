@@ -15,6 +15,7 @@ TypeScript browser audio recorder library for microphone and `MediaStream` input
 - [`level-meter`](#level-meter)
 - [`streaming-export`](#streaming-export)
 - [`sonic-export`](#sonic-export)
+- [`dsp`](#dsp)
 - [`asr-export`](#asr-export)
 - [`streaming-player`](#streaming-player)
 - [Storage](#storage)
@@ -88,7 +89,7 @@ console.log(summary.durationMs, wav.arrayBuffer.byteLength)
 - recording events: `statechange`, `frame:async`, `issue`
 - snapshot export: `pcm`, `wav`, `mp3`, `flac`, `ogg`, `webm`, `g711`, `aac`, `amr`, `ac3`, `eac3`
 - persistence backends: `storage/opfs`, `storage/indexeddb`
-- bundled plugins: `level-meter`, `streaming-export`, `sonic-export`, `asr-export`
+- bundled plugins: `level-meter`, `streaming-export`, `sonic-export`, `dsp`, `asr-export`
 
 ## API
 
@@ -369,23 +370,24 @@ Returns:
 
 ### Subpaths
 
-| Package path                                       | Exports                              |
-| -------------------------------------------------- | ------------------------------------ |
-| `@csnight/audio-recorder/codecs/base`              | PCM and WAV encoders / decoders      |
-| `@csnight/audio-recorder/codecs/mp3`               | MP3 encoder                          |
-| `@csnight/audio-recorder/codecs/flac`              | FLAC encoder                         |
-| `@csnight/audio-recorder/codecs/opus`              | Opus encoder                         |
-| `@csnight/audio-recorder/codecs/aac`               | AAC encoder                          |
-| `@csnight/audio-recorder/codecs/amr`               | AMR encoder                          |
-| `@csnight/audio-recorder/codecs/ac3`               | AC3 / E-AC3 encoders                 |
-| `@csnight/audio-recorder/codecs/g711`              | G.711 encoder                        |
-| `@csnight/audio-recorder/plugins/level-meter`      | `createLevelMeterPlugin()`           |
-| `@csnight/audio-recorder/plugins/streaming-export` | `createStreamingExportPlugin()`      |
-| `@csnight/audio-recorder/plugins/sonic-export`     | `createSonicExportPlugin()`          |
-| `@csnight/audio-recorder/plugins/asr-export`       | `createAsrExportPlugin()`            |
-| `@csnight/audio-recorder/plugins/streaming-player` | `createStreamingPlayer()`            |
-| `@csnight/audio-recorder/storage/opfs`             | `createOpfsPersistencePlugin()`      |
-| `@csnight/audio-recorder/storage/indexeddb`        | `createIndexedDbPersistencePlugin()` |
+| Package path                                       | Exports                                                                        |
+| -------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `@csnight/audio-recorder/codecs/base`              | PCM and WAV encoders / decoders                                                |
+| `@csnight/audio-recorder/codecs/mp3`               | MP3 encoder                                                                    |
+| `@csnight/audio-recorder/codecs/flac`              | FLAC encoder                                                                   |
+| `@csnight/audio-recorder/codecs/opus`              | Opus encoder                                                                   |
+| `@csnight/audio-recorder/codecs/aac`               | AAC encoder                                                                    |
+| `@csnight/audio-recorder/codecs/amr`               | AMR encoder                                                                    |
+| `@csnight/audio-recorder/codecs/ac3`               | AC3 / E-AC3 encoders                                                           |
+| `@csnight/audio-recorder/codecs/g711`              | G.711 encoder                                                                  |
+| `@csnight/audio-recorder/plugins/level-meter`      | `createLevelMeterPlugin()`                                                     |
+| `@csnight/audio-recorder/plugins/streaming-export` | `createStreamingExportPlugin()`                                                |
+| `@csnight/audio-recorder/plugins/sonic-export`     | `createSonicExportPlugin()`                                                    |
+| `@csnight/audio-recorder/plugins/dsp`              | `createHighpassPlugin()` / `createLowpassPlugin()` / `createNoiseGatePlugin()` |
+| `@csnight/audio-recorder/plugins/asr-export`       | `createAsrExportPlugin()`                                                      |
+| `@csnight/audio-recorder/plugins/streaming-player` | `createStreamingPlayer()`                                                      |
+| `@csnight/audio-recorder/storage/opfs`             | `createOpfsPersistencePlugin()`                                                |
+| `@csnight/audio-recorder/storage/indexeddb`        | `createIndexedDbPersistencePlugin()`                                           |
 
 ### Events
 
@@ -693,6 +695,84 @@ Event payload: `plugin:stream`
 | `payload`     | `StreamingPacketPayload` | Encoded stream packet payload |
 
 `StreamingPacketPayload` fields are identical to the `streaming-export` section above.
+
+### `dsp`
+
+#### Introduction
+
+Main-path DSP plugin family. These plugins run synchronously in `onBeforeFrame()` before accepted PCM frames enter the recorder buffer, session summary, `frame:async`, snapshot export, and downstream plugin `onFrame()` hooks. The built-in set currently includes `highpass`, `lowpass`, and `noise-gate`.
+
+`highpass` and `lowpass` also implement `onFlush()`, so stop-time tail frames are committed back into the same recorder pipeline before `stop()` finalizes. The first release only supports frame-length-preserving transforms; variable-length effects such as reverb/echo tails, lookahead compressors, time-stretch, or FFT reconstruction are intentionally out of scope.
+
+Events:
+
+- none
+
+#### Quick Start
+
+```ts
+import { createRecorder } from "@csnight/audio-recorder"
+import { wavExportEncoder } from "@csnight/audio-recorder/codecs/base"
+import {
+  createHighpassPlugin,
+  createNoiseGatePlugin,
+} from "@csnight/audio-recorder/plugins/dsp"
+
+const recorder = createRecorder({
+  encoders: [wavExportEncoder],
+})
+
+await recorder.use(createHighpassPlugin({ cutoffHz: 120 }))
+await recorder.use(createNoiseGatePlugin({ thresholdDb: -42 }))
+
+await recorder.open()
+await recorder.start()
+
+const summary = await recorder.stop()
+const wav = await recorder.exportEncoded("wav", { bitRate: 16 })
+
+console.log(summary.durationMs, wav.arrayBuffer.byteLength)
+```
+
+#### API
+
+The following APIs are exported from `@csnight/audio-recorder/plugins/dsp`.
+
+| Export                    | Description                      |
+| ------------------------- | -------------------------------- |
+| `createHighpassPlugin()`  | Create a high-pass filter plugin |
+| `createLowpassPlugin()`   | Create a low-pass filter plugin  |
+| `createNoiseGatePlugin()` | Create a noise-gate plugin       |
+| `DspFilterOptions`        | Shared cutoff options type       |
+| `NoiseGatePluginOptions`  | Noise-gate options type          |
+
+`createHighpassPlugin(options?)`
+
+| Field      | Type     | Default | Description                      |
+| ---------- | -------- | ------- | -------------------------------- |
+| `cutoffHz` | `number` | `120`   | High-pass cutoff frequency in Hz |
+
+`createLowpassPlugin(options?)`
+
+| Field      | Type     | Default | Description                     |
+| ---------- | -------- | ------- | ------------------------------- |
+| `cutoffHz` | `number` | `3400`  | Low-pass cutoff frequency in Hz |
+
+`createNoiseGatePlugin(options?)`
+
+| Field         | Type     | Default | Description                                       |
+| ------------- | -------- | ------- | ------------------------------------------------- |
+| `thresholdDb` | `number` | `-45`   | RMS threshold below which the frame is attenuated |
+| `attackMs`    | `number` | `10`    | Gain opening smoothing time                       |
+| `releaseMs`   | `number` | `80`    | Gain closing smoothing time                       |
+
+Introduction:
+
+- Multiple DSP plugins are chained in `recorder.use()` order.
+- `onBeforeFrame()` must preserve frame timing and layout. The host keeps `timestamp`, `durationMs`, `sampleRate`, `channels`, and per-channel length stable, and only accepts transformed PCM sample data.
+- If a DSP plugin throws in `onBeforeFrame()`, the host emits an `issue` error and falls back to the pre-plugin frame.
+- `onFlush()` tail frames are validated against the current session format, then routed through downstream `onBeforeFrame()` plugins before they are committed.
+- `highpass` and `lowpass` emit bounded tail frames only; `noise-gate` does not emit flush frames.
 
 ### `asr-export`
 
@@ -1084,12 +1164,13 @@ Based on direct API usage in `src/` and `vite.config.ts` target `es2022`.
 
 ### Plugins
 
-| Plugin             | Chrome | Firefox | Safari | Notes                                 |
-| ------------------ | -----: | ------: | -----: | ------------------------------------- |
-| `level-meter`      |     66 |      76 |   14.1 | PCM frame consumer                    |
-| `streaming-export` |     66 |      76 |   14.1 | Worker-based chunk export             |
-| `sonic-export`     |     66 |      76 |   14.1 | Bypass Sonic transform + chunk export |
-| `asr-export`       |     66 |      76 |   14.1 | PCM chunking and registered encoders  |
+| Plugin             | Chrome | Firefox | Safari | Notes                                    |
+| ------------------ | -----: | ------: | -----: | ---------------------------------------- |
+| `level-meter`      |     66 |      76 |   14.1 | PCM frame consumer                       |
+| `streaming-export` |     66 |      76 |   14.1 | Worker-based chunk export                |
+| `sonic-export`     |     66 |      76 |   14.1 | Bypass Sonic transform + chunk export    |
+| `dsp`              |     66 |      76 |   14.1 | Main-path frame DSP + bounded flush tail |
+| `asr-export`       |     66 |      76 |   14.1 | PCM chunking and registered encoders     |
 
 ### Codecs
 
@@ -1167,15 +1248,17 @@ createRecorder
   -> BrowserInputAdapter
   -> BrowserInputSession
   -> input backend
+  -> PluginHost.onBeforeFrame
   -> PcmFramePipeline
   -> PcmBufferStore
-  -> encoders / plugins / persistence
+  -> onFrame / encoders / persistence
 ```
 
 Notes:
 
 - the root entry does not auto-register encoders
 - plugins are opt-in and live under dedicated subpaths
+- `dsp` plugins mutate accepted PCM on the main path and may append bounded tail frames on `stop()`
 - `streaming-export`, `sonic-export`, and `asr-export` are independent extensions
 - `opfs` and `indexeddb` are optional persistence backends
 

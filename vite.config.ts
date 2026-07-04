@@ -30,6 +30,9 @@ export default defineConfig({
         "plugins/sonic-export/index": fileURLToPath(
           new URL("./src/plugins/sonic-export/index.ts", import.meta.url)
         ),
+        "plugins/dsp/index": fileURLToPath(
+          new URL("./src/plugins/dsp/index.ts", import.meta.url)
+        ),
         "codecs/base/index": fileURLToPath(
           new URL("./src/codecs/base/index.ts", import.meta.url)
         ),

@@ -538,6 +538,77 @@ describe("RecorderController", () => {
     ])
   })
 
+  it("writes processed frames to the buffer and flushes tail frames before onStop", async () => {
+    const adapter = new FakeInputAdapter()
+    const recorder = new RecorderController({
+      inputAdapter: adapter,
+      storageOptions: undefined,
+      encoders: [pcmExportEncoder],
+    })
+    const observed: Array<number | "stop"> = []
+    let emittedFlushFrame = false
+
+    await recorder.use({
+      name: "dsp:gain",
+      setup() {
+        return
+      },
+      onBeforeFrame(frame) {
+        const channel = frame.planar[0]
+        if (!channel) {
+          return
+        }
+        channel[0] = (channel[0] ?? 0) * 2
+      },
+      onFlush() {
+        if (emittedFlushFrame) {
+          return
+        }
+        emittedFlushFrame = true
+        return [createAudioFrame([new Float32Array([0.125])], 16_000, 20)]
+      },
+    })
+    await recorder.use({
+      name: "dsp:offset",
+      setup() {
+        return
+      },
+      onBeforeFrame(frame) {
+        const channel = frame.planar[0]
+        if (!channel) {
+          return
+        }
+        channel[0] = (channel[0] ?? 0) + 10
+      },
+    })
+    await recorder.use({
+      name: "observer",
+      setup() {
+        return
+      },
+      onFrame(frame) {
+        observed.push(frame.planar[0]?.[0] ?? 0)
+      },
+      onStop() {
+        observed.push("stop")
+      },
+    })
+
+    await recorder.open({ sampleRate: 16_000 })
+    await recorder.start()
+    adapter.session?.emitFrame(
+      createAudioFrame([new Float32Array([0.25])], 16_000, 10)
+    )
+
+    const summary = await recorder.stop()
+    const pcm = await recorder.exportEncoded("pcm")
+
+    expect(observed).toEqual([16394, 4106, "stop"])
+    expect(Array.from(pcm.data)).toEqual([16394, 4106])
+    expect(summary.frames).toBe(2)
+    expect(summary.durationMs).toBeGreaterThan(0)
+  })
+
   it("requires plugin events to be registered before emit", async () => {
     const recorder = new RecorderController({
       inputAdapter: new FakeInputAdapter(),

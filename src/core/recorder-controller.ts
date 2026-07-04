@@ -305,18 +305,8 @@ export class RecorderController {
   async stop(): Promise<RecorderSessionSummary> {
     this.assertState([RecorderState.Recording, RecorderState.Paused])
     const session = this.requireSession()
-    const summary = await session.stop()
-
-    this.syncRuntimeFromSession(session)
-    this.latestSessionSummary = {
-      ...this.latestSessionSummary,
-      frames: summary.frames,
-      durationMs: summary.durationMs,
-      sampleRate: session.actualSampleRate,
-      channels: session.actualChannelCount,
-    }
+    await this.stopSession(session)
     this.transition(RecorderState.Stopped)
-    this.pluginHost.onStop()
 
     return this.getLatestSummary()
   }
@@ -334,9 +324,8 @@ export class RecorderController {
       this.recorderState === RecorderState.Paused
     ) {
       const session = this.requireSession()
-      await session.stop()
+      await this.stopSession(session)
       this.transition(RecorderState.Stopped)
-      this.pluginHost.onStop()
     }
 
     if (this.inputSession) {
@@ -361,21 +350,8 @@ export class RecorderController {
   }
 
   private handleFrame(frame: AudioFrame): void {
-    this.framePipeline.acceptFrame(frame)
-    this.sessionRuntimeInfo.actualSampleRate = frame.sampleRate
-    this.sessionRuntimeInfo.actualChannelCount = frame.channels
-    this.latestSessionSummary.frames += 1
-    this.latestSessionSummary.durationMs += frame.durationMs
-    this.latestSessionSummary.sampleRate = frame.sampleRate
-    this.latestSessionSummary.channels = frame.channels
-    this.pluginHost.onFrame(frame)
-
-    if (this.hasAsyncFrameListeners) {
-      const event = this.createFrameEvent(frame)
-      queueMicrotask(() => {
-        this.eventBus.emit("frame:async", event)
-      })
-    }
+    const processedFrame = this.pluginHost.processBeforeFrame(frame)
+    this.commitFrame(processedFrame)
   }
 
   private transition(nextState: RecorderState): void {
@@ -478,5 +454,42 @@ export class RecorderController {
 
   private createSessionId(): string {
     return `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  }
+
+  private async stopSession(session: RecorderInputSession): Promise<void> {
+    await session.stop()
+    this.syncRuntimeFromSession(session)
+
+    // flush 阶段允许补尾帧，但不允许插件改变整个录音会话的采样率与声道布局。
+    const flushedFrames = this.pluginHost.flushDspFrames({
+      sampleRate:
+        this.sessionRuntimeInfo.actualSampleRate ?? session.actualSampleRate,
+      channels:
+        this.sessionRuntimeInfo.actualChannelCount ??
+        session.actualChannelCount,
+    })
+    for (const frame of flushedFrames) {
+      this.commitFrame(frame)
+    }
+
+    this.pluginHost.onStop()
+  }
+
+  private commitFrame(frame: AudioFrame): void {
+    this.framePipeline.acceptFrame(frame)
+    this.sessionRuntimeInfo.actualSampleRate = frame.sampleRate
+    this.sessionRuntimeInfo.actualChannelCount = frame.channels
+    this.latestSessionSummary.frames += 1
+    this.latestSessionSummary.durationMs += frame.durationMs
+    this.latestSessionSummary.sampleRate = frame.sampleRate
+    this.latestSessionSummary.channels = frame.channels
+    this.pluginHost.onFrame(frame)
+
+    if (this.hasAsyncFrameListeners) {
+      const event = this.createFrameEvent(frame)
+      queueMicrotask(() => {
+        this.eventBus.emit("frame:async", event)
+      })
+    }
   }
 }

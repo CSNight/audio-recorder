@@ -91,6 +91,10 @@
       "types": "./dist/plugins/sonic-export/index.d.ts",
       "import": "./dist/plugins/sonic-export/index.js"
     },
+    "./plugins/dsp": {
+      "types": "./dist/plugins/dsp/index.d.ts",
+      "import": "./dist/plugins/dsp/index.js"
+    },
     "./plugins/asr-export": {
       "types": "./dist/plugins/asr-export/index.d.ts",
       "import": "./dist/plugins/asr-export/index.js"

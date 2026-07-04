@@ -14,6 +14,15 @@ import type {
   RecorderRuntimeInfo,
   RecorderSessionSummary,
 } from "../types"
+import { cloneAudioFrame } from "../utils/audio-frame"
+
+const MAX_FLUSH_ROUNDS = 16
+
+interface ExpectedFlushFormat {
+  sampleRate: number
+  channels: number
+  frameLength?: number
+}
 
 /** PluginHost 的构造选项，由 RecorderController 注入。 */
 interface PluginHostOptions {
@@ -93,11 +102,12 @@ export class PluginHost {
     if (matchedPlugins.length === 0) {
       throw new Error(`Recorder plugin "${name}" is not registered.`)
     }
+    const matchedPluginSet = new Set(matchedPlugins)
 
     this.plugins.splice(
       0,
       this.plugins.length,
-      ...this.plugins.filter((plugin) => !matchedPlugins.includes(plugin))
+      ...this.plugins.filter((plugin) => !matchedPluginSet.has(plugin))
     )
 
     for (const plugin of [...matchedPlugins].reverse()) {
@@ -120,6 +130,51 @@ export class PluginHost {
     this.runHook("onStart")
   }
 
+  processBeforeFrame(frame: AudioFrame, startIndex = 0): AudioFrame {
+    // 延迟克隆：仅在遇到第一个 onBeforeFrame 插件时才克隆，避免无插件时的冗余拷贝。
+    let currentFrame: AudioFrame | undefined
+
+    for (
+      let pluginIndex = startIndex;
+      pluginIndex < this.plugins.length;
+      pluginIndex += 1
+    ) {
+      const plugin = this.plugins[pluginIndex]
+      if (!plugin?.onBeforeFrame) {
+        continue
+      }
+
+      // 首次进入处理链时，对原始帧做一次深拷贝，使插件可安全地就地修改 planar buffer。
+      if (!currentFrame) {
+        currentFrame = cloneAudioFrame(frame)
+      }
+
+      const fallbackFrame = cloneAudioFrame(currentFrame)
+
+      try {
+        const nextFrame = plugin.onBeforeFrame(currentFrame) ?? currentFrame
+        currentFrame = this.normalizeFrame(
+          plugin.name,
+          nextFrame,
+          currentFrame,
+          {
+            sampleRate: fallbackFrame.sampleRate,
+            channels: fallbackFrame.channels,
+            frameLength: fallbackFrame.planar[0]?.length ?? 0,
+          }
+        )
+      } catch (error) {
+        currentFrame = fallbackFrame
+        this.options.emitIssue({
+          kind: "error",
+          error: this.createPluginError(plugin.name, "onBeforeFrame", error),
+        })
+      }
+    }
+
+    return currentFrame ?? frame
+  }
+
   onFrame(frame: AudioFrame): void {
     this.runHook("onFrame", frame)
   }
@@ -134,6 +189,67 @@ export class PluginHost {
 
   onStop(): void {
     this.runHook("onStop")
+  }
+
+  flushDspFrames(expectedFormat?: ExpectedFlushFormat): AudioFrame[] {
+    const flushedFrames: AudioFrame[] = []
+    let roundCount = 0
+
+    while (roundCount < MAX_FLUSH_ROUNDS) {
+      let producedFrames = false
+
+      for (
+        let pluginIndex = 0;
+        pluginIndex < this.plugins.length;
+        pluginIndex += 1
+      ) {
+        const plugin = this.plugins[pluginIndex]
+        if (!plugin?.onFlush) {
+          continue
+        }
+
+        try {
+          const frames = plugin.onFlush()
+          if (!frames || frames.length === 0) {
+            continue
+          }
+
+          producedFrames = true
+
+          for (const frame of frames) {
+            const normalizedFrame = this.normalizeFrame(
+              plugin.name,
+              frame,
+              undefined,
+              expectedFormat
+            )
+            flushedFrames.push(
+              this.processBeforeFrame(normalizedFrame, pluginIndex + 1)
+            )
+          }
+        } catch (error) {
+          this.options.emitIssue({
+            kind: "error",
+            error: this.createPluginError(plugin.name, "onFlush", error),
+          })
+        }
+      }
+
+      if (!producedFrames) {
+        return flushedFrames
+      }
+
+      roundCount += 1
+    }
+
+    this.options.emitIssue({
+      kind: "error",
+      error: new Error(
+        `Recorder plugin flush drain exceeded ${MAX_FLUSH_ROUNDS} rounds and was stopped early.`
+      ),
+    })
+
+    return flushedFrames
   }
 
   async destroy(): Promise<void> {
@@ -193,6 +309,97 @@ export class PluginHost {
         })
       }
     }
+  }
+
+  /**
+   * 统一校验插件产出的帧，并按主链路约束归一化：
+   * - onBeforeFrame 必须保持输入帧的格式与长度；
+   * - onFlush 必须保持当前录音会话的采样率/声道数；
+   * - 若插件原地修改并返回同一对象，则直接复用该对象，仅回填受保护元数据。
+   */
+  private normalizeFrame(
+    pluginName: string,
+    frame: AudioFrame,
+    currentFrame?: AudioFrame,
+    expectedFormat?: ExpectedFlushFormat
+  ): AudioFrame {
+    const frameLength = this.assertFrameShape(pluginName, frame)
+
+    if (expectedFormat) {
+      if (frame.sampleRate !== expectedFormat.sampleRate) {
+        throw new Error(
+          `Recorder plugin "${pluginName}" must preserve frame.sampleRate.`
+        )
+      }
+      if (frame.channels !== expectedFormat.channels) {
+        throw new Error(
+          `Recorder plugin "${pluginName}" must preserve frame.channels.`
+        )
+      }
+      if (
+        expectedFormat.frameLength !== undefined &&
+        frameLength !== expectedFormat.frameLength
+      ) {
+        throw new Error(
+          `Recorder plugin "${pluginName}" must preserve per-channel frame length.`
+        )
+      }
+    }
+
+    if (currentFrame && frame === currentFrame) {
+      frame.channels = expectedFormat?.channels ?? frame.channels
+      frame.sampleRate = expectedFormat?.sampleRate ?? frame.sampleRate
+      frame.timestamp = currentFrame.timestamp
+      frame.durationMs = currentFrame.durationMs
+      return frame
+    }
+
+    return {
+      channels: expectedFormat?.channels ?? frame.channels,
+      sampleRate: expectedFormat?.sampleRate ?? frame.sampleRate,
+      timestamp: currentFrame?.timestamp ?? frame.timestamp,
+      durationMs:
+        currentFrame?.durationMs ??
+        (frameLength === 0 ? 0 : (frameLength / frame.sampleRate) * 1000),
+      planar: frame.planar.map((channel) => new Int16Array(channel)),
+    }
+  }
+
+  private assertFrameShape(pluginName: string, frame: AudioFrame): number {
+    if (!Number.isFinite(frame.sampleRate) || frame.sampleRate <= 0) {
+      throw new Error(
+        `Recorder plugin "${pluginName}" produced an invalid frame.sampleRate.`
+      )
+    }
+    if (!Number.isFinite(frame.timestamp)) {
+      throw new Error(
+        `Recorder plugin "${pluginName}" produced an invalid frame.timestamp.`
+      )
+    }
+    if (
+      !Number.isInteger(frame.channels) ||
+      frame.channels < 1 ||
+      frame.planar.length !== frame.channels
+    ) {
+      throw new Error(
+        `Recorder plugin "${pluginName}" produced an invalid frame.channels/planar shape.`
+      )
+    }
+
+    const frameLength = frame.planar[0]?.length ?? 0
+    for (
+      let channelIndex = 0;
+      channelIndex < frame.channels;
+      channelIndex += 1
+    ) {
+      if ((frame.planar[channelIndex]?.length ?? 0) !== frameLength) {
+        throw new Error(
+          `Recorder plugin "${pluginName}" produced mismatched channel lengths.`
+        )
+      }
+    }
+
+    return frameLength
   }
 
   private createPluginError(

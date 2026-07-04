@@ -15,6 +15,11 @@ import { createStreamingExportPlugin } from "@csnight/audio-recorder/plugins/str
 import { createSonicExportPlugin } from "@csnight/audio-recorder/plugins/sonic-export"
 import { createAsrExportPlugin } from "@csnight/audio-recorder/plugins/asr-export"
 import {
+  createHighpassPlugin,
+  createLowpassPlugin,
+  createNoiseGatePlugin,
+} from "@csnight/audio-recorder/plugins/dsp"
+import {
   pcmExportEncoder,
   pcmStreamEncoder,
   wavExportEncoder,
@@ -55,11 +60,40 @@ const PLAYGROUND_STREAM_PLUGIN_MODE = {
   streaming: "streaming-export",
   sonic: "sonic-export",
 }
+const PLAYGROUND_DSP_PLUGIN = {
+  highpass: "highpass",
+  lowpass: "lowpass",
+  noiseGate: "noise-gate",
+}
 
 const PERSISTENCE_PLUGIN_FACTORIES = {
   [PLAYGROUND_PERSISTENCE_BACKEND.indexeddb]: createIndexedDbPersistencePlugin,
   [PLAYGROUND_PERSISTENCE_BACKEND.opfs]: createOpfsPersistencePlugin,
 }
+
+const DSP_PLUGIN_OPTIONS = [
+  {
+    key: "enableHighpass",
+    pluginName: PLAYGROUND_DSP_PLUGIN.highpass,
+    label: "高通滤波",
+    note: "削弱低频轰鸣与直流漂移，默认截止频率由插件内部给出。",
+    createPlugin: () => createHighpassPlugin(),
+  },
+  {
+    key: "enableLowpass",
+    pluginName: PLAYGROUND_DSP_PLUGIN.lowpass,
+    label: "低通滤波",
+    note: "削弱高频噪声，便于观察主链路导出与实时流的同步变化。",
+    createPlugin: () => createLowpassPlugin(),
+  },
+  {
+    key: "enableNoiseGate",
+    pluginName: PLAYGROUND_DSP_PLUGIN.noiseGate,
+    label: "噪声门",
+    note: "低电平帧会被压低或静音，适合验证静音段的主链路处理。",
+    createPlugin: () => createNoiseGatePlugin(),
+  },
+]
 
 const EXPORT_FORMAT_ACTIONS = [
   { type: "pcm", label: "PCM", encoder: pcmExportEncoder },
@@ -85,6 +119,9 @@ const state = reactive({
   inputStrategy: "auto",
   streamPluginMode: PLAYGROUND_STREAM_PLUGIN_MODE.streaming,
   streamPluginFormat: "wav",
+  enableHighpass: false,
+  enableLowpass: false,
+  enableNoiseGate: false,
   sonicSpeed: 1,
   sonicPitch: 1,
   sonicRate: 1,
@@ -362,6 +399,12 @@ const canSwitchRealtimePlugin = computed(
     state.recorderState === RecorderState.Idle
 )
 
+const canSwitchDspPlugins = computed(
+  () =>
+    state.pendingActionLabel === "" &&
+    state.recorderState === RecorderState.Idle
+)
+
 const canStart = computed(
   () =>
     state.pendingActionLabel === "" &&
@@ -437,6 +480,20 @@ const storageHint = computed(() => {
   )}。`
 })
 
+const selectedDspPluginLabels = computed(() =>
+  DSP_PLUGIN_OPTIONS.filter((option) => state[option.key]).map(
+    (option) => option.label
+  )
+)
+
+const dspHint = computed(() => {
+  if (selectedDspPluginLabels.value.length === 0) {
+    return "当前未启用 DSP。勾选后会把处理结果写入主录音链路，并影响实时流、快照与最终导出。"
+  }
+
+  return `当前已选：${selectedDspPluginLabels.value.join(" / ")}。DSP 只允许在 idle 状态下重新挂载。`
+})
+
 appendLog("info", "独立 Vue playground 已就绪。")
 void initializeRecorder()
 
@@ -483,6 +540,7 @@ function resetRealtimeState() {
 
 async function initializeRecorder() {
   await recorder.use(createLevelMeterPlugin())
+  await applySelectedDspPlugins()
   await recorder.use(createSelectedRealtimeStreamPlugin())
   await recorder.use(
     createAsrExportPlugin({
@@ -525,6 +583,28 @@ async function switchRealtimeStreamPlugin() {
     },
     "",
     "正在切换实时流插件..."
+  )
+}
+
+async function switchDspPlugins() {
+  if (state.recorderState !== RecorderState.Idle) {
+    appendLog("warning", "DSP 插件只允许在 idle 状态下切换。")
+    return
+  }
+
+  await runLoggedAction(
+    async () => {
+      await unuseDspPlugins()
+      await applySelectedDspPlugins()
+      appendLog(
+        "info",
+        selectedDspPluginLabels.value.length === 0
+          ? "已清空 DSP 插件配置。"
+          : `已应用 DSP 插件：${selectedDspPluginLabels.value.join(" / ")}。`
+      )
+    },
+    "",
+    "正在应用 DSP 配置..."
   )
 }
 
@@ -1019,6 +1099,16 @@ function getRealtimePluginModeLabel(mode) {
     : "Streaming Export"
 }
 
+async function applySelectedDspPlugins() {
+  for (const option of DSP_PLUGIN_OPTIONS) {
+    if (!state[option.key]) {
+      continue
+    }
+
+    await recorder.use(option.createPlugin())
+  }
+}
+
 function createSelectedRealtimeStreamPlugin() {
   if (state.streamPluginMode === PLAYGROUND_STREAM_PLUGIN_MODE.sonic) {
     return createSonicExportPlugin({
@@ -1042,6 +1132,16 @@ function createSelectedRealtimeStreamPlugin() {
       state.streamPluginFormat === "wav" ? { framesPerChunk: 4 } : undefined,
     allowMainThreadFallback: true,
   })
+}
+
+async function unuseDspPlugins() {
+  try {
+    await recorder.unuse("dsp")
+  } catch (error) {
+    if (!String(error).includes("is not registered")) {
+      throw error
+    }
+  }
 }
 
 async function unuseRealtimeStreamPlugins() {
@@ -1735,6 +1835,36 @@ onBeforeUnmount(() => {
                   当前实时流通过 <code>plugin:stream</code> 对接 Streaming
                   Player。切换仅允许在 idle 状态执行。
                 </p>
+              </section>
+
+              <section class="control-block">
+                <div class="subpanel-head">
+                  <div>
+                    <p class="panel-kicker">DSP Pipeline</p>
+                    <h3>主链路 DSP</h3>
+                  </div>
+                  <button
+                    :disabled="!canSwitchDspPlugins"
+                    class="ghost-button"
+                    @click="switchDspPlugins"
+                  >
+                    应用 DSP
+                  </button>
+                </div>
+                <div class="checkbox-grid">
+                  <label
+                    v-for="option in DSP_PLUGIN_OPTIONS"
+                    :key="option.pluginName"
+                    class="checkbox-card"
+                  >
+                    <span class="checkbox-head">
+                      <input v-model="state[option.key]" type="checkbox" />
+                      <strong>{{ option.label }}</strong>
+                    </span>
+                    <span class="checkbox-note">{{ option.note }}</span>
+                  </label>
+                </div>
+                <p class="panel-note">{{ dspHint }}</p>
               </section>
             </div>
 

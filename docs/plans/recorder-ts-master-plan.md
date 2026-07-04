@@ -31,7 +31,7 @@
 - 对浏览器 `Deprecated` API，只允许作为降级路径，不作为默认主实现
 - 写代码时优先保证命名清晰、边界直接，避免为了抽象而抽象
 - 类型、状态与生命周期必须可被测试和事件观测验证
-- 本次整理中，除已落地的 `streaming-player`、`sonic-export` 相关段落外，`Phase 5`、`Phase 6` 其余未开发内容保持原文不变，`14` 节及之后内容保持原文不变
+- 本次整理中，除已落地的 `streaming-player`、`sonic-export`、`dsp` 相关段落外，`Phase 5`、`Phase 6` 其余未开发内容保持原文不变，`14` 节及之后内容保持原文不变
 
 ---
 
@@ -56,6 +56,7 @@
 - PCM / WAV / MP3 全量导出
 - 实时 chunk 导出插件
 - 实时电平插件
+- 主链路 DSP 滤波插件（高通 / 低通 / 噪声门）
 - 持久化溢写能力（OPFS / IndexedDB）
 - 浏览器输入链路自动降级
 
@@ -158,6 +159,7 @@ window.Recorder = ...
 - `/audio-recorder/plugins/level-meter`
 - `/audio-recorder/plugins/streaming-export`
 - `/audio-recorder/plugins/sonic-export`
+- `/audio-recorder/plugins/dsp`
 - `/audio-recorder/storage/opfs`
 - `/audio-recorder/storage/indexeddb`
 
@@ -172,17 +174,17 @@ window.Recorder = ...
 
 当前实际分层如下：
 
-| 层       | 当前目录       | 职责                                                   |
-| -------- | -------------- | ------------------------------------------------------ |
-| Core     | `src/core`     | 控制器、状态机、事件总线                               |
-| Input    | `src/input`    | 取流、约束诊断、后端选择、session 装配                 |
-| Pipeline | `src/pipeline` | PCM 帧进入缓冲前的统一入口                             |
-| Buffer   | `src/buffer`   | 内存缓冲、持久化缓冲、snapshot 合并                    |
-| Codecs   | `src/codecs`   | PCM/WAV/MP3 快照导出与 chunk 编码定义                  |
-| Plugins  | `src/plugins`  | level-meter、streaming-export、sonic-export 及插件宿主 |
-| Storage  | `src/storage`  | 持久化协议、OPFS / IndexedDB 插件                      |
-| Workers  | `src/workers`  | chunked encoder bridge 与 Worker core                  |
-| Utils    | `src/utils`    | 音频帧转换、重采样、snapshot 序列化                    |
+| 层       | 当前目录       | 职责                                                        |
+| -------- | -------------- | ----------------------------------------------------------- |
+| Core     | `src/core`     | 控制器、状态机、事件总线                                    |
+| Input    | `src/input`    | 取流、约束诊断、后端选择、session 装配                      |
+| Pipeline | `src/pipeline` | PCM 帧进入缓冲前的统一入口                                  |
+| Buffer   | `src/buffer`   | 内存缓冲、持久化缓冲、snapshot 合并                         |
+| Codecs   | `src/codecs`   | PCM/WAV/MP3 快照导出与 chunk 编码定义                       |
+| Plugins  | `src/plugins`  | level-meter、streaming-export、sonic-export、dsp 及插件宿主 |
+| Storage  | `src/storage`  | 持久化协议、OPFS / IndexedDB 插件                           |
+| Workers  | `src/workers`  | chunked encoder bridge 与 Worker core                       |
+| Utils    | `src/utils`    | 音频帧转换、重采样、snapshot 序列化                         |
 
 ## 4. 参考其他录音库后的实践结论
 
@@ -393,42 +395,26 @@ export interface ExportEncoderDefinition<
 ```ts
 export interface RecorderPlugin {
   name: string
-  /**
-   * 互斥声明：列出与本插件不能同时注册的插件 name。
-   * PluginHost 在 use() 时检测冲突并抛出错误。
-   */
   exclusiveWith?: string[]
-  setup?(context: RecorderPluginContext): void | Promise<void>
+  setup(context: RecorderPluginContext): void | Promise<void>
   onStart?(): void
-
-  /**
-   * 帧预处理 hook（Phase 6 新增）。
-   * 在帧进入 buffer / summary / onFrame 之前串联执行。
-   * 返回修改后的帧替换原帧；返回 null / undefined 表示丢弃该帧。
-   * 约束：
-   *   - 返回帧的 sampleRate / channels 必须与输入一致
-   *   - 返回帧的 durationMs 必须与 planar 实际采样数保持一致
-   *   - 不允许返回多帧（多帧输出场景走旁路插件，不走预处理 hook）
-   * 适用场景：DSP 滤波（高通/低通/噪声门）、增益调整等同步单帧处理。
-   */
-  onBeforeFrame?(frame: AudioFrame): AudioFrame | null | undefined
-
+  onBeforeFrame?(frame: AudioFrame): AudioFrame | void
   onFrame?(frame: AudioFrame): void
   onPause?(): void
   onResume?(): void
-
-  /**
-   * stop 前冲刷 hook（Phase 6 新增）。
-   * 在控制器固化 SessionSummary 之前调用。
-   * 返回的帧会依次经过 buffer / summary 累计 / onFrame 广播，与正常帧处理完全一致。
-   * 适用场景：IIR 滤波器等有内部状态的处理器，在 stop 时将残余状态冲刷为最终帧。
-   */
-  onBeforeStop?(): AudioFrame[] | void
-
+  onFlush?(): AudioFrame[] | void
   onStop?(): void
   dispose?(): void | Promise<void>
 }
 ```
+
+当前语义补充：
+
+- `onBeforeFrame` 是主链路同步单帧变换点，适用于滤波、增益、噪声门等“长度不变”的 PCM 处理
+- 宿主会强制保留输入帧的 `timestamp`、`durationMs`、`sampleRate`、`channels` 和每声道长度，只接受变换后的采样数据
+- `onBeforeFrame` 抛错时，宿主会发出 `issue`，并回退到该插件处理前的帧副本
+- `onFlush` 是 stop 阶段的可选尾帧输出钩子，适用于 IIR 一类有限残余状态的冲刷，不用于通用变长效果器
+- `onFlush` 产出的帧会校验当前录音会话的采样率和声道数，再继续经过下游 `onBeforeFrame` 插件后写回主链路
 
 控制器 `handleFrame` 处理逻辑（Phase 6 起生效）：
 
@@ -442,9 +428,10 @@ export interface RecorderPlugin {
 `stop()` 扩展流程（Phase 6 起生效）：
 
 ```
-1. 依次调用各插件的 onBeforeStop()，将返回帧送入同一 handleFrame 路径
-2. 固化 SessionSummary
-3. 调用各插件的 onStop()
+1. 录音输入 session 先停止推帧
+2. `PluginHost.flushDspFrames()` 迭代调用 `onFlush()`，把尾帧重新送回主链路
+3. flush 帧会继续进入 `processBeforeFrame -> buffer/summary -> onFrame`
+4. 调用各插件的 `onStop()`
 ```
 
 插件上下文负责提供：
@@ -521,7 +508,7 @@ export interface RecorderPlugin {
 - `Phase 3`：已完成
 - `Phase 4`：已完成主线并沉淀为当前基线
 - `Phase 5`：`streaming-player` 已落地，其余保持原方案
-- `Phase 6`：`sonic-export` 已落地，其余保持原方案
+- `Phase 6`：`sonic-export`、`dsp` 已落地，其余保持原方案
 
 ## Phase 0：基线与工程初始化
 
@@ -1375,8 +1362,8 @@ export function nmn2pcm(
 
 ### 6.7 DSP 滤波器插件
 
-**功能**：可组合的 DSP 处理插件，通过 `onBeforeFrame` hook 在帧进入 buffer 前对 PCM 做滤波处理，处理结果直接影响主链路
-buffer 和最终录音导出。
+**功能**：可组合的 DSP 处理插件，通过 `onBeforeFrame` 在帧进入 buffer 前对 PCM 做同步滤波处理，处理结果直接影响主链路
+buffer、会话摘要和最终录音导出。当前已落地高通、低通、噪声门三种插件。
 
 目录结构：
 
@@ -1386,37 +1373,40 @@ src/plugins/dsp/
   highpass.ts           ← 高通滤波（去除低频噪声）
   lowpass.ts            ← 低通滤波（去除高频噪声）
   noise-gate.ts         ← 噪声门（静音段静音化）
-  types.ts              ← DspFilterOptions
+  types.ts              ← DspFilterOptions / NoiseGatePluginOptions
   public.ts
 ```
 
 核心 API：
 
 ```ts
-// 各滤波器均返回 RecorderPlugin，通过 onBeforeFrame 介入帧管线
-export function createHighpassPlugin(options?: {
+export interface DspFilterOptions {
   cutoffHz?: number
-}): RecorderPlugin
+}
 
-export function createLowpassPlugin(options?: {
-  cutoffHz?: number
-}): RecorderPlugin
-
-export function createNoiseGatePlugin(options?: {
+export interface NoiseGatePluginOptions {
   thresholdDb?: number
   attackMs?: number
   releaseMs?: number
-}): RecorderPlugin
+}
+
+export function createHighpassPlugin(options?: DspFilterOptions): RecorderPlugin
+
+export function createLowpassPlugin(options?: DspFilterOptions): RecorderPlugin
+
+export function createNoiseGatePlugin(
+  options?: NoiseGatePluginOptions
+): RecorderPlugin
 ```
 
 实现要点：
 
-- 高通 / 低通：实现 `onBeforeFrame`，内部维护 IIR 滤波器状态（`prevInput` / `prevOutput`），对 `frame.planar`
-  做原地滤波后返回修改后的帧。公式参照 `y[n] = α * (y[n-1] + x[n] - x[n-1])`（高通）
-- 噪声门：实现 `onBeforeFrame`，计算当前帧 RMS 能量，低于阈值时将 `frame.planar` 置零后返回帧（不丢帧，保持时间轴连续）
-- 高通 / 低通有内部跨帧状态（IIR 状态），需实现 `onBeforeStop` 以冲刷最后一帧的滤波残余
-- 插件可独立启停：`plugin.enabled = false` 时 `onBeforeFrame` 直接返回原帧，跳过处理
-- 多个 DSP 插件按 `recorder.use()` 调用顺序串联，前一个插件的输出是下一个插件的输入
+- 高通 / 低通：实现 `onBeforeFrame`，内部维护 IIR 滤波器状态，对每声道生成新的 `Int16Array` 输出；默认截止频率分别为 `120Hz` 与 `3400Hz`
+- 高通 / 低通：实现 `onFlush`，把内部残余状态继续用静音输入推进，单次最多产出 4 帧尾帧；宿主最多迭代 16 轮，防止无限 drain
+- 噪声门：实现 `onBeforeFrame`，按整帧 RMS 与 `thresholdDb` 比较，并用 `attackMs/releaseMs` 做增益平滑；不丢帧、不改变时长，也不产出 flush 帧
+- `onBeforeFrame` 抛错时，宿主会 `catch + emit issue + fallback` 到该插件处理前的原始帧，保证主链路容错
+- 多个 DSP 插件按 `recorder.use()` 调用顺序串联；`onFlush` 产出的尾帧会继续经过下游 DSP 插件，而不会重新回到当前插件
+- 当前阶段明确不支持混响/回声尾音、lookahead 压缩器、变速类变长输出、FFT 重建类处理
 
 ### 6.8 构建配置新增 entry
 
@@ -1456,10 +1446,11 @@ fileURLToPath(new URL("./src/plugins/sonic-export/index.ts", import.meta.url)),
 - 简谱转 PCM：`nmn2pcm("1234567")` 输出可播放的 PCM 数据
 - DSP 滤波器：
   - **onBeforeFrame 链路**：挂载高通滤波插件后，录音导出的 PCM/WAV/MP3 文件中低频噪声明显衰减（与未挂载对比可量化），而非仅影响监听播放
-  - **onBeforeStop 冲洗**：停止录音时 `onBeforeStop` 被调用，IIR 滤波器残余状态被正确冲洗并附加到末尾帧，导出文件结尾无截断失真
-  - **噪声门**：静音段（低于阈值）被正确置零，动态段正常通过；噪声门 `enabled=false` 时 `onBeforeFrame` 直接透传原帧，不产生任何副作用
+  - **onFlush 冲洗**：停止录音时 `onFlush` 被调用，IIR 滤波器残余状态被正确冲洗并附加到末尾帧，导出文件结尾无截断失真
+  - **噪声门**：静音段（低于阈值）被正确衰减，动态段正常通过，且时间轴连续
   - **多插件串联**：同时挂载高通 + 噪声门时，`onBeforeFrame` 按注册顺序依次调用，前一插件的输出帧作为下一插件的输入帧，最终写入缓冲的帧是经所有
     DSP 处理后的结果
+  - **异常容错**：任一 DSP 插件在 `onBeforeFrame` 抛错时，主链路不会中断；宿主会发出 `issue` 并回退到该插件处理前的帧
 - 所有插件独立启停，不影响核心控制器和其他插件
 - `npm run typecheck` 通过，`npm run build` 成功
 

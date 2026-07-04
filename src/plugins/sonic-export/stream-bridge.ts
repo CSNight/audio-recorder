@@ -3,8 +3,7 @@ import type {
   StreamEncoderDefinition,
   StreamingPacketPayload,
 } from "../../types"
-import { ChunkedEncoderBridge } from "../../workers/chunked-encoder-bridge"
-import { mergeChannelChunks } from "../../buffer/pcm-buffer-utils"
+import { SonicStreamEncoderBridge } from "./encoder-bridge"
 import { transformInterleavedBlock } from "./sonic-processor"
 import type { NormalizedSonicTransformOptions } from "./types"
 
@@ -48,7 +47,7 @@ export function createSonicStreamBridge(options: SonicStreamBridgeOptions) {
     emitPacket,
   } = options
 
-  const bridge = new ChunkedEncoderBridge({
+  const bridge = new SonicStreamEncoderBridge({
     format,
     definition,
     encoderOptions,
@@ -98,7 +97,7 @@ export function createSonicStreamBridge(options: SonicStreamBridgeOptions) {
     bufferedFrames.length = 0
     bufferedDurationMs = 0
 
-    const mergedPlanar = planar.map((chunks) => mergeChannelChunks(chunks))
+    const mergedPlanar = planar.map((chunks) => mergeInt16Chunks(chunks))
     const transformed = transformInterleavedBlock(
       interleavePlanar(mergedPlanar, channels),
       sampleRate,
@@ -274,4 +273,21 @@ function deinterleavePlanar(
     }
     return output
   })
+}
+
+function mergeInt16Chunks(chunks: readonly Int16Array[]): Int16Array {
+  let totalLength = 0
+  for (const chunk of chunks) {
+    totalLength += chunk.length
+  }
+
+  const merged = new Int16Array(totalLength)
+  let writeOffset = 0
+
+  for (const chunk of chunks) {
+    merged.set(chunk, writeOffset)
+    writeOffset += chunk.length
+  }
+
+  return merged
 }
