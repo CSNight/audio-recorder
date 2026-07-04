@@ -73,6 +73,8 @@ export class PluginHost {
       throw new Error(`Recorder plugin "${plugin.name}" is already registered.`)
     }
 
+    this.assertExclusiveCompatibility(plugin)
+
     try {
       await plugin.setup(this.createPluginContext(plugin.name))
       this.plugins.push(plugin)
@@ -83,6 +85,34 @@ export class PluginHost {
         error: pluginError,
       })
       throw pluginError
+    }
+  }
+
+  async unuse(name: string): Promise<void> {
+    const matchedPlugins = this.collectMatchedPlugins(name)
+    if (matchedPlugins.length === 0) {
+      throw new Error(`Recorder plugin "${name}" is not registered.`)
+    }
+
+    this.plugins.splice(
+      0,
+      this.plugins.length,
+      ...this.plugins.filter((plugin) => !matchedPlugins.includes(plugin))
+    )
+
+    for (const plugin of [...matchedPlugins].reverse()) {
+      if (!plugin.dispose) {
+        continue
+      }
+
+      try {
+        await plugin.dispose()
+      } catch (error) {
+        this.options.emitIssue({
+          kind: "error",
+          error: this.createPluginError(plugin.name, "dispose", error),
+        })
+      }
     }
   }
 
@@ -125,6 +155,12 @@ export class PluginHost {
         })
       }
     }
+  }
+
+  private collectMatchedPlugins(name: string): RecorderPlugin[] {
+    return this.plugins.filter((plugin) =>
+      this.matchesRequestedName(name, plugin.name)
+    )
   }
 
   private createPluginContext(pluginName: string): RecorderPluginContext {
@@ -173,5 +209,44 @@ export class PluginHost {
     }
 
     return new Error(message)
+  }
+
+  private assertExclusiveCompatibility(nextPlugin: RecorderPlugin): void {
+    for (const registeredPlugin of this.plugins) {
+      if (
+        this.matchesExclusiveWith(nextPlugin, registeredPlugin.name) ||
+        this.matchesExclusiveWith(registeredPlugin, nextPlugin.name)
+      ) {
+        throw new Error(
+          `Recorder plugin "${nextPlugin.name}" conflicts with "${registeredPlugin.name}".`
+        )
+      }
+    }
+  }
+
+  private matchesExclusiveWith(
+    plugin: RecorderPlugin,
+    targetName: string
+  ): boolean {
+    return (
+      plugin.exclusiveWith?.some((prefix) =>
+        this.matchesPluginPrefix(prefix, targetName)
+      ) ?? false
+    )
+  }
+
+  private matchesPluginPrefix(prefix: string, pluginName: string): boolean {
+    return pluginName === prefix || pluginName.startsWith(`${prefix}:`)
+  }
+
+  private matchesRequestedName(
+    requestedName: string,
+    pluginName: string
+  ): boolean {
+    if (requestedName.includes(":")) {
+      return pluginName === requestedName
+    }
+
+    return this.matchesPluginPrefix(requestedName, pluginName)
   }
 }

@@ -16,7 +16,7 @@
 1. 控制层：`RecorderController` 负责生命周期、状态机、事件分发、编码器注册和插件宿主。
 2. 输入层：`BrowserInputAdapter` 负责取流、选择输入后端，并把原始音频帧交给 `BrowserInputSession`。
 3. 缓冲与导出层：`PcmFramePipeline + PcmBufferStore` 负责积累 PCM 快照，编码器负责全量导出或实时分片编码。
-4. 插件层：Level Meter、StreamingExport、ASR Export 等插件通过 `PluginHost` 接入，以 `plugin:` 前缀事件对外输出。
+4. 插件层：Level Meter、StreamingExport、SonicExport、ASR Export 等插件通过 `PluginHost` 接入，以 `plugin:` 前缀事件对外输出。
 5. 扩展层：持久化后端、Worker bridge 通过显式子路径接入，不污染根入口。
 
 ## 1. 模块职责图
@@ -38,8 +38,10 @@ flowchart LR
   J --> K[PluginEventBus]
     J --> L1[LevelMeterPlugin]
     J --> L2[StreamingExportPlugin]
-    J --> L3[AsrExportPlugin]
+    J --> L3[SonicExportPlugin]
+    J --> L4[AsrExportPlugin]
     L2 --> M[ChunkedEncoderBridge]
+    L3 --> M
     M --> N[Worker / Main Thread Encoder]
     B --> O[Snapshot Encoders]
     H --> P[Persistence Plugin]
@@ -73,6 +75,7 @@ flowchart LR
 - 持有 `PcmFramePipeline`
 - 持有编码器注册表 `Map<string, ExportEncoderDefinition>`
 - 持有 `PluginHost`
+- 对外暴露 `use()` / `unuse()`，其中 `unuse(name)` 只允许在 idle 状态下卸载插件或插件族前缀
 - 对外暴露统一事件入口 `on/off`
 
 主生命周期：
@@ -316,8 +319,8 @@ flowchart LR
 插件事件以 `plugin:` 为前缀，例如：
 
 - `plugin:level` — 音量电平
-- `plugin:stream` — 实时流式数据包（StreamingExportPlugin 产出）
-- `plugin:asr` — ASR 导出数据包（AsrExportPlugin 产出）
+- `plugin:stream` — 实时流式数据包（StreamingExportPlugin 或 SonicExportPlugin 产出）
+- `plugin:asr:chunk` — ASR 导出数据包（AsrExportPlugin 产出）
 
 `RecorderController.on()` 会根据事件名前缀决定路由到哪条总线。
 
@@ -325,7 +328,7 @@ flowchart LR
 
 插件宿主位于 [`src/plugins/plugin-host.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/plugin-host.ts)。
 
-当前内置且稳定的插件能力有三个：
+当前内置且稳定的插件能力有四个：
 
 ### 12.1 Level Meter
 
@@ -369,7 +372,19 @@ interface StreamingPacketPayload {
 }
 ```
 
-### 12.3 ASR Export
+### 12.3 Sonic Export
+
+入口：[`src/plugins/sonic-export/index.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/sonic-export/index.ts)
+
+功能：
+
+- 在旁路中累积实时 PCM 帧，并在累计时长达到 `blockMs` 后执行一次 Sonic 处理
+- 保留原始声道布局，处理结果通过 `ChunkedEncoderBridge` 编码
+- 通过 `plugin:stream` 输出与 `streaming-export` 相同的 `StreamingPacketPayload`
+- 不改写主录音缓冲；录音快照和快照导出仍保持原始 PCM
+- 通过 `exclusiveWith: ["streaming-export"]` 与 `streaming-export` 互斥，业务层可在 idle 状态下用 `recorder.unuse()` 切换插件族
+
+### 12.4 ASR Export
 
 入口：[`src/plugins/asr-export/index.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/asr-export/index.ts)
 
@@ -378,14 +393,14 @@ interface StreamingPacketPayload {
 - 专为 ASR（语音识别）场景设计
 - 支持独立采样率设置（通常 16kHz）
 - 支持自定义分块时长 `chunkDurationMs`
-- 通过 `plugin:asr` 输出数据包
+- 通过 `plugin:asr:chunk` 输出数据包
 
 ## 13. ChunkedEncoderBridge
 
 位于 [
 `src/plugins/chunked-encoder-bridge.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/chunked-encoder-bridge.ts)。
 
-这是 StreamingExport 和 ASR Export 的共享实现核心，负责：
+这是 StreamingExport、SonicExport 和 ASR Export 共享的流式编码核心，负责：
 
 - 在 Worker 和主线程之间透明地调度编码任务
 - 维护 `sequenceIndex` 和时间戳
@@ -417,7 +432,13 @@ flowchart LR
 
 ### 14.2 实时流式导出
 
-通过 `StreamingExportPlugin` 实现（见 12.2 节）。
+通过 `StreamingExportPlugin` 或 `SonicExportPlugin` 实现（见 12.2 / 12.3 节）。
+
+补充说明：
+
+- `StreamingExportPlugin` 直接编码原始实时 PCM
+- `SonicExportPlugin` 先在旁路中做 Sonic 处理，再把结果送入同一个 `StreamingPacketPayload` 协议
+- 两者互斥，当前主库只允许在 idle 状态下通过 `recorder.unuse(name)` 切换
 
 ### 14.3 流式播放
 
@@ -426,6 +447,7 @@ flowchart LR
 
 当前落地行为：
 
+- 可直接消费 `streaming-export` 或 `sonic-export` 产出的 `StreamingPacketPayload`
 - `push(packet)` 始终双写到 `persistStore`
 - `idle / paused` 时只保留历史，不进入实时播放管线
 - `start()` 采用 **live-edge start**：先清空旧播放积压，再从 `persistStore.recent(targetLatencyMs)` 回灌最近一个小窗口作为启动垫片
@@ -465,6 +487,7 @@ flowchart LR
 @csnight/audio-recorder/codecs/amr    — AMR-NB/WB 编码器（WASM）
 @csnight/audio-recorder/plugins/level-meter       — 音量插件
 @csnight/audio-recorder/plugins/streaming-export  — 实时流导出插件
+@csnight/audio-recorder/plugins/sonic-export      — Sonic 实时流导出插件
 @csnight/audio-recorder/plugins/asr-export        — ASR 导出插件
 @csnight/audio-recorder/storage/opfs              — OPFS 持久化后端
 @csnight/audio-recorder/storage/indexeddb         — IndexedDB 持久化后端

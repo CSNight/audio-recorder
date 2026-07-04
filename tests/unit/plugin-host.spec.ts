@@ -94,6 +94,52 @@ describe("PluginHost", () => {
     expect(healthyStart).toHaveBeenCalledTimes(1)
   })
 
+  it("rejects plugins that conflict with an already registered prefix family", async () => {
+    const { host } = createHost()
+
+    await host.use({
+      name: "streaming-export:pcm",
+      setup() {
+        return
+      },
+    })
+
+    await expect(
+      host.use({
+        name: "sonic-export:wav",
+        exclusiveWith: ["streaming-export"],
+        setup() {
+          return
+        },
+      })
+    ).rejects.toThrow(
+      'Recorder plugin "sonic-export:wav" conflicts with "streaming-export:pcm".'
+    )
+  })
+
+  it("rejects plugins when an already registered plugin declares the conflict", async () => {
+    const { host } = createHost()
+
+    await host.use({
+      name: "sonic-export:mp3",
+      exclusiveWith: ["streaming-export"],
+      setup() {
+        return
+      },
+    })
+
+    await expect(
+      host.use({
+        name: "streaming-export:wav",
+        setup() {
+          return
+        },
+      })
+    ).rejects.toThrow(
+      'Recorder plugin "streaming-export:wav" conflicts with "sonic-export:mp3".'
+    )
+  })
+
   it("injects a plugin eventBus instance into plugin context for plugin-prefixed events", async () => {
     const { host } = createHost()
     const listener = vi.fn()
@@ -343,6 +389,43 @@ describe("PluginHost", () => {
     await host.destroy()
 
     expect(listener).not.toHaveBeenCalled()
+  })
+
+  it("supports prefix unuse and disposes matched plugins in reverse registration order", async () => {
+    const { host } = createHost()
+    const disposed: string[] = []
+
+    await host.use({
+      name: "streaming-export:pcm",
+      setup() {
+        return
+      },
+      dispose() {
+        disposed.push("pcm")
+      },
+    })
+    await host.use({
+      name: "streaming-export:wav",
+      setup() {
+        return
+      },
+      dispose() {
+        disposed.push("wav")
+      },
+    })
+    await host.use({
+      name: "sonic-export:wav",
+      setup() {
+        return
+      },
+      dispose() {
+        disposed.push("sonic")
+      },
+    })
+
+    await host.unuse("streaming-export")
+
+    expect(disposed).toEqual(["wav", "pcm"])
   })
 
   it("does not invoke hooks after destroy clears the plugin list", async () => {

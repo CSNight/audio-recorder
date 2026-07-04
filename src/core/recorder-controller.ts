@@ -134,6 +134,11 @@ export class RecorderController {
     await this.pluginHost.use(plugin)
   }
 
+  async unuse(name: string): Promise<void> {
+    this.assertState([RecorderState.Idle])
+    await this.pluginHost.unuse(name)
+  }
+
   registerEncoder<TType extends string, TOptions, TResult>(
     definition: ExportEncoderDefinition<TType, TOptions, TResult>
   ): void {

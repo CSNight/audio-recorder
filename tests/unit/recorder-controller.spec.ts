@@ -574,6 +574,43 @@ describe("RecorderController", () => {
     )
   })
 
+  it("supports prefix unuse only while idle", async () => {
+    const recorder = new RecorderController({
+      inputAdapter: new FakeInputAdapter(),
+      storageOptions: undefined,
+    })
+    const disposed: string[] = []
+
+    await recorder.use({
+      name: "streaming-export:pcm",
+      setup() {
+        return
+      },
+      dispose() {
+        disposed.push("pcm")
+      },
+    })
+    await recorder.use({
+      name: "streaming-export:wav",
+      setup() {
+        return
+      },
+      dispose() {
+        disposed.push("wav")
+      },
+    })
+
+    await recorder.unuse("streaming-export")
+
+    expect(disposed).toEqual(["wav", "pcm"])
+
+    await recorder.open()
+
+    await expect(recorder.unuse("streaming-export")).rejects.toThrow(
+      'Recorder state "ready" does not allow this operation. Expected: idle.'
+    )
+  })
+
   it("registers custom encoders through the controller and exports through the shared registry", async () => {
     const adapter = new FakeInputAdapter()
     const recorder = new RecorderController({

@@ -31,7 +31,7 @@
 - 对浏览器 `Deprecated` API，只允许作为降级路径，不作为默认主实现
 - 写代码时优先保证命名清晰、边界直接，避免为了抽象而抽象
 - 类型、状态与生命周期必须可被测试和事件观测验证
-- 本次整理中，`Phase 5`、`Phase 6` 未开发内容保持原文不变，`14` 节及之后内容保持原文不变
+- 本次整理中，除已落地的 `streaming-player`、`sonic-export` 相关段落外，`Phase 5`、`Phase 6` 其余未开发内容保持原文不变，`14` 节及之后内容保持原文不变
 
 ---
 
@@ -78,7 +78,7 @@
 - `checkRecorderCapability()` 输入能力预检
 - `media-recorder / audio-worklet / script-processor` 三种输入策略
 - `frame:async`、`statechange`、`issue` 三类核心事件
-- `plugin:level`、`plugin:encoded-chunk` 两类稳定插件事件
+- `plugin:level`、`plugin:stream`、`plugin:asr:chunk` 三类稳定插件事件
 - `storage/opfs`、`storage/indexeddb` 两个可选持久化子路径
 - `codecs/base`、`codecs/mp3` 两组编解码器子路径
 
@@ -157,6 +157,7 @@ window.Recorder = ...
 - `/audio-recorder/codecs/mp3`
 - `/audio-recorder/plugins/level-meter`
 - `/audio-recorder/plugins/streaming-export`
+- `/audio-recorder/plugins/sonic-export`
 - `/audio-recorder/storage/opfs`
 - `/audio-recorder/storage/indexeddb`
 
@@ -171,17 +172,17 @@ window.Recorder = ...
 
 当前实际分层如下：
 
-| 层       | 当前目录       | 职责                                     |
-| -------- | -------------- | ---------------------------------------- |
-| Core     | `src/core`     | 控制器、状态机、事件总线                 |
-| Input    | `src/input`    | 取流、约束诊断、后端选择、session 装配   |
-| Pipeline | `src/pipeline` | PCM 帧进入缓冲前的统一入口               |
-| Buffer   | `src/buffer`   | 内存缓冲、持久化缓冲、snapshot 合并      |
-| Codecs   | `src/codecs`   | PCM/WAV/MP3 快照导出与 chunk 编码定义    |
-| Plugins  | `src/plugins`  | level-meter、streaming-export 及插件宿主 |
-| Storage  | `src/storage`  | 持久化协议、OPFS / IndexedDB 插件        |
-| Workers  | `src/workers`  | chunked encoder bridge 与 Worker core    |
-| Utils    | `src/utils`    | 音频帧转换、重采样、snapshot 序列化      |
+| 层       | 当前目录       | 职责                                                   |
+| -------- | -------------- | ------------------------------------------------------ |
+| Core     | `src/core`     | 控制器、状态机、事件总线                               |
+| Input    | `src/input`    | 取流、约束诊断、后端选择、session 装配                 |
+| Pipeline | `src/pipeline` | PCM 帧进入缓冲前的统一入口                             |
+| Buffer   | `src/buffer`   | 内存缓冲、持久化缓冲、snapshot 合并                    |
+| Codecs   | `src/codecs`   | PCM/WAV/MP3 快照导出与 chunk 编码定义                  |
+| Plugins  | `src/plugins`  | level-meter、streaming-export、sonic-export 及插件宿主 |
+| Storage  | `src/storage`  | 持久化协议、OPFS / IndexedDB 插件                      |
+| Workers  | `src/workers`  | chunked encoder bridge 与 Worker core                  |
+| Utils    | `src/utils`    | 音频帧转换、重采样、snapshot 序列化                    |
 
 ## 4. 参考其他录音库后的实践结论
 
@@ -211,7 +212,7 @@ window.Recorder = ...
 
 - 控制器事件总线与插件事件总线分离
 - `level-meter` 通过 `plugin:level` 暴露结果
-- `streaming-export` 通过 `plugin:encoded-chunk` 暴露实时编码分片
+- `streaming-export` / `sonic-export` 通过 `plugin:stream` 暴露实时编码分片
 
 ### 4.3 来自 `opus-recorder`
 
@@ -461,7 +462,8 @@ export interface RecorderPlugin {
 - `frame:async`
 - `issue`
 - `plugin:level`
-- `plugin:encoded-chunk`
+- `plugin:stream`
+- `plugin:asr:chunk`
 
 其中：
 
@@ -509,7 +511,7 @@ export interface RecorderPlugin {
 
 ## 9. 阶段划分
 
-项目仍按六个阶段理解，但当前仓库已经完成前四个阶段的大部分主线，并进入 `Phase 4.6` 的可用基线。
+项目仍按六个阶段理解，但当前仓库已经完成前四个阶段的大部分主线，并已提前落地 `streaming-player` 与 `sonic-export`，形成 `Phase 4.6 + Phase 5/6` 的混合可用基线。
 
 阶段状态建议按以下方式理解：
 
@@ -518,8 +520,8 @@ export interface RecorderPlugin {
 - `Phase 2`：已完成
 - `Phase 3`：已完成
 - `Phase 4`：已完成主线并沉淀为当前基线
-- `Phase 5`：未开发，保持原方案
-- `Phase 6`：未开发，保持原方案
+- `Phase 5`：`streaming-player` 已落地，其余保持原方案
+- `Phase 6`：`sonic-export` 已落地，其余保持原方案
 
 ## Phase 0：基线与工程初始化
 
@@ -640,7 +642,7 @@ export interface RecorderPlugin {
 
 - 实时 chunk 导出已作为独立插件存在
 - 插件不依赖控制器私有状态，只消费 `onStart / onFrame / onStop` 生命周期
-- 对外统一通过 `plugin:encoded-chunk` 发出分片事件
+- 对外统一通过 `plugin:stream` 发出分片事件
 - 调用方必须显式传入 `encoders: StreamEncoderDefinition[]`
 
 当前使用方式：
@@ -689,6 +691,7 @@ await recorder.use(
 
 - `./plugins/level-meter`
 - `./plugins/streaming-export`
+- `./plugins/sonic-export`
 - `./storage/opfs`
 - `./storage/indexeddb`
 - `./codecs/base`
@@ -1099,8 +1102,8 @@ push(packet)
 - Sonic 处理完全在旁路进行，`onFrame` 只读消费帧，**不修改主链路 buffer**，主录音结果始终是原始 PCM。
 - 与 `streaming-export` 互斥（两者都做实时推流，同时注册会产生重复流）。互斥通过 `exclusiveWith` 声明，`PluginHost` 在
   `use()` 时校验。
-- 参照 vendor `teach.sonic.transform.js`：实时处理用 Sonic.Async（Worker），离线处理用同步切片模式，块大小建议 ≥ 200ms
-  以避免引入杂音。
+- 当前实现中，实时处理在主线程按 `blockMs` 批量执行一次 Sonic 变换，处理结果再送入 `ChunkedEncoderBridge`；离线处理使用同步切片 + Promise
+  的方式避免长任务卡顿，`blockMs` 建议保持在 `>= 200ms`。
 
 **参照**：`vendor/Recorder-master/src/extensions/sonic.js` + `assets/runtime-codes/teach.sonic.transform.js`
 
@@ -1113,7 +1116,6 @@ src/plugins/sonic-export/
   sonic-processor.ts    ← Sonic 算法封装（参照 vendor sonic.js 移植）
   stream-bridge.ts      ← 帧积累 + Sonic 处理 + 编码推流逻辑
   types.ts              ← SonicExportOptions / SonicTransformOptions / SonicExportPlugin
-  public.ts             ← 对外类型导出
 ```
 
 核心 API：
@@ -1130,32 +1132,37 @@ export interface SonicTransformOptions {
 
 export interface SonicExportOptions extends SonicTransformOptions {
   /** 实时推流编码格式 */
-  format: "pcm" | "wav" | "mp3"
+  format: "pcm" | "wav"
   /** 流式编码器，必须显式传入（与 streaming-export 一致） */
   encoders: StreamEncoderDefinition[]
+  encoderOptions?: unknown
+  allowMainThreadFallback?: boolean
+  streamId?: string
+  metadata?: Record<string, unknown>
+  createStreamId?(): string
+  createSessionId?(): string
 }
 
 /** SonicExportPlugin 同时是 RecorderPlugin 和对外工具方法的持有者 */
 export interface SonicExportPlugin extends RecorderPlugin {
-  name: "sonic-export"
-  exclusiveWith: ["streaming-export"]
-
   /**
    * 离线转换：对录音结果 PCM snapshot 做 Sonic 处理，返回处理后的 Int16Array。
    * 调用方拿到 Int16Array 后自行传给编码器导出。
    * 可独立于录音流程调用，不依赖当前录音状态。
    */
   transformSnapshot(
-    snapshot: PcmSnapshot,
+    snapshot: PcmBufferSnapshot,
     options?: SonicTransformOptions
   ): Promise<Int16Array>
 
   /**
    * 离线转换：对任意 PCM 数据做 Sonic 处理，返回处理后的 Int16Array。
+   * 默认按单声道解释；多声道交织 PCM 需显式传入 channels。
    */
   transform(
     pcm: Int16Array,
     sampleRate: number,
+    channelsOrOptions?: number | SonicTransformOptions,
     options?: SonicTransformOptions
   ): Promise<Int16Array>
 }
@@ -1168,28 +1175,31 @@ export function createSonicExportPlugin(
 实现要点：
 
 - Sonic 算法完全参照 `vendor/sonic.js` 移植为 TypeScript，不引入外部依赖
-- `onFrame` 时将帧数据累积到内部缓冲，达到 `blockMs` 后送 Sonic 处理，处理结果送流式编码器，编码产物通过 `plugin:stream`
-  事件发出
+- `onFrame` 时将帧数据累积到内部缓冲，达到 `blockMs` 后在主线程执行一次 Sonic 处理，处理结果再送入 `ChunkedEncoderBridge`，编码产物通过
+  `plugin:stream` 事件发出
 - `onStop` 时冲刷 Sonic 内部残余缓冲，发送最后一个 `isFinal: true` 的 chunk
-- `transformSnapshot` 内部将 snapshot 展平为 `Int16Array` 后调用 `transform`，`transform` 用同步切片 + Promise
-  模式实现，避免主线程卡顿
+- `transformSnapshot` 内部会把 snapshot 按原声道数交织为 `Int16Array` 后调用 `transform`
+- `transform` 的返回值始终是交织 `Int16Array`；默认按单声道解释，多声道输入需要显式传入 `channels`
 - 离线转换方法可在录音开始前/录音中/录音后任意时刻调用，与插件生命周期解耦
+- 当前主库已提供 `RecorderController.unuse(name)`，并限制为 idle 状态调用；可用 `unuse("streaming-export")` / `unuse("sonic-export")`
+  做同族前缀切换
 
-事件格式（与 `streaming-export` 的 `plugin:encoded-chunk` 对齐命名语义）：
+事件格式（与 `streaming-export` 共用 `plugin:stream` 契约）：
 
 ```ts
-recorder.on("plugin:stream", (chunk: EncodedStreamChunk) => {
-  chunk.data // Uint8Array，编码后的音频数据
-  chunk.format // "wav" | "mp3" | ...
-  chunk.isFinal // true 表示录音已结束，这是最后一帧
+recorder.on("plugin:stream", ({ payload }) => {
+  payload.chunk // Uint8Array，编码后的音频数据
+  payload.format // "pcm" | "wav"
+  payload.isFinal // true 表示录音已结束，这是最后一个 packet
 })
 ```
 
 使用示例：
 
 ```ts
-import { createSonicExportPlugin } from "audio-recorder/plugins/sonic-export"
-import { wavStreamEncoder } from "audio-recorder/codecs/base"
+import { deserializePcmSnapshot } from "@csnight/audio-recorder"
+import { createSonicExportPlugin } from "@csnight/audio-recorder/plugins/sonic-export"
+import { wavStreamEncoder } from "@csnight/audio-recorder/codecs/base"
 
 const sonicPlugin = createSonicExportPlugin({
   speed: 1.5,
@@ -1201,16 +1211,14 @@ const sonicPlugin = createSonicExportPlugin({
 await recorder.use(sonicPlugin) // 注册，会检测与 streaming-export 互斥
 
 // 实时推流
-recorder.on("plugin:stream", ({ data, isFinal }) => {
-  socket.send(data)
+recorder.on("plugin:stream", ({ payload }) => {
+  socket.send(payload.chunk)
 })
 
-await recorder.stop()
-
 // 离线转换（用同一插件实例）
-const snapshot = await recorder.getSnapshot()
+const snapshot = deserializePcmSnapshot(savedSnapshotBuffer)
 const processed = await sonicPlugin.transformSnapshot(snapshot, { speed: 0.8 })
-// processed 为 Int16Array，再自行编码导出
+// processed 为交织 Int16Array，再自行编码导出
 ```
 
 ### 6.4 频谱 FFT 插件（FrequencyHistogram）
@@ -1439,8 +1447,8 @@ fileURLToPath(new URL("./src/plugins/sonic-export/index.ts", import.meta.url)),
   - **实时流**：录音过程中 `plugin:stream` 事件持续触发，携带经 Sonic 处理后的编码分片（≥200ms 累积后推送）；停止录音时
     `onStop` 刷出残余帧，最终分片正常发出
   - **离线转换**：录音结束后调用 `transformSnapshot(snapshot, { speed: 0.5 })`，返回 `Int16Array` 时长约为原始时长 2
-    倍，音调保持不变（WSOLA 算法）；调用 `transform(pcm, sampleRate, { pitch: 1.5 })` 同样能独立工作
-  - **bypass 验证**：`SonicExportPlugin` 的 `onFrame` 不修改主缓冲区，录音核心的 `PcmSnapshot` 保存的是原始
+    倍，音调保持不变（WSOLA 算法）；调用 `transform(pcm, sampleRate, channels, { pitch: 1.5 })` 同样能独立工作
+  - **bypass 验证**：`SonicExportPlugin` 的 `onFrame` 不修改主缓冲区，录音核心的 `PcmBufferSnapshot` 保存的是原始
     PCM，与未挂载插件时完全一致
 - 频谱 FFT：录音时每帧可收到 `plugin:frequency-histogram:data` 事件，数组长度符合 `barCount`
 - DTMF 编码：`encodeDtmf(["1","2","3"])` 输出可被电话系统识别的 DTMF 音频

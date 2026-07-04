@@ -13,6 +13,7 @@
 - [插件](#插件)
 - [`level-meter`](#level-meter)
 - [`streaming-export`](#streaming-export)
+- [`sonic-export`](#sonic-export)
 - [`asr-export`](#asr-export)
 - [`streaming-player`](#streaming-player)
 - [存储](#存储)
@@ -86,7 +87,7 @@ console.log(summary.durationMs, wav.arrayBuffer.byteLength)
 - 录音事件：`statechange`、`frame:async`、`issue`
 - 快照导出：`pcm`、`wav`、`mp3`、`flac`、`ogg`、`webm`、`g711`、`aac`、`amr`、`ac3`、`eac3`
 - 持久化后端：`storage/opfs`、`storage/indexeddb`
-- 内置插件：`level-meter`、`streaming-export`、`asr-export`
+- 内置插件：`level-meter`、`streaming-export`、`sonic-export`、`asr-export`
 
 ## API
 
@@ -224,6 +225,22 @@ import {
 | Type            | Description              |
 | --------------- | ------------------------ |
 | `Promise<void>` | 插件初始化完成后 resolve |
+
+#### `unuse(name)`
+
+在录音器处于 idle 时卸载插件或插件族前缀。
+
+参数：
+
+| Name   | Type     | Description                                                          |
+| ------ | -------- | -------------------------------------------------------------------- |
+| `name` | `string` | 插件名或插件族前缀。`streaming-export` / `sonic-export` 会卸载整个族 |
+
+返回值：
+
+| Type            | Description            |
+| --------------- | ---------------------- |
+| `Promise<void>` | 插件释放完成后 resolve |
 
 #### `registerEncoder(definition)`
 
@@ -363,6 +380,7 @@ import {
 | `@csnight/audio-recorder/codecs/g711`              | G.711 编码器                         |
 | `@csnight/audio-recorder/plugins/level-meter`      | `createLevelMeterPlugin()`           |
 | `@csnight/audio-recorder/plugins/streaming-export` | `createStreamingExportPlugin()`      |
+| `@csnight/audio-recorder/plugins/sonic-export`     | `createSonicExportPlugin()`          |
 | `@csnight/audio-recorder/plugins/asr-export`       | `createAsrExportPlugin()`            |
 | `@csnight/audio-recorder/plugins/streaming-player` | `createStreamingPlayer()`            |
 | `@csnight/audio-recorder/storage/opfs`             | `createOpfsPersistencePlugin()`      |
@@ -493,15 +511,7 @@ Event payload: `plugin:level`
 
 #### Introduction
 
-实时分片导出插件。录音过程中将 PCM 帧经 `ChunkedEncoderBridge` 送入 `StreamEncoderDefinition`，持续产出标准化流式 packet。
-
-当前行为：
-
-- 支持任何拥有匹配 `StreamEncoderDefinition` 的格式；内置基础编解码器提供 `pcm` 和 `wav`
-- 必须由调用方通过 `encoders` 显式传入匹配格式的编码器
-- 整个插件生命周期内复用同一个 bridge，并在 `start()` 时重置
-- 优先使用 Worker 编码，必要时可降级到主线程编码
-- `stop()` 时若编码器仍有缓冲，会额外 `flush()` 出一个最终 packet；若无剩余输出则不 emit
+实时分片导出插件。录音过程中将 PCM 帧经 `ChunkedEncoderBridge` 送入 `StreamEncoderDefinition`，持续产出标准化流式 packet。内置基础编解码器提供 `pcm` 和 `wav`，调用方通过 `encoders` 传入匹配编码器。插件会在多个录音会话之间复用同一个 bridge，在 `start()` 时重置，优先使用 Worker 编码，必要时可降级到主线程；`stop()` 时只有在编码器仍有缓冲输出时才会额外 `flush()` 一个最终 packet。
 
 事件：
 
@@ -530,14 +540,10 @@ recorder.on("plugin:stream", ({ payload }) => {
 
 #### API
 
-以下类型从 `@csnight/audio-recorder/plugins/streaming-export` 子路径导出。
-
-| Export                                 | Description                  |
-| -------------------------------------- | ---------------------------- |
-| `createStreamingExportPlugin(options)` | 创建实时分片导出插件         |
-| `StreamEncoderDefinition`              | 由调用方传入的公开编码器定义 |
-| `StreamingPacketPayload`               | 流式 packet 负载             |
-| `StreamingExportPluginOptions`         | 插件选项                     |
+| Export                                 | Description          |
+| -------------------------------------- | -------------------- |
+| `createStreamingExportPlugin(options)` | 创建实时分片导出插件 |
+| `StreamingExportPluginOptions`         | 插件选项             |
 
 Options: `StreamingExportPluginOptions`
 
@@ -589,6 +595,103 @@ Event payload: `plugin:stream`
 | `isFinal`       | `boolean`                              | 是否为由 `flush()` 产出的最终 packet              |
 | `discontinuity` | `boolean \| undefined`                 | 供传输层或播放层识别 gap 的可选标记               |
 | `metadata`      | `Record<string, unknown> \| undefined` | 预留扩展字段                                      |
+
+### `sonic-export`
+
+#### Introduction
+
+实时 Sonic 变速变调插件。在旁路中累积 PCM 帧，执行 Sonic 的速度 / 音调 / rate / 音量处理，再通过匹配的 `StreamEncoderDefinition` 输出标准化流式 packet。实时输出只支持 `pcm` 和 `wav`，保留原始声道布局，并在累计源音频达到 `blockMs` 后于主线程执行一次 Sonic 处理，再把结果送入 `ChunkedEncoderBridge`。插件只通过 `plugin:stream` 输出处理后的实时流，不会改写录音核心 buffer；快照和 `exportEncoded()` 仍然基于原始 PCM。同一个插件实例也提供离线转换方法，可直接处理 snapshot 或任意 PCM，并且与 `streaming-export` 互斥；切换插件族只允许在 idle 状态下通过 `recorder.unuse("streaming-export")` 或 `recorder.unuse("sonic-export")` 完成。
+
+事件：
+
+- `plugin:stream`
+
+#### Quick Start
+
+```ts
+import { createRecorder } from "@csnight/audio-recorder"
+import { wavStreamEncoder } from "@csnight/audio-recorder/codecs/base"
+import { createSonicExportPlugin } from "@csnight/audio-recorder/plugins/sonic-export"
+
+const recorder = createRecorder()
+const sonic = createSonicExportPlugin({
+  format: "wav",
+  encoders: [wavStreamEncoder],
+  speed: 1.25,
+  blockMs: 200,
+})
+
+await recorder.use(sonic)
+
+recorder.on("plugin:stream", ({ payload }) => {
+  console.log(
+    payload.format,
+    payload.channels,
+    payload.chunk.byteLength,
+    payload.isFinal
+  )
+})
+```
+
+离线转换示例：
+
+```ts
+import { deserializePcmSnapshot } from "@csnight/audio-recorder"
+
+const snapshot = deserializePcmSnapshot(savedSnapshotBuffer)
+const processed = await sonic.transformSnapshot(snapshot, { speed: 0.85 })
+
+console.log(processed instanceof Int16Array, processed.length)
+```
+
+#### API
+
+| Export                             | Description                   |
+| ---------------------------------- | ----------------------------- |
+| `createSonicExportPlugin(options)` | 创建 Sonic 导出插件           |
+| `SonicExportFormat`                | 实时输出格式联合类型          |
+| `SonicExportOptions`               | 插件选项                      |
+| `SonicTransformOptions`            | Sonic 处理参数                |
+| `SonicExportPlugin`                | 带离线转换 API 的插件实例类型 |
+
+Options: `SonicExportOptions`
+
+| Field                     | Type                        | Default | Description                                                                     |
+| ------------------------- | --------------------------- | ------- | ------------------------------------------------------------------------------- |
+| `format`                  | `"pcm" \| "wav"`            | `-`     | 实时输出格式                                                                    |
+| `speed`                   | `number`                    | `1`     | 变速不变调                                                                      |
+| `pitch`                   | `number`                    | `1`     | 变调不变速                                                                      |
+| `rate`                    | `number`                    | `1`     | 同时影响速度和音调                                                              |
+| `volume`                  | `number`                    | `1`     | 输出音量倍率                                                                    |
+| `blockMs`                 | `number`                    | `200`   | 触发一次 Sonic 处理前累计的源音频时长                                           |
+| `encoders`                | `StreamEncoderDefinition[]` | `-`     | 可用流式编码器，必须包含选中的 `format`                                         |
+| `encoderOptions`          | `unknown`                   | `-`     | 传给 `ChunkedEncoderBridge` 的编码器参数                                        |
+| `allowMainThreadFallback` | `boolean`                   | `true`  | Worker 不可用时回退到主线程执行 chunk 编码                                      |
+| `streamId`                | `string`                    | 自动    | 固定逻辑流 ID；跨会话保持稳定。未传时从 `createStreamId()` 求值一次，或自动生成 |
+| `createStreamId`          | `() => string`              | `-`     | 懒生成流 ID 的工厂函数，在插件创建时调用一次；设置了 `streamId` 时忽略          |
+| `createSessionId`         | `() => string`              | 自动    | 每次 `start()` 时调用的会话 ID 工厂；默认基于 `crypto.randomUUID()` 生成        |
+| `metadata`                | `Record<string, unknown>`   | `-`     | 附加到每个 packet 的静态元数据                                                  |
+
+实例方法：
+
+| Member                                                     | Type                  | Description                                                         |
+| ---------------------------------------------------------- | --------------------- | ------------------------------------------------------------------- |
+| `transformSnapshot(snapshot, options?)`                    | `Promise<Int16Array>` | 处理 `PcmBufferSnapshot`，返回保持原声道布局的交织 `Int16Array` PCM |
+| `transform(pcm, sampleRate, channelsOrOptions?, options?)` | `Promise<Int16Array>` | 处理任意交织 PCM。默认按单声道解释；多声道输入需要显式传 `channels` |
+
+Event payload: `plugin:stream`
+
+| Field         | Type                     | Description          |
+| ------------- | ------------------------ | -------------------- |
+| `controller`  | `RecorderController`     | 录音器实例           |
+| `sessionId`   | `string`                 | 当前会话 ID          |
+| `emittedAt`   | `number`                 | 毫秒时间戳           |
+| `pluginName`  | `string`                 | 插件名               |
+| `runtimeInfo` | `RecorderRuntimeInfo`    | 运行时信息快照       |
+| `summary`     | `RecorderSessionSummary` | 会话摘要快照         |
+| `payload`     | `StreamingPacketPayload` | 编码流式 packet 负载 |
+
+`StreamingPacketPayload` 字段与上面的 `streaming-export` 一致。
 
 ### `asr-export`
 
@@ -673,16 +776,7 @@ Event payload: `plugin:asr:chunk`
 
 #### Introduction
 
-独立流式音频播放引擎。接收来自任意来源（WebSocket、录音插件等）的 `StreamingPacketPayload` 数据包，经重排与抖动缓冲管线处理后，通过调用方提供的解码器解码，并在 `AudioContext` 上调度连续播放。
-
-主要特性：
-
-- **双写 + live-edge 播放**：每次 `push()` 都会写入持久化存储；只有播放器处于 `buffering / playing` 时，数据包才会进入播放管线
-- **live-edge 启动 + 启动垫片**：`idle` 阶段只累积历史；`start()` 会清空旧播放积压，并只取最近一个启动窗口（通常为 `targetLatencyMs`）作为起播垫片
-- **暂停/恢复无延迟**：`resume()` 时重置管线，丢弃积压的 live 数据包，新数据包立即生效
-- **重播**：仅在暂停状态下可用；从持久化存储播放最近 N 秒，完成后保持暂停
-- **持久化存储后端**：`persistMode: "memory"`（默认）、`"indexeddb"` 或 `"custom"`；`custom` 模式要求先调用 `player.use(store)`
-- **丢弃旧数据策略**：`ReorderBuffer + JitterBuffer` 的 live 积压超过 `maxBufferMs` 时，会自动丢弃最旧数据包并触发 `onPacketDrop`
+独立流式音频播放引擎。接收来自任意来源（WebSocket、录音插件等）的 `StreamingPacketPayload` 数据包，经重排与抖动缓冲管线处理后，通过调用方提供的解码器解码，并在 `AudioContext` 上调度连续播放。每次 `push()` 都会写入持久化存储，`start()` 和 `resume()` 会重置 live 播放管线并回到 live edge，`replay()` 仅在暂停状态下可用，`persistMode` 支持 `"memory"`、`"indexeddb"` 和 `"custom"`，而当 `ReorderBuffer + JitterBuffer` 的 live 积压超过 `maxBufferMs` 时会触发 `onPacketDrop`。
 
 #### Quick Start
 
@@ -989,11 +1083,12 @@ npm run build:wasm:select -- --codec=aac,amr,ac3
 
 ### 插件
 
-| Plugin             | Chrome | Firefox | Safari | Notes             |
-| ------------------ | -----: | ------: | -----: | ----------------- |
-| `level-meter`      |     66 |      76 |   14.1 | PCM 帧消费者      |
-| `streaming-export` |     66 |      76 |   14.1 | Worker 分片导出   |
-| `asr-export`       |     66 |      76 |   14.1 | PCM 切块 + 编码器 |
+| Plugin             | Chrome | Firefox | Safari | Notes                      |
+| ------------------ | -----: | ------: | -----: | -------------------------- |
+| `level-meter`      |     66 |      76 |   14.1 | PCM 帧消费者               |
+| `streaming-export` |     66 |      76 |   14.1 | Worker 分片导出            |
+| `sonic-export`     |     66 |      76 |   14.1 | 旁路 Sonic 处理 + 分片导出 |
+| `asr-export`       |     66 |      76 |   14.1 | PCM 切块 + 编码器          |
 
 ### 编码器
 
@@ -1080,7 +1175,7 @@ createRecorder
 
 - 根入口不会自动注册编码器
 - 插件都是显式启用的独立子路径
-- `streaming-export`、`asr-export` 是独立扩展
+- `streaming-export`、`sonic-export`、`asr-export` 是独立扩展
 - `opfs` 和 `indexeddb` 是可选持久化后端
 
 详细架构文档：

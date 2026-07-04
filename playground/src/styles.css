@@ -175,7 +175,7 @@ code {
 
 .topbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(500px, 0.9fr);
+  grid-template-columns: minmax(0, 1fr) minmax(600px, 1fr);
   gap: 14px;
   padding: 14px 16px;
   border-radius: 16px;

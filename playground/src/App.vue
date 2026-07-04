@@ -12,6 +12,7 @@ import { createLevelMeterPlugin } from "@csnight/audio-recorder/plugins/level-me
 import { createIndexedDbPersistencePlugin } from "@csnight/audio-recorder/storage/indexeddb"
 import { createOpfsPersistencePlugin } from "@csnight/audio-recorder/storage/opfs"
 import { createStreamingExportPlugin } from "@csnight/audio-recorder/plugins/streaming-export"
+import { createSonicExportPlugin } from "@csnight/audio-recorder/plugins/sonic-export"
 import { createAsrExportPlugin } from "@csnight/audio-recorder/plugins/asr-export"
 import {
   pcmExportEncoder,
@@ -50,6 +51,10 @@ const PLAYGROUND_PERSISTENCE_BACKEND = {
 }
 
 const PLAYGROUND_PERSISTENCE_CHUNK_BYTES = 256 * 1024
+const PLAYGROUND_STREAM_PLUGIN_MODE = {
+  streaming: "streaming-export",
+  sonic: "sonic-export",
+}
 
 const PERSISTENCE_PLUGIN_FACTORIES = {
   [PLAYGROUND_PERSISTENCE_BACKEND.indexeddb]: createIndexedDbPersistencePlugin,
@@ -78,6 +83,13 @@ const state = reactive({
   amrBandMode: "nb",
   exportSampleRateInput: "",
   inputStrategy: "auto",
+  streamPluginMode: PLAYGROUND_STREAM_PLUGIN_MODE.streaming,
+  streamPluginFormat: "wav",
+  sonicSpeed: 1,
+  sonicPitch: 1,
+  sonicRate: 1,
+  sonicVolume: 1,
+  sonicBlockMs: 200,
   memoryThresholdBytes: 256 * 1024,
   pendingActionLabel: "",
   recorderState: RecorderState.Idle,
@@ -95,6 +107,7 @@ const state = reactive({
   asrChunkBytes: 0,
   activePersistenceBackend: null,
   lastExportResult: null,
+  lastSonicExportResult: null,
   microphoneDevices: [],
   selectedDeviceId: "",
   diagnosticsRawView: false,
@@ -343,6 +356,12 @@ const canOpen = computed(
     [RecorderState.Idle, RecorderState.Closed].includes(state.recorderState)
 )
 
+const canSwitchRealtimePlugin = computed(
+  () =>
+    state.pendingActionLabel === "" &&
+    state.recorderState === RecorderState.Idle
+)
+
 const canStart = computed(
   () =>
     state.pendingActionLabel === "" &&
@@ -385,6 +404,22 @@ const canChangeStorageMode = computed(
     state.pendingActionLabel === "" &&
     [RecorderState.Idle, RecorderState.Closed].includes(state.recorderState)
 )
+
+const sonicExportStats = computed(() => {
+  if (!state.lastSonicExportResult) return []
+
+  return ["pcm", "wav"].flatMap((format) => {
+    const result = state.lastSonicExportResult?.[format]
+    if (!result) return []
+
+    return [
+      {
+        label: `Sonic ${format.toUpperCase()}`,
+        value: `${formatBytes(getExportResultByteLength(result))} · ${result.sampleRate} Hz`,
+      },
+    ]
+  })
+})
 
 const storageHint = computed(() => {
   if (state.storageMode === PLAYGROUND_STORAGE_MODE.memory) {
@@ -443,18 +478,12 @@ function resetRealtimeState() {
   state.activePersistenceBackend = null
   state.storageDiagnostics = null
   state.lastExportResult = null
+  state.lastSonicExportResult = null
 }
 
 async function initializeRecorder() {
   await recorder.use(createLevelMeterPlugin())
-  await recorder.use(
-    createStreamingExportPlugin({
-      format: "wav",
-      encoders: [wavStreamEncoder, pcmStreamEncoder],
-      encoderOptions: { framesPerChunk: 4 },
-      allowMainThreadFallback: true,
-    })
-  )
+  await recorder.use(createSelectedRealtimeStreamPlugin())
   await recorder.use(
     createAsrExportPlugin({
       format: "pcm",
@@ -473,6 +502,30 @@ async function rebuildRecorder() {
   recorderRef.value = recorder
   await initializeRecorder()
   state.recorderState = recorder.getState()
+}
+
+async function switchRealtimeStreamPlugin() {
+  if (state.recorderState !== RecorderState.Idle) {
+    appendLog("warning", "实时流插件只允许在 idle 状态下切换。")
+    return
+  }
+
+  await runLoggedAction(
+    async () => {
+      await unuseRealtimeStreamPlugins()
+      await recorder.use(createSelectedRealtimeStreamPlugin())
+      state.realtimeChunkCount = 0
+      state.realtimeChunkBytes = 0
+      appendLog(
+        "info",
+        `已切换实时流插件：${getRealtimePluginModeLabel(
+          state.streamPluginMode
+        )} · ${state.streamPluginFormat.toUpperCase()}。`
+      )
+    },
+    "",
+    "正在切换实时流插件..."
+  )
 }
 
 async function handleStorageModeChange() {
@@ -619,6 +672,7 @@ async function closeRecorder() {
       await recorder.close()
       await closeManagedSource(currentSource)
       currentSource = null
+      await rebuildRecorder()
       state.storageDiagnostics = await collectStorageDiagnostics()
       state.activePersistenceBackend =
         state.storageDiagnostics?.persistedEntries > 0
@@ -667,6 +721,59 @@ async function exportAudio(format) {
   )
 }
 
+async function exportSonicSnapshot(format) {
+  if (!canExportAudio.value) {
+    appendLog(
+      "warning",
+      "请先完成一次录音并保持 stopped 状态，再执行 Sonic 导出。"
+    )
+    return
+  }
+
+  await runLoggedAction(
+    async () => {
+      const snapshot = await buildCurrentPcmSnapshot()
+      const transformPlugin = createSonicExportPlugin({
+        format,
+        encoders: format === "wav" ? [wavStreamEncoder] : [pcmStreamEncoder],
+        ...buildSonicTransformOptions(),
+      })
+      const transformedInterleaved =
+        await transformPlugin.transformSnapshot(snapshot)
+      const transformedSnapshot = buildSnapshotFromInterleaved(
+        transformedInterleaved,
+        snapshot.sampleRate,
+        snapshot.channels
+      )
+      const result =
+        format === "wav"
+          ? wavExportEncoder.export(
+              transformedSnapshot,
+              buildExportOptions("wav")
+            )
+          : pcmExportEncoder.export(
+              transformedSnapshot,
+              buildExportOptions("pcm")
+            )
+
+      state.lastSonicExportResult = {
+        ...(state.lastSonicExportResult ?? {}),
+        [format]: result,
+      }
+      state.exportedBytes = getExportResultByteLength(result)
+      triggerSonicExportDownload(format, result)
+      appendLog(
+        "info",
+        `Sonic ${format.toUpperCase()} 导出完成，${formatBytes(
+          state.exportedBytes
+        )}，${snapshot.channels} ch。`
+      )
+    },
+    "",
+    `正在导出 Sonic ${format.toUpperCase()}...`
+  )
+}
+
 function downloadPCM(result = state.lastExportResult?.pcm) {
   if (!result) return
   const blob = new Blob([result.data.buffer], {
@@ -683,6 +790,25 @@ function downloadWAV(result = state.lastExportResult?.wav) {
   triggerDownload(
     result.blob,
     `recording_${result.sampleRate}hz_${result.channels}ch_${result.bitRate}bit.wav`
+  )
+}
+
+function downloadSonicPCM(result = state.lastSonicExportResult?.pcm) {
+  if (!result) return
+  const blob = new Blob([result.data.buffer], {
+    type: "application/octet-stream",
+  })
+  triggerDownload(
+    blob,
+    `recording_sonic_${result.sampleRate}hz_${result.channels}ch_${result.bitRate}bit.pcm`
+  )
+}
+
+function downloadSonicWAV(result = state.lastSonicExportResult?.wav) {
+  if (!result) return
+  triggerDownload(
+    result.blob,
+    `recording_sonic_${result.sampleRate}hz_${result.channels}ch_${result.bitRate}bit.wav`
   )
 }
 
@@ -757,6 +883,15 @@ function downloadFLAC(result = state.lastExportResult?.flac) {
     new Blob([result.data.buffer], { type: "audio/flac" }),
     `recording_${result.sampleRate}hz_${result.channels}ch_${result.bitsPerSample}bit.flac`
   )
+}
+
+function triggerSonicExportDownload(format, result) {
+  if (format === "wav") {
+    downloadSonicWAV(result)
+    return
+  }
+
+  downloadSonicPCM(result)
 }
 
 function triggerDownload(blob, filename) {
@@ -878,6 +1013,55 @@ function getPersistenceBackendLabel(backend) {
   return backend === PLAYGROUND_PERSISTENCE_BACKEND.opfs ? "OPFS" : "IndexedDB"
 }
 
+function getRealtimePluginModeLabel(mode) {
+  return mode === PLAYGROUND_STREAM_PLUGIN_MODE.sonic
+    ? "Sonic Export"
+    : "Streaming Export"
+}
+
+function createSelectedRealtimeStreamPlugin() {
+  if (state.streamPluginMode === PLAYGROUND_STREAM_PLUGIN_MODE.sonic) {
+    return createSonicExportPlugin({
+      format: state.streamPluginFormat,
+      encoders: [pcmStreamEncoder, wavStreamEncoder],
+      encoderOptions:
+        state.streamPluginFormat === "wav" ? { framesPerChunk: 4 } : undefined,
+      allowMainThreadFallback: true,
+      speed: state.sonicSpeed,
+      pitch: state.sonicPitch,
+      rate: state.sonicRate,
+      volume: state.sonicVolume,
+      blockMs: state.sonicBlockMs,
+    })
+  }
+
+  return createStreamingExportPlugin({
+    format: state.streamPluginFormat,
+    encoders: [wavStreamEncoder, pcmStreamEncoder],
+    encoderOptions:
+      state.streamPluginFormat === "wav" ? { framesPerChunk: 4 } : undefined,
+    allowMainThreadFallback: true,
+  })
+}
+
+async function unuseRealtimeStreamPlugins() {
+  try {
+    await recorder.unuse("streaming-export")
+  } catch (error) {
+    if (!String(error).includes("is not registered")) {
+      throw error
+    }
+  }
+
+  try {
+    await recorder.unuse("sonic-export")
+  } catch (error) {
+    if (!String(error).includes("is not registered")) {
+      throw error
+    }
+  }
+}
+
 function getExportAction(format) {
   return EXPORT_FORMAT_ACTIONS.find((action) => action.type === format) ?? null
 }
@@ -901,6 +1085,16 @@ function buildExportOptions(format) {
   return Object.keys(options).length > 0 ? options : undefined
 }
 
+function buildSonicTransformOptions() {
+  return {
+    speed: state.sonicSpeed,
+    pitch: state.sonicPitch,
+    rate: state.sonicRate,
+    volume: state.sonicVolume,
+    blockMs: state.sonicBlockMs,
+  }
+}
+
 function isExportFormatSupported(format) {
   const sampleRate = selectedExportSampleRate.value
   if (sampleRate === null) return false
@@ -918,6 +1112,50 @@ function getExportResultByteLength(result) {
     return result.arrayBuffer.byteLength
   if (result?.blob instanceof Blob) return result.blob.size
   return 0
+}
+
+function deinterleavePcmData(source, channels) {
+  const frameLength = Math.floor(source.length / channels)
+  return Array.from({ length: channels }, (_, channelIndex) => {
+    const output = new Int16Array(frameLength)
+    for (let frameIndex = 0; frameIndex < frameLength; frameIndex += 1) {
+      output[frameIndex] = source[frameIndex * channels + channelIndex] ?? 0
+    }
+    return output
+  })
+}
+
+async function buildCurrentPcmSnapshot() {
+  const pcm = await recorder.exportEncoded("pcm", { bitRate: 16 })
+  if (!(pcm.data instanceof Int16Array)) {
+    throw new Error("Failed to build PCM snapshot from recorder export.")
+  }
+
+  const channels =
+    state.summary?.channels ?? state.runtimeInfo?.actualChannelCount ?? 1
+  const sampleRate =
+    state.summary?.sampleRate ?? state.runtimeInfo?.actualSampleRate ?? 16_000
+
+  const planar = deinterleavePcmData(pcm.data, channels)
+  return {
+    sampleRate,
+    channels,
+    frameCount: planar[0]?.length ?? 0,
+    durationMs: pcm.durationMs,
+    planar,
+  }
+}
+
+function buildSnapshotFromInterleaved(pcmData, sampleRate, channels) {
+  const planar = deinterleavePcmData(pcmData, channels)
+  const frameCount = planar[0]?.length ?? 0
+  return {
+    sampleRate,
+    channels,
+    frameCount,
+    durationMs: frameCount === 0 ? 0 : (frameCount / sampleRate) * 1000,
+    planar,
+  }
 }
 
 function triggerExportDownload(format, result) {
@@ -1211,7 +1449,7 @@ onBeforeUnmount(() => {
           </span>
         </div>
       </div>
-      <div class="topbar-status" aria-label="状态与运行时快照">
+      <div aria-label="状态与运行时快照" class="topbar-status">
         <div class="topbar-primary-strip">
           <article
             v-for="item in topMetrics"
@@ -1404,6 +1642,100 @@ onBeforeUnmount(() => {
                 </div>
                 <p class="panel-note">{{ storageHint }}</p>
               </section>
+
+              <section class="control-block">
+                <div class="subpanel-head">
+                  <div>
+                    <p class="panel-kicker">Realtime Stream</p>
+                    <h3>实时流插件</h3>
+                  </div>
+                  <button
+                    :disabled="!canSwitchRealtimePlugin"
+                    class="ghost-button"
+                    @click="switchRealtimeStreamPlugin"
+                  >
+                    应用切换
+                  </button>
+                </div>
+                <div class="form-grid">
+                  <label class="field">
+                    <span>实时流模式</span>
+                    <select v-model="state.streamPluginMode">
+                      <option :value="PLAYGROUND_STREAM_PLUGIN_MODE.streaming">
+                        Streaming Export
+                      </option>
+                      <option :value="PLAYGROUND_STREAM_PLUGIN_MODE.sonic">
+                        Sonic Export
+                      </option>
+                    </select>
+                  </label>
+
+                  <label class="field">
+                    <span>实时流格式</span>
+                    <select v-model="state.streamPluginFormat">
+                      <option value="wav">WAV</option>
+                      <option value="pcm">PCM</option>
+                    </select>
+                  </label>
+
+                  <template
+                    v-if="
+                      state.streamPluginMode ===
+                      PLAYGROUND_STREAM_PLUGIN_MODE.sonic
+                    "
+                  >
+                    <label class="field">
+                      <span>speed</span>
+                      <input
+                        v-model.number="state.sonicSpeed"
+                        min="0.1"
+                        step="0.1"
+                        type="number"
+                      />
+                    </label>
+                    <label class="field">
+                      <span>pitch</span>
+                      <input
+                        v-model.number="state.sonicPitch"
+                        min="0.1"
+                        step="0.1"
+                        type="number"
+                      />
+                    </label>
+                    <label class="field">
+                      <span>rate</span>
+                      <input
+                        v-model.number="state.sonicRate"
+                        min="0.1"
+                        step="0.1"
+                        type="number"
+                      />
+                    </label>
+                    <label class="field">
+                      <span>volume</span>
+                      <input
+                        v-model.number="state.sonicVolume"
+                        min="0.1"
+                        step="0.1"
+                        type="number"
+                      />
+                    </label>
+                    <label class="field field-span">
+                      <span>blockMs</span>
+                      <input
+                        v-model.number="state.sonicBlockMs"
+                        min="100"
+                        step="10"
+                        type="number"
+                      />
+                    </label>
+                  </template>
+                </div>
+                <p class="panel-note">
+                  当前实时流通过 <code>plugin:stream</code> 对接 Streaming
+                  Player。切换仅允许在 idle 状态执行。
+                </p>
+              </section>
             </div>
 
             <div class="operations-stack">
@@ -1522,6 +1854,34 @@ onBeforeUnmount(() => {
             </button>
           </div>
 
+          <div class="subpanel-head" style="margin-top: 14px">
+            <div>
+              <p class="panel-kicker">Sonic Snapshot</p>
+              <h3>变速变调离线导出</h3>
+            </div>
+            <span class="badge">
+              {{ getRealtimePluginModeLabel(state.streamPluginMode) }}
+            </span>
+          </div>
+          <p class="panel-note">
+            这里始终基于 stopped 后的 PCM snapshot 做 Sonic 处理，再导出为
+            PCM/WAV， 与实时流插件是否为 Sonic 无关。
+          </p>
+          <div class="download-grid">
+            <button
+              :disabled="!canExportAudio"
+              @click="exportSonicSnapshot('pcm')"
+            >
+              Sonic PCM
+            </button>
+            <button
+              :disabled="!canExportAudio"
+              @click="exportSonicSnapshot('wav')"
+            >
+              Sonic WAV
+            </button>
+          </div>
+
           <div
             v-if="exportStats.length"
             class="stats-grid compact export-stats"
@@ -1538,6 +1898,20 @@ onBeforeUnmount(() => {
           <div v-else class="empty-state">
             <strong>导出结果待生成</strong>
             <p>停止录音后点击任一编码按钮，才会触发对应格式导出并下载。</p>
+          </div>
+
+          <div
+            v-if="sonicExportStats.length"
+            class="stats-grid compact export-stats"
+          >
+            <article
+              v-for="item in sonicExportStats"
+              :key="item.label"
+              class="stat-card"
+            >
+              <span>{{ item.label }}</span>
+              <strong>{{ item.value }}</strong>
+            </article>
           </div>
         </section>
 

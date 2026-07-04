@@ -14,6 +14,7 @@ TypeScript browser audio recorder library for microphone and `MediaStream` input
 - [Plugins](#plugins)
 - [`level-meter`](#level-meter)
 - [`streaming-export`](#streaming-export)
+- [`sonic-export`](#sonic-export)
 - [`asr-export`](#asr-export)
 - [`streaming-player`](#streaming-player)
 - [Storage](#storage)
@@ -87,7 +88,7 @@ console.log(summary.durationMs, wav.arrayBuffer.byteLength)
 - recording events: `statechange`, `frame:async`, `issue`
 - snapshot export: `pcm`, `wav`, `mp3`, `flac`, `ogg`, `webm`, `g711`, `aac`, `amr`, `ac3`, `eac3`
 - persistence backends: `storage/opfs`, `storage/indexeddb`
-- bundled plugins: `level-meter`, `streaming-export`, `asr-export`
+- bundled plugins: `level-meter`, `streaming-export`, `sonic-export`, `asr-export`
 
 ## API
 
@@ -225,6 +226,22 @@ Returns:
 | Type            | Description                          |
 | --------------- | ------------------------------------ |
 | `Promise<void>` | Resolves when plugin setup completes |
+
+#### `unuse(name)`
+
+Unregister a plugin or a plugin-family prefix while the recorder is idle.
+
+Parameters:
+
+| Name   | Type     | Description                                                                               |
+| ------ | -------- | ----------------------------------------------------------------------------------------- |
+| `name` | `string` | Plugin name or family prefix. `streaming-export` / `sonic-export` unload the whole family |
+
+Returns:
+
+| Type            | Description                            |
+| --------------- | -------------------------------------- |
+| `Promise<void>` | Resolves when plugin dispose completes |
 
 #### `registerEncoder(definition)`
 
@@ -364,6 +381,7 @@ Returns:
 | `@csnight/audio-recorder/codecs/g711`              | G.711 encoder                        |
 | `@csnight/audio-recorder/plugins/level-meter`      | `createLevelMeterPlugin()`           |
 | `@csnight/audio-recorder/plugins/streaming-export` | `createStreamingExportPlugin()`      |
+| `@csnight/audio-recorder/plugins/sonic-export`     | `createSonicExportPlugin()`          |
 | `@csnight/audio-recorder/plugins/asr-export`       | `createAsrExportPlugin()`            |
 | `@csnight/audio-recorder/plugins/streaming-player` | `createStreamingPlayer()`            |
 | `@csnight/audio-recorder/storage/opfs`             | `createOpfsPersistencePlugin()`      |
@@ -494,16 +512,7 @@ Event payload: `plugin:level`
 
 #### Introduction
 
-Real-time chunk export plugin. Feeds PCM frames into a `StreamEncoderDefinition` through `ChunkedEncoderBridge` and emits standardized stream packets while recording.
-
-Current behavior:
-
-- Supports any format with a matching `StreamEncoderDefinition`; built-in base codecs provide `pcm` and `wav`
-- Requires the caller to pass a matching encoder via `encoders`
-- Reuses one bridge instance across recorder sessions and resets it on `start()`
-- Prefers Worker encoding and can fall back to main-thread encoding when enabled
-- Flushes one final packet on `stop()` if the encoder still has buffered output; emits nothing if the encoder has no
-  remaining output
+Real-time chunk export plugin. Feeds PCM frames into a `StreamEncoderDefinition` through `ChunkedEncoderBridge` and emits standardized stream packets while recording. Built-in base codecs provide `pcm` and `wav`; callers pass matching encoders through `encoders`. The plugin reuses one bridge instance across recorder sessions, resets it on `start()`, prefers Worker encoding with optional main-thread fallback, and flushes one final packet on `stop()` only when buffered output remains.
 
 Event:
 
@@ -532,14 +541,10 @@ recorder.on("plugin:stream", ({ payload }) => {
 
 #### API
 
-The following types are exported from `@csnight/audio-recorder/plugins/streaming-export`.
-
-| Export                                 | Description                                           |
-| -------------------------------------- | ----------------------------------------------------- |
-| `createStreamingExportPlugin(options)` | Create a streaming export plugin                      |
-| `StreamEncoderDefinition`              | Public stream encoder definition passed by the caller |
-| `StreamingPacketPayload`               | Stream packet payload                                 |
-| `StreamingExportPluginOptions`         | Plugin options                                        |
+| Export                                 | Description                      |
+| -------------------------------------- | -------------------------------- |
+| `createStreamingExportPlugin(options)` | Create a streaming export plugin |
+| `StreamingExportPluginOptions`         | Plugin options                   |
 
 Options: `StreamingExportPluginOptions`
 
@@ -591,6 +596,103 @@ Event payload: `plugin:stream`
 | `isFinal`       | `boolean`                              | Final packet emitted from `flush()`; not emitted when the encoder has no remaining output |
 | `discontinuity` | `boolean \| undefined`                 | Gap marker set on the first packet after a `resume()`; for transport or playback layers   |
 | `metadata`      | `Record<string, unknown> \| undefined` | Reserved extensibility field                                                              |
+
+### `sonic-export`
+
+#### Introduction
+
+Real-time Sonic transform plugin. Accumulates PCM frames on a side path, applies Sonic speed / pitch / rate / volume processing, then emits standardized stream packets through a matching `StreamEncoderDefinition`. Real-time output supports `pcm` and `wav`, keeps the original channel layout, runs one main-thread Sonic pass after buffered source audio reaches `blockMs`, and emits `plugin:stream` packets without mutating the recorder core buffer. The same plugin instance also exposes offline transform helpers for snapshots or arbitrary PCM, and it is mutually exclusive with `streaming-export`; switch families only while idle via `recorder.unuse("streaming-export")` or `recorder.unuse("sonic-export")`.
+
+Event:
+
+- `plugin:stream`
+
+#### Quick Start
+
+```ts
+import { createRecorder } from "@csnight/audio-recorder"
+import { wavStreamEncoder } from "@csnight/audio-recorder/codecs/base"
+import { createSonicExportPlugin } from "@csnight/audio-recorder/plugins/sonic-export"
+
+const recorder = createRecorder()
+const sonic = createSonicExportPlugin({
+  format: "wav",
+  encoders: [wavStreamEncoder],
+  speed: 1.25,
+  blockMs: 200,
+})
+
+await recorder.use(sonic)
+
+recorder.on("plugin:stream", ({ payload }) => {
+  console.log(
+    payload.format,
+    payload.channels,
+    payload.chunk.byteLength,
+    payload.isFinal
+  )
+})
+```
+
+Offline transform example:
+
+```ts
+import { deserializePcmSnapshot } from "@csnight/audio-recorder"
+
+const snapshot = deserializePcmSnapshot(savedSnapshotBuffer)
+const processed = await sonic.transformSnapshot(snapshot, { speed: 0.85 })
+
+console.log(processed instanceof Int16Array, processed.length)
+```
+
+#### API
+
+| Export                             | Description                              |
+| ---------------------------------- | ---------------------------------------- |
+| `createSonicExportPlugin(options)` | Create a Sonic export plugin             |
+| `SonicExportFormat`                | Real-time output format union            |
+| `SonicExportOptions`               | Plugin options                           |
+| `SonicTransformOptions`            | Shared transform options                 |
+| `SonicExportPlugin`                | Plugin instance type with transform APIs |
+
+Options: `SonicExportOptions`
+
+| Field                     | Type                        | Default | Description                                                                                                             |
+| ------------------------- | --------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `format`                  | `"pcm" \| "wav"`            | `-`     | Real-time output format                                                                                                 |
+| `speed`                   | `number`                    | `1`     | Time-stretch without pitch shift                                                                                        |
+| `pitch`                   | `number`                    | `1`     | Pitch shift without time-stretch                                                                                        |
+| `rate`                    | `number`                    | `1`     | Combined rate change affecting both speed and pitch                                                                     |
+| `volume`                  | `number`                    | `1`     | Output gain multiplier                                                                                                  |
+| `blockMs`                 | `number`                    | `200`   | Source audio accumulated before one Sonic transform pass                                                                |
+| `encoders`                | `StreamEncoderDefinition[]` | `-`     | Available stream encoders; must include the selected `format`                                                           |
+| `encoderOptions`          | `unknown`                   | `-`     | Encoder-specific options passed to `ChunkedEncoderBridge`                                                               |
+| `allowMainThreadFallback` | `boolean`                   | `true`  | Fall back to main-thread chunk encoding when Worker execution is unavailable                                            |
+| `streamId`                | `string`                    | auto    | Fixed logical stream ID; stable across sessions. When omitted, evaluated once from `createStreamId()` or auto-generated |
+| `createStreamId`          | `() => string`              | `-`     | Lazy stream ID factory called once at plugin creation time; ignored when `streamId` is set                              |
+| `createSessionId`         | `() => string`              | auto    | Session ID factory called on each `start()`; defaults to `crypto.randomUUID()`-based ID                                 |
+| `metadata`                | `Record<string, unknown>`   | `-`     | Static metadata attached to every emitted packet                                                                        |
+
+Instance methods:
+
+| Member                                                     | Type                  | Description                                                                                               |
+| ---------------------------------------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------- |
+| `transformSnapshot(snapshot, options?)`                    | `Promise<Int16Array>` | Transform a `PcmBufferSnapshot` and return interleaved `Int16Array` PCM with the same channel layout      |
+| `transform(pcm, sampleRate, channelsOrOptions?, options?)` | `Promise<Int16Array>` | Transform arbitrary interleaved PCM. Defaults to mono; pass `channels` explicitly for multi-channel input |
+
+Event payload: `plugin:stream`
+
+| Field         | Type                     | Description                   |
+| ------------- | ------------------------ | ----------------------------- |
+| `controller`  | `RecorderController`     | Recorder instance             |
+| `sessionId`   | `string`                 | Current session identifier    |
+| `emittedAt`   | `number`                 | Event timestamp in ms         |
+| `pluginName`  | `string`                 | Plugin name                   |
+| `runtimeInfo` | `RecorderRuntimeInfo`    | Runtime info snapshot         |
+| `summary`     | `RecorderSessionSummary` | Session summary snapshot      |
+| `payload`     | `StreamingPacketPayload` | Encoded stream packet payload |
+
+`StreamingPacketPayload` fields are identical to the `streaming-export` section above.
 
 ### `asr-export`
 
@@ -675,16 +777,7 @@ Event payload: `plugin:asr:chunk`
 
 #### Introduction
 
-Standalone streaming audio playback engine. Receives `StreamingPacketPayload` packets from any source (WebSocket, recorder plugin, etc.), buffers them through a reorder and jitter pipeline, decodes them via caller-supplied decoders, and schedules continuous playback on an `AudioContext`.
-
-Key behaviors:
-
-- **Double-write with live-edge playback**: every `push()` writes to a persist-store; packets only enter the playback pipeline while the player is actively buffering or playing
-- **Live-edge start with startup pad**: while `state === "idle"`, packets accumulate only in the persist-store; `start()` resets old pipeline state and primes playback with only the most recent startup window (normally `targetLatencyMs`)
-- **Pause/resume without delay**: on `resume()` the pipeline is reset so backlogged live packets are discarded; fresh packets flow immediately
-- **Replay**: only available while paused; plays back the last N seconds from the persist-store and returns to paused state when done
-- **Persist-store modes**: `persistMode: "memory"` (default), `"indexeddb"`, or `"custom"`; the custom mode requires `player.use(store)` before `push()` / `start()`
-- **Drop-old backlog policy**: when the combined live backlog in `ReorderBuffer + JitterBuffer` exceeds `maxBufferMs`, oldest packets are dropped and `onPacketDrop` fires
+Standalone streaming audio playback engine. Receives `StreamingPacketPayload` packets from any source (WebSocket, recorder plugin, etc.), buffers them through a reorder and jitter pipeline, decodes them via caller-supplied decoders, and schedules continuous playback on an `AudioContext`. Every `push()` writes to a persist-store, `start()` and `resume()` reset the live pipeline to follow the live edge, `replay()` is only available while paused, `persistMode` supports `"memory"`, `"indexeddb"`, and `"custom"`, and `onPacketDrop` fires when live backlog across `ReorderBuffer + JitterBuffer` exceeds `maxBufferMs`.
 
 #### Quick Start
 
@@ -991,11 +1084,12 @@ Based on direct API usage in `src/` and `vite.config.ts` target `es2022`.
 
 ### Plugins
 
-| Plugin             | Chrome | Firefox | Safari | Notes                                |
-| ------------------ | -----: | ------: | -----: | ------------------------------------ |
-| `level-meter`      |     66 |      76 |   14.1 | PCM frame consumer                   |
-| `streaming-export` |     66 |      76 |   14.1 | Worker-based chunk export            |
-| `asr-export`       |     66 |      76 |   14.1 | PCM chunking and registered encoders |
+| Plugin             | Chrome | Firefox | Safari | Notes                                 |
+| ------------------ | -----: | ------: | -----: | ------------------------------------- |
+| `level-meter`      |     66 |      76 |   14.1 | PCM frame consumer                    |
+| `streaming-export` |     66 |      76 |   14.1 | Worker-based chunk export             |
+| `sonic-export`     |     66 |      76 |   14.1 | Bypass Sonic transform + chunk export |
+| `asr-export`       |     66 |      76 |   14.1 | PCM chunking and registered encoders  |
 
 ### Codecs
 
@@ -1082,7 +1176,7 @@ Notes:
 
 - the root entry does not auto-register encoders
 - plugins are opt-in and live under dedicated subpaths
-- `streaming-export` and `asr-export` are independent extensions
+- `streaming-export`, `sonic-export`, and `asr-export` are independent extensions
 - `opfs` and `indexeddb` are optional persistence backends
 
 Detailed chain document:

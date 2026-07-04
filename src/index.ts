@@ -18,6 +18,7 @@ export {
 
 export { RecorderController } from "./core/recorder-controller"
 export type { ExportEncoderDefinition, EncoderMap } from "./types"
+export type { PcmBufferSnapshot } from "./buffer/types"
 
 export type {
   RecorderPersistencePlugin,
