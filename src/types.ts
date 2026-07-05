@@ -1,5 +1,7 @@
 import type { PcmBufferSnapshot } from "./buffer/types"
 import type { RecorderController } from "./core/recorder-controller"
+import type { DtmfDetectEvent } from "./plugins/dtmf"
+import type { FrequencyFftEvent } from "./plugins/frequency-histogram"
 import type { RecorderLevelEvent } from "./plugins/level-meter"
 import type { RecorderPluginEventContext } from "./plugins/types"
 import type { RecorderStorageOptions } from "./storage"
@@ -247,6 +249,8 @@ export interface RecorderEventMap {
   "frame:async": RecorderFrameEvent
   issue: RecorderIssueEvent
   "plugin:level": RecorderPluginEventContext<RecorderLevelEvent>
+  "plugin:fft": RecorderPluginEventContext<FrequencyFftEvent>
+  "plugin:dtmf:detect": RecorderPluginEventContext<DtmfDetectEvent>
   [event: string]:
     | RecorderPluginEventContext
     | RecorderStateChangeEvent
