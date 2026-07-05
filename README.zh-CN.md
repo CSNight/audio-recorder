@@ -1044,14 +1044,14 @@ console.log(result.sampleRate, result.durationMs, result.channels)
 
 `@csnight/audio-recorder/plugins/nmn2pcm` 导出：
 
-| Export                    | Description            |
-| ------------------------- | ---------------------- |
-| `nmn2pcm(score, options)` | 将简谱转换为单声道 PCM |
-| `DEFAULT_NMN_OPTIONS`     | 默认简谱转换选项       |
-| `DYNAMIC_VELOCITY`        | 内置力度到速度映射表   |
+| Export                    | Description                |
+| ------------------------- | -------------------------- |
+| `nmn2pcm(score, options)` | 将简谱转换为单声道 PCM     |
+| `DEFAULT_NMN_OPTIONS`     | 默认简谱转换选项           |
+| `DYNAMIC_VELOCITY`        | 内置力度到速度映射表       |
 | `NMN_KEY_OFFSETS`         | 支持的调名与半音偏移映射表 |
-| `NmnConvertOptions`       | 转换选项               |
-| `NmnConvertResult`        | 转换结果               |
+| `NmnConvertOptions`       | 转换选项                   |
+| `NmnConvertResult`        | 转换结果                   |
 
 选项：`NmnConvertOptions`
 

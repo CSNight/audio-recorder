@@ -1045,14 +1045,14 @@ console.log(result.sampleRate, result.durationMs, result.channels)
 
 Exports from `@csnight/audio-recorder/plugins/nmn2pcm`:
 
-| Export                    | Description                        |
-| ------------------------- | ---------------------------------- |
-| `nmn2pcm(score, options)` | Convert an NMN score into mono PCM |
-| `DEFAULT_NMN_OPTIONS`     | Default NMN conversion options     |
-| `DYNAMIC_VELOCITY`        | Built-in dynamic-to-velocity map   |
+| Export                    | Description                                |
+| ------------------------- | ------------------------------------------ |
+| `nmn2pcm(score, options)` | Convert an NMN score into mono PCM         |
+| `DEFAULT_NMN_OPTIONS`     | Default NMN conversion options             |
+| `DYNAMIC_VELOCITY`        | Built-in dynamic-to-velocity map           |
 | `NMN_KEY_OFFSETS`         | Supported tonic names and semitone offsets |
-| `NmnConvertOptions`       | Conversion options                 |
-| `NmnConvertResult`        | Conversion result                  |
+| `NmnConvertOptions`       | Conversion options                         |
+| `NmnConvertResult`        | Conversion result                          |
 
 Options: `NmnConvertOptions`
 
