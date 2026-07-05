@@ -399,7 +399,10 @@ const topSnapshotGroups = computed(() => [
   {
     label: localize("运行时", "Runtime"),
     items: [
-      { label: localize("来源", "Source"), value: getSourceModeLabel(state.sourceMode) },
+      {
+        label: localize("来源", "Source"),
+        value: getSourceModeLabel(state.sourceMode),
+      },
       {
         label: localize("状态", "State"),
         value: getRecorderStateLabel(state.recorderState),
@@ -443,7 +446,10 @@ const topSnapshotGroups = computed(() => [
   {
     label: localize("存储", "Storage"),
     items: [
-      { label: localize("模式", "Mode"), value: getStorageModeLabel(state.storageMode) },
+      {
+        label: localize("模式", "Mode"),
+        value: getStorageModeLabel(state.storageMode),
+      },
       {
         label: localize("后端", "Backend"),
         value:
@@ -591,8 +597,8 @@ const storageHint = computed(() => {
 })
 
 const selectedDspPluginLabels = computed(() =>
-  DSP_PLUGIN_OPTIONS.filter((option) => state[option.key]).map(
-    (option) => getLocalizedCopy(option.label)
+  DSP_PLUGIN_OPTIONS.filter((option) => state[option.key]).map((option) =>
+    getLocalizedCopy(option.label)
   )
 )
 
@@ -722,10 +728,7 @@ async function switchRealtimeStreamPlugin() {
       )
     },
     "",
-    localize(
-      "正在切换实时流插件...",
-      "Switching realtime stream plugin..."
-    )
+    localize("正在切换实时流插件...", "Switching realtime stream plugin...")
   )
 }
 
@@ -1309,9 +1312,7 @@ function getStorageModeLabel(mode) {
 }
 
 function getPersistenceBackendLabel(backend) {
-  return backend === PLAYGROUND_PERSISTENCE_BACKEND.opfs
-    ? "OPFS"
-    : "IndexedDB"
+  return backend === PLAYGROUND_PERSISTENCE_BACKEND.opfs ? "OPFS" : "IndexedDB"
 }
 
 function getRealtimePluginModeLabel(mode) {
@@ -1802,14 +1803,15 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="page-shell">
-
     <!-- ═══════════════════════════════════════════════════
          HEADER BAR  ── compact single-row, no tiles
     ════════════════════════════════════════════════════ -->
     <header class="site-header topbar">
       <div class="site-header-left">
         <p class="eyebrow">Audio Recorder Lab</p>
-        <h1>{{ localize("浏览器录音工作台", "Browser Recorder Workspace") }}</h1>
+        <h1>
+          {{ localize("浏览器录音工作台", "Browser Recorder Workspace") }}
+        </h1>
         <p class="lede">
           {{
             localize(
@@ -1821,13 +1823,22 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="site-header-right">
-        <div class="locale-switch" :aria-label="localize('界面语言', 'Interface language')" role="group">
-          <span class="locale-switch-label">{{ localize("界面语言", "Language") }}</span>
+        <div
+          class="locale-switch"
+          :aria-label="localize('界面语言', 'Interface language')"
+          role="group"
+        >
+          <span class="locale-switch-label">{{
+            localize("界面语言", "Language")
+          }}</span>
           <div class="locale-switch-buttons">
             <button
               v-for="option in LOCALE_OPTIONS"
               :key="option.value"
-              :class="['locale-button', { 'locale-button-active': locale === option.value }]"
+              :class="[
+                'locale-button',
+                { 'locale-button-active': locale === option.value },
+              ]"
               :data-testid="`locale-${option.value}`"
               type="button"
               @click="setLocale(option.value)"
@@ -1845,7 +1856,11 @@ onBeforeUnmount(() => {
             getRecorderBadgeClass(state.recorderState),
             state.pendingActionLabel ? 'badge-accent' : '',
           ]"
-        >{{ state.pendingActionLabel || getRecorderStateLabel(state.recorderState) }}</span>
+          >{{
+            state.pendingActionLabel ||
+            getRecorderStateLabel(state.recorderState)
+          }}</span
+        >
 
         <!-- inline metrics strip -->
         <dl class="metrics-strip">
@@ -1860,8 +1875,12 @@ onBeforeUnmount(() => {
 
         <!-- context chips -->
         <div class="context-chips">
-          <span class="mini-chip">{{ getSourceModeLabel(state.sourceMode) }}</span>
-          <span class="mini-chip">{{ getStorageModeLabel(state.storageMode) }}</span>
+          <span class="mini-chip">{{
+            getSourceModeLabel(state.sourceMode)
+          }}</span>
+          <span class="mini-chip">{{
+            getStorageModeLabel(state.storageMode)
+          }}</span>
           <span class="mini-chip">
             {{
               state.storageMode === PLAYGROUND_STORAGE_MODE.memory
@@ -1877,18 +1896,21 @@ onBeforeUnmount(() => {
          MAIN WORKSPACE  ── three rails
     ════════════════════════════════════════════════════ -->
     <div class="workspace">
-
       <!-- ─── LEFT RAIL: configuration ─── -->
       <aside class="rail rail-config">
         <div class="rail-head">
           <span class="rail-title">setup.conf</span>
-          <span class="rail-meta">{{ localize("采集 / 管线 / DSP", "capture / pipeline / DSP") }}</span>
+          <span class="rail-meta">{{
+            localize("采集 / 管线 / DSP", "capture / pipeline / DSP")
+          }}</span>
         </div>
 
         <!-- §1 Capture Setup -->
         <section class="config-section">
           <div class="config-section-head">
-            <span class="section-kicker">{{ localize("采集设置", "Capture Setup") }}</span>
+            <span class="section-kicker">{{
+              localize("采集设置", "Capture Setup")
+            }}</span>
             <span class="badge">{{ localize("步骤 1", "Step 1") }}</span>
           </div>
 
@@ -1896,9 +1918,16 @@ onBeforeUnmount(() => {
             <legend>{{ localize("输入源", "Input Source") }}</legend>
             <label class="field">
               <span>{{ localize("来源", "Source") }}</span>
-              <select v-model="state.sourceMode" @change="handleSourceModeChange">
-                <option :value="PLAYGROUND_SOURCE_MODE.microphone">{{ localize("麦克风", "Microphone") }}</option>
-                <option :value="PLAYGROUND_SOURCE_MODE.externalTone">{{ localize("外部音调流", "External tone stream") }}</option>
+              <select
+                v-model="state.sourceMode"
+                @change="handleSourceModeChange"
+              >
+                <option :value="PLAYGROUND_SOURCE_MODE.microphone">
+                  {{ localize("麦克风", "Microphone") }}
+                </option>
+                <option :value="PLAYGROUND_SOURCE_MODE.externalTone">
+                  {{ localize("外部音调流", "External tone stream") }}
+                </option>
               </select>
             </label>
             <label
@@ -1908,20 +1937,26 @@ onBeforeUnmount(() => {
               <span>{{ localize("设备", "Device") }}</span>
               <div class="inline-field">
                 <select v-model="state.selectedDeviceId">
-                  <option value="">{{ localize("默认麦克风", "Default microphone") }}</option>
+                  <option value="">
+                    {{ localize("默认麦克风", "Default microphone") }}
+                  </option>
                   <option
                     v-for="device in state.microphoneDevices"
                     :key="device.deviceId"
                     :value="device.deviceId"
-                  >{{
-                    device.label ||
-                    localize(
-                      `麦克风 ${device.deviceId.slice(0, 8)}…`,
-                      `Microphone ${device.deviceId.slice(0, 8)}…`
-                    )
-                  }}</option>
+                  >
+                    {{
+                      device.label ||
+                      localize(
+                        `麦克风 ${device.deviceId.slice(0, 8)}…`,
+                        `Microphone ${device.deviceId.slice(0, 8)}…`
+                      )
+                    }}
+                  </option>
                 </select>
-                <button class="ghost-button" @click="refreshMicrophoneDevices">{{ localize("刷新", "Refresh") }}</button>
+                <button class="ghost-button" @click="refreshMicrophoneDevices">
+                  {{ localize("刷新", "Refresh") }}
+                </button>
               </div>
             </label>
           </fieldset>
@@ -1950,12 +1985,16 @@ onBeforeUnmount(() => {
         <!-- §2 Pipeline Setup -->
         <section class="config-section">
           <div class="config-section-head">
-            <span class="section-kicker">{{ localize("管线设置", "Pipeline Setup") }}</span>
+            <span class="section-kicker">{{
+              localize("管线设置", "Pipeline Setup")
+            }}</span>
             <span class="badge">{{ localize("步骤 2", "Step 2") }}</span>
           </div>
 
           <fieldset class="config-fieldset">
-            <legend>{{ localize("缓存与持久化", "Buffer & Persistence") }}</legend>
+            <legend>
+              {{ localize("缓存与持久化", "Buffer & Persistence") }}
+            </legend>
             <label class="field">
               <span>{{ localize("存储模式", "Storage Mode") }}</span>
               <select
@@ -1963,28 +2002,46 @@ onBeforeUnmount(() => {
                 :disabled="!canChangeStorageMode"
                 @change="handleStorageModeChange"
               >
-                <option :value="PLAYGROUND_STORAGE_MODE.memory">{{ localize("纯内存", "Memory only") }}</option>
-                <option :value="PLAYGROUND_STORAGE_MODE.persistent">{{ localize("持久化", "Persistent") }}</option>
-                <option :value="PLAYGROUND_STORAGE_MODE.auto">{{ localize("自动切换", "Auto switch") }}</option>
+                <option :value="PLAYGROUND_STORAGE_MODE.memory">
+                  {{ localize("纯内存", "Memory only") }}
+                </option>
+                <option :value="PLAYGROUND_STORAGE_MODE.persistent">
+                  {{ localize("持久化", "Persistent") }}
+                </option>
+                <option :value="PLAYGROUND_STORAGE_MODE.auto">
+                  {{ localize("自动切换", "Auto switch") }}
+                </option>
               </select>
             </label>
             <label class="field">
               <span>{{ localize("后端", "Backend") }}</span>
               <select
                 v-model="state.persistenceBackend"
-                :disabled="!canChangeStorageMode || state.storageMode === PLAYGROUND_STORAGE_MODE.memory"
+                :disabled="
+                  !canChangeStorageMode ||
+                  state.storageMode === PLAYGROUND_STORAGE_MODE.memory
+                "
                 @change="handleStorageModeChange"
               >
-                <option :value="PLAYGROUND_PERSISTENCE_BACKEND.indexeddb">IndexedDB</option>
-                <option :value="PLAYGROUND_PERSISTENCE_BACKEND.opfs">OPFS</option>
+                <option :value="PLAYGROUND_PERSISTENCE_BACKEND.indexeddb">
+                  IndexedDB
+                </option>
+                <option :value="PLAYGROUND_PERSISTENCE_BACKEND.opfs">
+                  OPFS
+                </option>
               </select>
             </label>
             <label class="field">
               <span>{{ localize("溢写阈值", "Spill Threshold") }}</span>
               <input
                 v-model.number="state.memoryThresholdBytes"
-                :disabled="!canChangeStorageMode || state.storageMode !== PLAYGROUND_STORAGE_MODE.auto"
-                min="1" step="1" type="number"
+                :disabled="
+                  !canChangeStorageMode ||
+                  state.storageMode !== PLAYGROUND_STORAGE_MODE.auto
+                "
+                min="1"
+                step="1"
+                type="number"
               />
             </label>
             <p class="field-note">{{ storageHint }}</p>
@@ -1997,13 +2054,19 @@ onBeforeUnmount(() => {
                 :disabled="!canSwitchRealtimePlugin"
                 class="ghost-button legend-action"
                 @click="switchRealtimeStreamPlugin"
-              >{{ localize("应用切换", "Apply Switch") }}</button>
+              >
+                {{ localize("应用切换", "Apply Switch") }}
+              </button>
             </legend>
             <label class="field">
               <span>{{ localize("流模式", "Stream Mode") }}</span>
               <select v-model="state.streamPluginMode">
-                <option :value="PLAYGROUND_STREAM_PLUGIN_MODE.streaming">Streaming Export</option>
-                <option :value="PLAYGROUND_STREAM_PLUGIN_MODE.sonic">Sonic Export</option>
+                <option :value="PLAYGROUND_STREAM_PLUGIN_MODE.streaming">
+                  Streaming Export
+                </option>
+                <option :value="PLAYGROUND_STREAM_PLUGIN_MODE.sonic">
+                  Sonic Export
+                </option>
               </select>
             </label>
             <label class="field">
@@ -2013,26 +2076,55 @@ onBeforeUnmount(() => {
                 <option value="pcm">PCM</option>
               </select>
             </label>
-            <template v-if="state.streamPluginMode === PLAYGROUND_STREAM_PLUGIN_MODE.sonic">
+            <template
+              v-if="
+                state.streamPluginMode === PLAYGROUND_STREAM_PLUGIN_MODE.sonic
+              "
+            >
               <label class="field">
                 <span>speed</span>
-                <input v-model.number="state.sonicSpeed" min="0.1" step="0.1" type="number" />
+                <input
+                  v-model.number="state.sonicSpeed"
+                  min="0.1"
+                  step="0.1"
+                  type="number"
+                />
               </label>
               <label class="field">
                 <span>pitch</span>
-                <input v-model.number="state.sonicPitch" min="0.1" step="0.1" type="number" />
+                <input
+                  v-model.number="state.sonicPitch"
+                  min="0.1"
+                  step="0.1"
+                  type="number"
+                />
               </label>
               <label class="field">
                 <span>rate</span>
-                <input v-model.number="state.sonicRate" min="0.1" step="0.1" type="number" />
+                <input
+                  v-model.number="state.sonicRate"
+                  min="0.1"
+                  step="0.1"
+                  type="number"
+                />
               </label>
               <label class="field">
                 <span>volume</span>
-                <input v-model.number="state.sonicVolume" min="0.1" step="0.1" type="number" />
+                <input
+                  v-model.number="state.sonicVolume"
+                  min="0.1"
+                  step="0.1"
+                  type="number"
+                />
               </label>
               <label class="field">
                 <span>blockMs</span>
-                <input v-model.number="state.sonicBlockMs" min="100" step="10" type="number" />
+                <input
+                  v-model.number="state.sonicBlockMs"
+                  min="100"
+                  step="10"
+                  type="number"
+                />
               </label>
             </template>
             <p class="field-note">
@@ -2049,12 +2141,16 @@ onBeforeUnmount(() => {
         <!-- §3 DSP -->
         <section class="config-section">
           <div class="config-section-head">
-            <span class="section-kicker">{{ localize("DSP 管线", "DSP Pipeline") }}</span>
+            <span class="section-kicker">{{
+              localize("DSP 管线", "DSP Pipeline")
+            }}</span>
             <button
               :disabled="!canSwitchDspPlugins"
               class="ghost-button"
               @click="switchDspPlugins"
-            >{{ localize("应用 DSP", "Apply DSP") }}</button>
+            >
+              {{ localize("应用 DSP", "Apply DSP") }}
+            </button>
           </div>
 
           <div class="dsp-list">
@@ -2072,21 +2168,24 @@ onBeforeUnmount(() => {
           </div>
           <p class="field-note">{{ dspHint }}</p>
         </section>
-
       </aside>
 
       <!-- ─── CENTER: action console + output ─── -->
       <div class="rail rail-center">
         <div class="rail-head">
           <span class="rail-title">session.ctrl</span>
-          <span class="rail-meta">{{ localize("控制 / 导出 / 播放器", "actions / export / player") }}</span>
+          <span class="rail-meta">{{
+            localize("控制 / 导出 / 播放器", "actions / export / player")
+          }}</span>
         </div>
 
         <!-- Action console -->
         <section class="center-block">
           <div class="center-block-head">
             <div>
-              <p class="section-kicker">{{ localize("操作台", "Action Console") }}</p>
+              <p class="section-kicker">
+                {{ localize("操作台", "Action Console") }}
+              </p>
               <h2>{{ localize("录音流程", "Recording Flow") }}</h2>
             </div>
             <span
@@ -2095,42 +2194,70 @@ onBeforeUnmount(() => {
                 getRecorderBadgeClass(state.recorderState),
                 state.pendingActionLabel ? 'badge-accent' : '',
               ]"
-            >{{ state.pendingActionLabel || getRecorderStateLabel(state.recorderState) }}</span>
+              >{{
+                state.pendingActionLabel ||
+                getRecorderStateLabel(state.recorderState)
+              }}</span
+            >
           </div>
 
           <!-- live stats row -->
           <div class="live-stats-row">
             <span class="live-stat">
-              <b>{{ localize("帧数", "Frames") }}</b><i>{{ state.frameCount }}</i>
+              <b>{{ localize("帧数", "Frames") }}</b
+              ><i>{{ state.frameCount }}</i>
             </span>
             <span class="live-stat">
-              <b>{{ localize("实时流", "Realtime") }}</b><i>{{ formatBytes(state.realtimeChunkBytes) }}</i>
+              <b>{{ localize("实时流", "Realtime") }}</b
+              ><i>{{ formatBytes(state.realtimeChunkBytes) }}</i>
             </span>
             <span class="live-stat">
               <b>ASR</b><i>{{ formatBytes(state.asrChunkBytes) }}</i>
             </span>
             <span class="live-stat">
               <b>{{ localize("导出", "Export") }}</b>
-              <i>{{ hasExportResult ? formatBytes(state.exportedBytes ?? 0) : localize("等待中", "Pending") }}</i>
+              <i>{{
+                hasExportResult
+                  ? formatBytes(state.exportedBytes ?? 0)
+                  : localize("等待中", "Pending")
+              }}</i>
             </span>
           </div>
 
           <!-- level meter -->
           <div class="meter-row">
-            <span>{{ localize("输入电平", "Input Level") }} {{ state.levelPercent }}%</span>
+            <span
+              >{{ localize("输入电平", "Input Level") }}
+              {{ state.levelPercent }}%</span
+            >
             <div class="meter-shell">
-              <div :style="{ width: `${state.levelPercent}%` }" class="meter-fill"></div>
+              <div
+                :style="{ width: `${state.levelPercent}%` }"
+                class="meter-fill"
+              ></div>
             </div>
           </div>
 
           <!-- recorder actions -->
           <div class="action-bar">
-            <button :disabled="!canOpen"   @click="openRecorder">{{ localize("打开", "Open") }}</button>
-            <button :disabled="!canStart"  @click="startRecorder">{{ localize("开始", "Start") }}</button>
-            <button :disabled="!canPause"  @click="pauseRecorder">{{ localize("暂停", "Pause") }}</button>
-            <button :disabled="!canResume" @click="resumeRecorder">{{ localize("恢复", "Resume") }}</button>
-            <button :disabled="!canStop"   @click="stopRecorder">{{ localize("停止", "Stop") }}</button>
-            <button :disabled="!canClose"  @click="closeRecorder">{{ localize("关闭", "Close") }}</button>
+            <button :disabled="!canOpen" @click="openRecorder">
+              {{ localize("打开", "Open") }}
+            </button>
+            <button :disabled="!canStart" @click="startRecorder">
+              {{ localize("开始", "Start") }}
+            </button>
+            <button :disabled="!canPause" @click="pauseRecorder">
+              {{ localize("暂停", "Pause") }}
+            </button>
+            <button :disabled="!canResume" @click="resumeRecorder">
+              {{ localize("恢复", "Resume") }}
+            </button>
+            <button :disabled="!canStop" @click="stopRecorder">
+              {{ localize("停止", "Stop") }}
+            </button>
+            <button :disabled="!canClose" @click="closeRecorder">
+              {{ localize("关闭", "Close") }}
+            </button>
           </div>
         </section>
 
@@ -2138,11 +2265,17 @@ onBeforeUnmount(() => {
         <section class="center-block">
           <div class="center-block-head">
             <div>
-              <p class="section-kicker">{{ localize("导出阶段", "Output Stage") }}</p>
+              <p class="section-kicker">
+                {{ localize("导出阶段", "Output Stage") }}
+              </p>
               <h2>{{ localize("导出与下载", "Export & Download") }}</h2>
             </div>
             <span class="badge">
-              {{ hasExportResult ? formatBytes(state.exportedBytes ?? 0) : localize("等待导出", "Waiting") }}
+              {{
+                hasExportResult
+                  ? formatBytes(state.exportedBytes ?? 0)
+                  : localize("等待导出", "Waiting")
+              }}
             </span>
           </div>
 
@@ -2171,13 +2304,22 @@ onBeforeUnmount(() => {
               :key="action.type"
               :disabled="action.disabled"
               @click="exportAudio(action.type)"
-            >{{ action.label }}</button>
+            >
+              {{ action.label }}
+            </button>
           </div>
 
           <!-- sonic export -->
           <div class="subsection-divider">
-            <span>{{ localize("Sonic Snapshot — 变速变调离线导出", "Sonic Snapshot — Offline speed and pitch export") }}</span>
-            <span class="badge">{{ getRealtimePluginModeLabel(state.streamPluginMode) }}</span>
+            <span>{{
+              localize(
+                "Sonic Snapshot — 变速变调离线导出",
+                "Sonic Snapshot — Offline speed and pitch export"
+              )
+            }}</span>
+            <span class="badge">{{
+              getRealtimePluginModeLabel(state.streamPluginMode)
+            }}</span>
           </div>
           <p class="field-note">
             {{
@@ -2188,8 +2330,18 @@ onBeforeUnmount(() => {
             }}
           </p>
           <div class="export-btn-row export-btn-row-sm">
-            <button :disabled="!canExportAudio" @click="exportSonicSnapshot('pcm')">Sonic PCM</button>
-            <button :disabled="!canExportAudio" @click="exportSonicSnapshot('wav')">Sonic WAV</button>
+            <button
+              :disabled="!canExportAudio"
+              @click="exportSonicSnapshot('pcm')"
+            >
+              Sonic PCM
+            </button>
+            <button
+              :disabled="!canExportAudio"
+              @click="exportSonicSnapshot('wav')"
+            >
+              Sonic WAV
+            </button>
           </div>
 
           <!-- export results -->
@@ -2222,7 +2374,9 @@ onBeforeUnmount(() => {
               <p class="section-kicker">Streaming Player</p>
               <h2>{{ localize("实时播放链路", "Realtime Playback Chain") }}</h2>
             </div>
-            <span class="badge">{{ getRealtimePluginModeLabel(state.streamPluginMode) }}</span>
+            <span class="badge">{{
+              getRealtimePluginModeLabel(state.streamPluginMode)
+            }}</span>
           </div>
           <p class="field-note">
             {{
@@ -2234,24 +2388,33 @@ onBeforeUnmount(() => {
           </p>
           <StreamingPlayerDemo :locale="locale" :recorder="recorderRef" />
         </section>
-
       </div>
 
       <!-- ─── RIGHT RAIL: diagnostics + logs ─── -->
       <aside class="rail rail-info side-column">
         <div class="rail-head">
           <span class="rail-title">diag.log</span>
-          <span class="rail-meta">{{ localize("运行时 / 存储 / 事件", "runtime / storage / events") }}</span>
+          <span class="rail-meta">{{
+            localize("运行时 / 存储 / 事件", "runtime / storage / events")
+          }}</span>
         </div>
 
         <!-- Diagnostics -->
         <section class="info-section">
           <div class="info-section-head">
-            <span class="section-kicker">{{ localize("诊断", "Diagnostics") }}</span>
+            <span class="section-kicker">{{
+              localize("诊断", "Diagnostics")
+            }}</span>
             <button
               class="ghost-button"
               @click="state.diagnosticsRawView = !state.diagnosticsRawView"
-            >{{ state.diagnosticsRawView ? localize("结构化", "Structured") : "JSON" }}</button>
+            >
+              {{
+                state.diagnosticsRawView
+                  ? localize("结构化", "Structured")
+                  : "JSON"
+              }}
+            </button>
           </div>
 
           <template v-if="state.diagnosticsRawView">
@@ -2266,14 +2429,18 @@ onBeforeUnmount(() => {
               :key="group.label"
               class="diag-group"
             >
-              <p class="diag-group-label">{{ group.label }} <small>{{ group.rows.length }}</small></p>
+              <p class="diag-group-label">
+                {{ group.label }} <small>{{ group.rows.length }}</small>
+              </p>
               <dl v-if="group.rows.length" class="kv-grid">
                 <template v-for="row in group.rows" :key="row.label">
                   <dt>{{ row.label }}</dt>
                   <dd>{{ row.value }}</dd>
                 </template>
               </dl>
-              <p v-else class="field-note">{{ localize("暂无数据。", "No data yet.") }}</p>
+              <p v-else class="field-note">
+                {{ localize("暂无数据。", "No data yet.") }}
+              </p>
             </div>
           </template>
         </section>
@@ -2282,7 +2449,9 @@ onBeforeUnmount(() => {
         <section class="info-section info-section-logs">
           <div class="info-section-head">
             <span class="section-kicker">{{ localize("日志", "Logs") }}</span>
-            <button class="ghost-button" @click="state.logs = []">{{ localize("清空", "Clear") }}</button>
+            <button class="ghost-button" @click="state.logs = []">
+              {{ localize("清空", "Clear") }}
+            </button>
           </div>
           <ul class="log-list log-panel-body">
             <li
@@ -2292,7 +2461,9 @@ onBeforeUnmount(() => {
             >
               <div class="log-head">
                 <span class="log-time">{{ item.time }}</span>
-                <span :class="['log-type', item.type]">{{ getLogTypeLabel(item.type) }}</span>
+                <span :class="['log-type', item.type]">{{
+                  getLogTypeLabel(item.type)
+                }}</span>
               </div>
               <p class="log-message">{{ item.message }}</p>
             </li>
@@ -2308,7 +2479,6 @@ onBeforeUnmount(() => {
             </li>
           </ul>
         </section>
-
       </aside>
     </div>
   </main>
