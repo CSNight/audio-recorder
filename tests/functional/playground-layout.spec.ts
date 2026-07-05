@@ -72,14 +72,32 @@ test.describe("playground layout inspection", () => {
     const playerShell = page.locator(".player-section-shell")
     await playerShell.scrollIntoViewIfNeeded()
 
-    await page.getByRole("button", { name: "createPlayer()" }).click()
-    await page.getByRole("button", { name: "unbind null" }).click()
+    await page.getByTestId("player-create").click()
+    await page.getByTestId("player-unbind-state").click()
 
-    const startButton = page.getByRole("button", { name: "start()" })
+    const startButton = page.getByTestId("player-start")
     await expect(startButton).toBeEnabled()
 
     await startButton.click()
 
     await expect(startButton).toBeDisabled({ timeout: 5_000 })
+  })
+
+  test("playground language toggle updates player copy", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 1200 })
+    await page.goto("/")
+
+    await page.getByTestId("locale-en-US").click()
+
+    const playerShell = page.locator(".player-section-shell")
+    await playerShell.scrollIntoViewIfNeeded()
+
+    await expect(playerShell).toContainText("Realtime Playback Chain")
+    await expect(page.getByTestId("player-create")).toHaveText("Create Player")
+
+    await page.getByTestId("locale-zh-CN").click()
+
+    await expect(playerShell).toContainText("实时播放链路")
+    await expect(page.getByTestId("player-create")).toHaveText("创建播放器")
   })
 })
