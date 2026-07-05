@@ -58,7 +58,9 @@ describe("normalizeSonicTransformOptions", () => {
   })
 
   it("falls back to default for undefined values", () => {
-    const opts = normalizeSonicTransformOptions({ speed: undefined as unknown as number })
+    const opts = normalizeSonicTransformOptions({
+      speed: undefined as unknown as number,
+    })
     expect(opts.speed).toBe(1)
   })
 })

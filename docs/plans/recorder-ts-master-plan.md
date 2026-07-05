@@ -31,7 +31,7 @@
 - 对浏览器 `Deprecated` API，只允许作为降级路径，不作为默认主实现
 - 写代码时优先保证命名清晰、边界直接，避免为了抽象而抽象
 - 类型、状态与生命周期必须可被测试和事件观测验证
-- 本次整理中，除已落地的 `streaming-player`、`sonic-export`、`dsp` 相关段落外，`Phase 5`、`Phase 6` 其余未开发内容保持原文不变，`14` 节及之后内容保持原文不变
+- 本次整理中，除已落地的 `streaming-player`、`sonic-export`、`frequency-histogram`、`dtmf`、`nmn2pcm`、`dsp` 相关段落外，`Phase 5`、`Phase 6` 其余未开发内容保持原文不变，`14` 节及之后内容保持原文不变
 
 ---
 
@@ -79,9 +79,9 @@
 - `checkRecorderCapability()` 输入能力预检
 - `media-recorder / audio-worklet / script-processor` 三种输入策略
 - `frame:async`、`statechange`、`issue` 三类核心事件
-- `plugin:level`、`plugin:stream`、`plugin:asr:chunk` 三类稳定插件事件
+- `plugin:level`、`plugin:stream`、`plugin:asr:chunk`、`plugin:fft`、`plugin:dtmf:detect` 五类稳定插件事件
 - `storage/opfs`、`storage/indexeddb` 两个可选持久化子路径
-- `codecs/base`、`codecs/mp3` 两组编解码器子路径
+- `codecs/base`、`codecs/mp3` 等编解码器子路径，以及 `plugins/frequency-histogram`、`plugins/dtmf`、`plugins/nmn2pcm` 等扩展子路径
 
 ### 2.2 当前核心链路
 
@@ -159,7 +159,12 @@ window.Recorder = ...
 - `/audio-recorder/plugins/level-meter`
 - `/audio-recorder/plugins/streaming-export`
 - `/audio-recorder/plugins/sonic-export`
+- `/audio-recorder/plugins/asr-export`
+- `/audio-recorder/plugins/frequency-histogram`
+- `/audio-recorder/plugins/dtmf`
+- `/audio-recorder/plugins/nmn2pcm`
 - `/audio-recorder/plugins/dsp`
+- `/audio-recorder/plugins/streaming-player`
 - `/audio-recorder/storage/opfs`
 - `/audio-recorder/storage/indexeddb`
 
@@ -181,7 +186,7 @@ window.Recorder = ...
 | Pipeline | `src/pipeline` | PCM 帧进入缓冲前的统一入口                                  |
 | Buffer   | `src/buffer`   | 内存缓冲、持久化缓冲、snapshot 合并                         |
 | Codecs   | `src/codecs`   | PCM/WAV/MP3 快照导出与 chunk 编码定义                       |
-| Plugins  | `src/plugins`  | level-meter、streaming-export、sonic-export、dsp 及插件宿主 |
+| Plugins  | `src/plugins`  | level-meter、streaming-export、sonic-export、asr-export、frequency-histogram、dtmf、nmn2pcm、dsp 及插件宿主 |
 | Storage  | `src/storage`  | 持久化协议、OPFS / IndexedDB 插件                           |
 | Workers  | `src/workers`  | chunked encoder bridge 与 Worker core                       |
 | Utils    | `src/utils`    | 音频帧转换、重采样、snapshot 序列化                         |
@@ -215,6 +220,7 @@ window.Recorder = ...
 - 控制器事件总线与插件事件总线分离
 - `level-meter` 通过 `plugin:level` 暴露结果
 - `streaming-export` / `sonic-export` 通过 `plugin:stream` 暴露实时编码分片
+- `frequency-histogram` 通过 `plugin:fft` 暴露频谱柱数据，`dtmf` 通过 `plugin:dtmf:detect` 暴露按键识别结果
 
 ### 4.3 来自 `opus-recorder`
 
@@ -451,6 +457,8 @@ export interface RecorderPlugin {
 - `plugin:level`
 - `plugin:stream`
 - `plugin:asr:chunk`
+- `plugin:fft`
+- `plugin:dtmf:detect`
 
 其中：
 
@@ -498,7 +506,7 @@ export interface RecorderPlugin {
 
 ## 9. 阶段划分
 
-项目仍按六个阶段理解，但当前仓库已经完成前四个阶段的大部分主线，并已提前落地 `streaming-player` 与 `sonic-export`，形成 `Phase 4.6 + Phase 5/6` 的混合可用基线。
+项目仍按六个阶段理解，但当前仓库已经完成前四个阶段的大部分主线，并已提前落地 `streaming-player`、`sonic-export`、`frequency-histogram`、`dtmf`、`nmn2pcm` 与 `dsp`，形成 `Phase 4.6 + Phase 5/6` 的混合可用基线。
 
 阶段状态建议按以下方式理解：
 
@@ -508,7 +516,7 @@ export interface RecorderPlugin {
 - `Phase 3`：已完成
 - `Phase 4`：已完成主线并沉淀为当前基线
 - `Phase 5`：`streaming-player` 已落地，其余保持原方案
-- `Phase 6`：`sonic-export`、`dsp` 已落地，其余保持原方案
+- `Phase 6`：`sonic-export`、`frequency-histogram`、`dtmf`、`nmn2pcm`、`dsp` 已落地，其余保持原方案
 
 ## Phase 0：基线与工程初始化
 
@@ -679,6 +687,11 @@ await recorder.use(
 - `./plugins/level-meter`
 - `./plugins/streaming-export`
 - `./plugins/sonic-export`
+- `./plugins/asr-export`
+- `./plugins/frequency-histogram`
+- `./plugins/dtmf`
+- `./plugins/nmn2pcm`
+- `./plugins/streaming-player`
 - `./storage/opfs`
 - `./storage/indexeddb`
 - `./codecs/base`
@@ -928,7 +941,7 @@ streaming-export 插件当前只内置 PCM / WAV，MP3 通过 codec entry 注册
 目标：
 
 - 实现六类增强插件：流播放器、变速变调、频谱 FFT、DTMF、简谱转 PCM，并补齐 DSP 滤波器插件。
-- 所有插件遵循现有 `RecorderPlugin` 接口，独立启停，不污染核心控制器。
+- 录音期扩展优先复用现有 `RecorderPlugin` 接口；`streaming-player` 与 `nmn2pcm` 作为独立子路径能力存在，不反向污染核心控制器。
 
 ### 6.1 插件总览
 
@@ -938,7 +951,7 @@ streaming-export 插件当前只内置 PCM / WAV，MP3 通过 codec entry 注册
 | ②    | 变速变调导出（SonicExport）    | `plugins/sonic-export`        | `extensions/sonic.js` + `teach.sonic.transform.js`                 | 中     |
 | ③    | 频谱 FFT（FrequencyHistogram） | `plugins/frequency-histogram` | `extensions/frequency.histogram.view.js` + `extensions/lib.fft.js` | 中     |
 | ④    | DTMF 编解码                    | `plugins/dtmf`                | `extensions/dtmf.encode.js` + `extensions/dtmf.decode.js`          | 中     |
-| ⑤    | 简谱转 PCM                     | `plugins/nmn2pcm`             | `extensions/create-audio.nmn2pcm.js`                               | 低     |
+| ⑤    | 简谱转 PCM                     | `plugins/nmn2pcm`             | `extensions/create-audio.plugin.js`                                | 低     |
 | ⑥    | DSP 滤波器                     | `plugins/dsp`                 | 无直接参照（高通/低通/噪声门算法）                                 | 中     |
 
 ### 6.2 流播放器插件（StreamingPlayer）
@@ -1221,8 +1234,7 @@ src/plugins/frequency-histogram/
   index.ts
   plugin.ts             ← createFrequencyHistogramPlugin()
   fft.ts                ← FFT 算法实现（参照 vendor lib.fft.js）
-  types.ts              ← FrequencyHistogramOptions / FrequencyData
-  public.ts
+  types.ts              ← FrequencyHistogramOptions / FrequencyFftEvent
 ```
 
 核心 API：
@@ -1237,17 +1249,19 @@ export interface FrequencyHistogramOptions {
   frameInterval?: number
 }
 
-export interface FrequencyData {
+export interface FrequencyFftEvent {
   /** 各频率组的幅度（0-1 归一化） */
   bars: Float32Array
   /** 分析时间戳 */
   timestampMs: number
+  fftSize: number
+  sampleRate: number
 }
 
 export function createFrequencyHistogramPlugin(
   options?: FrequencyHistogramOptions
 ): RecorderPlugin
-// 插件通过 "plugin:frequency-histogram:data" 事件发出 FrequencyData
+// 插件通过 "plugin:fft" 事件发出 FrequencyFftEvent
 ```
 
 实现要点：
@@ -1255,6 +1269,7 @@ export function createFrequencyHistogramPlugin(
 - FFT 算法参照 `vendor/lib.fft.js` 移植为 TypeScript
 - `onFrame` 时累积 PCM 数据，满足 `fftSize` 窗口后执行 FFT
 - 输出频率幅度数组，按 `barCount` 分组（对数刻度分组，参照 vendor 实现）
+- 当频谱接近静音门限时输出全 0 柱数据，避免 UI 端持续保留脏峰值
 - 多声道时取 `planar[0]`（左声道）做分析，不混合双声道
 
 ### 6.5 DTMF 插件（DTMFCodec）
@@ -1271,8 +1286,7 @@ src/plugins/dtmf/
   encode.ts             ← DTMF 编码（按键 → PCM）
   decode.ts             ← DTMF 解码（PCM → 按键序列，实时识别）
   plugin.ts             ← createDtmfDecoderPlugin()（录音时实时解码插件）
-  types.ts              ← DtmfKey / DtmfEncodeOptions / DtmfDecodeResult
-  public.ts
+  types.ts              ← DtmfKey / DtmfEncodeOptions / DtmfDecodeOptions / DtmfDetectEvent
 ```
 
 核心 API：
@@ -1303,30 +1317,35 @@ export function encodeDtmf(
 ): Int16Array
 
 // 解码插件：在录音时实时识别 DTMF 音调
-export function createDtmfDecoderPlugin(): RecorderPlugin
-// 通过 "plugin:dtmf:detected" 事件发出识别到的按键
+export function createDtmfDecoderPlugin(
+  options?: DtmfDecodeOptions
+): RecorderPlugin
+// 通过 "plugin:dtmf:detect" 事件发出识别到的按键
 ```
 
 实现要点：
 
 - 编码：每个 DTMF 音调由两个正弦波叠加（行频 + 列频），参照 vendor `dtmf.encode.js` 频率表
 - 解码：Goertzel 算法检测 8 个 DTMF 频率的能量，参照 vendor `dtmf.decode.js`
-- 解码插件 `onFrame` 时对每帧做 Goertzel 检测，识别到完整按键时发出事件
+- 解码插件 `onFrame` 时先下混到单声道，再按 `frameWindowMs / minToneMs / minGapMs / energyThreshold` 做 Goertzel 检测，识别到完整按键时发出事件
 
 ### 6.6 简谱转 PCM 插件（NMN2PCM）
 
 **功能**：将简谱字符串（数字简谱 ABC 记谱法）转换为 PCM 音频数据，作为音频素材生成工具。
 
-**参照**：`vendor/Recorder-master/src/extensions/create-audio.nmn2pcm.js`
+**参照**：`vendor/Recorder-master/src/extensions/create-audio.plugin.js`
 
 目录结构：
 
 ```
 src/plugins/nmn2pcm/
   index.ts
-  nmn2pcm.ts            ← 简谱解析 + 正弦波合成（参照 vendor create-audio.nmn2pcm.js）
-  types.ts              ← NmnNote / NmnScore / NmnConvertOptions / NmnConvertResult
-  public.ts
+  plugin.ts            ← nmn2pcm() 入口
+  parser.ts            ← 简谱解析
+  compiler.ts          ← 调号 / 移调编译
+  synth.ts             ← 正弦波合成
+  consts.ts            ← 默认参数与调号辅助
+  types.ts             ← NmnConvertOptions / NmnConvertResult / 解析与编译中间类型
 ```
 
 核心 API（独立函数，不是 RecorderPlugin）：
@@ -1336,12 +1355,15 @@ export interface NmnConvertOptions {
   sampleRate?: number // 默认 16000
   bpm?: number // 每分钟拍数，默认 60
   volume?: number // 0-1，默认 0.5
+  key?: string // 默认 "C"
+  transpose?: number // 默认 0
 }
 
 export interface NmnConvertResult {
   data: Int16Array // 生成的 PCM 数据
   sampleRate: number
   durationMs: number
+  channels: 1
 }
 
 /**
@@ -1357,8 +1379,9 @@ export function nmn2pcm(
 
 实现约束：
 
-- 纯 JS 实现，无外部依赖
+- 纯 TypeScript 实现，无外部依赖
 - 正弦波合成，不使用 Web Audio API（输出为内存 PCM，可直接喂给 StreamPlayer 或写入 WAV）
+- 支持 `key` 与 `transpose`，先按调号解析音级，再叠加半音移调
 
 ### 6.7 DSP 滤波器插件
 
@@ -1440,10 +1463,10 @@ fileURLToPath(new URL("./src/plugins/sonic-export/index.ts", import.meta.url)),
     倍，音调保持不变（WSOLA 算法）；调用 `transform(pcm, sampleRate, channels, { pitch: 1.5 })` 同样能独立工作
   - **bypass 验证**：`SonicExportPlugin` 的 `onFrame` 不修改主缓冲区，录音核心的 `PcmBufferSnapshot` 保存的是原始
     PCM，与未挂载插件时完全一致
-- 频谱 FFT：录音时每帧可收到 `plugin:frequency-histogram:data` 事件，数组长度符合 `barCount`
+- 频谱 FFT：录音时可收到 `plugin:fft` 事件，`bars.length` 与 `barCount` 一致，且负载中包含 `fftSize / sampleRate`
 - DTMF 编码：`encodeDtmf(["1","2","3"])` 输出可被电话系统识别的 DTMF 音频
-- DTMF 解码：播放标准 DTMF 音频时插件能正确识别按键序列
-- 简谱转 PCM：`nmn2pcm("1234567")` 输出可播放的 PCM 数据
+- DTMF 解码：播放标准 DTMF 音频时插件能通过 `plugin:dtmf:detect` 正确识别按键序列
+- 简谱转 PCM：`nmn2pcm("1234567")` 输出可播放的单声道 PCM 数据
 - DSP 滤波器：
   - **onBeforeFrame 链路**：挂载高通滤波插件后，录音导出的 PCM/WAV/MP3 文件中低频噪声明显衰减（与未挂载对比可量化），而非仅影响监听播放
   - **onFlush 冲洗**：停止录音时 `onFlush` 被调用，IIR 滤波器残余状态被正确冲洗并附加到末尾帧，导出文件结尾无截断失真

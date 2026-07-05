@@ -16,6 +16,9 @@
 - [`sonic-export`](#sonic-export)
 - [`dsp`](#dsp)
 - [`asr-export`](#asr-export)
+- [`frequency-histogram`](#frequency-histogram)
+- [`dtmf`](#dtmf)
+- [`nmn2pcm`](#nmn2pcm)
 - [`streaming-player`](#streaming-player)
 - [存储](#存储)
 - [`storage/opfs`](#storageopfs)
@@ -35,7 +38,7 @@
 - 浏览器输入后端自动降级与回退
 - PCM 帧事件与内存内音频处理
 - 录音快照导出与流式音频分片导出
-- 面向电平检测、播放、ASR 的插件扩展
+- 面向电平检测、频谱分析、播放、ASR 与简谱转 PCM 的插件扩展
 - 使用 OPFS 和 IndexedDB 的长时录音持久化能力
 
 构建目标：`es2022`。
@@ -88,7 +91,7 @@ console.log(summary.durationMs, wav.arrayBuffer.byteLength)
 - 录音事件：`statechange`、`frame:async`、`issue`
 - 快照导出：`pcm`、`wav`、`mp3`、`flac`、`ogg`、`webm`、`g711`、`aac`、`amr`、`ac3`、`eac3`
 - 持久化后端：`storage/opfs`、`storage/indexeddb`
-- 内置插件：`level-meter`、`streaming-export`、`sonic-export`、`dsp`、`asr-export`
+- 内置插件子路径：`level-meter`、`streaming-export`、`sonic-export`、`dsp`、`asr-export`、`frequency-histogram`、`dtmf`、`nmn2pcm`、`streaming-player`
 
 ## API
 
@@ -384,6 +387,9 @@ import {
 | `@csnight/audio-recorder/plugins/sonic-export`     | `createSonicExportPlugin()`                                                    |
 | `@csnight/audio-recorder/plugins/dsp`              | `createHighpassPlugin()` / `createLowpassPlugin()` / `createNoiseGatePlugin()` |
 | `@csnight/audio-recorder/plugins/asr-export`       | `createAsrExportPlugin()`                                                      |
+| `@csnight/audio-recorder/plugins/frequency-histogram` | `createFrequencyHistogramPlugin()`                                          |
+| `@csnight/audio-recorder/plugins/dtmf`             | `encodeDtmf()` / `lookupDtmfFrequencies()` / `createDtmfDecoderPlugin()`       |
+| `@csnight/audio-recorder/plugins/nmn2pcm`          | `nmn2pcm()`                                                                    |
 | `@csnight/audio-recorder/plugins/streaming-player` | `createStreamingPlayer()`                                                      |
 | `@csnight/audio-recorder/storage/opfs`             | `createOpfsPersistencePlugin()`                                                |
 | `@csnight/audio-recorder/storage/indexeddb`        | `createIndexedDbPersistencePlugin()`                                           |
@@ -852,6 +858,217 @@ Event payload: `plugin:asr:chunk`
 | `channels`    | `1`              | 固定单声道           |
 | `isFinal`     | `boolean`        | 是否为最终 chunk     |
 
+### `frequency-histogram`
+
+#### Introduction
+
+实时 FFT 分析插件。会从 `frame.planar[0]` 累积 PCM 样本，用纯 TypeScript 的 radix-2 FFT 做定长窗口分析，并向 UI 或其他消费方发出归一化频谱柱数据。
+
+事件：
+
+- `plugin:fft`
+
+#### Quick Start
+
+```ts
+import { createRecorder } from "@csnight/audio-recorder"
+import { createFrequencyHistogramPlugin } from "@csnight/audio-recorder/plugins/frequency-histogram"
+
+const recorder = createRecorder()
+
+await recorder.use(
+  createFrequencyHistogramPlugin({
+    fftSize: 2048,
+    barCount: 48,
+    frameInterval: 1,
+  })
+)
+
+recorder.on("plugin:fft", ({ payload }) => {
+  console.log(payload.bars.length, payload.timestampMs, payload.sampleRate)
+})
+```
+
+#### API
+
+`@csnight/audio-recorder/plugins/frequency-histogram` 导出：
+
+| Export                                    | Description              |
+| ----------------------------------------- | ------------------------ |
+| `createFrequencyHistogramPlugin(options)` | 创建 FFT 分析插件        |
+| `FrequencyHistogramOptions`               | 插件选项                 |
+| `FrequencyFftEvent`                       | `plugin:fft` 事件负载类型 |
+
+选项：`FrequencyHistogramOptions`
+
+| Field           | Type                          | Default | Description                     |
+| --------------- | ----------------------------- | ------- | ------------------------------- |
+| `fftSize`       | `512 \| 1024 \| 2048 \| 4096` | `2048`  | FFT 窗口大小，必须为 2 的幂     |
+| `barCount`      | `number`                      | `64`    | 输出频谱柱数量                  |
+| `frameInterval` | `number`                      | `1`     | 每隔 N 个已接收 PCM 帧分析一次  |
+
+Event payload: `plugin:fft`
+
+| Field         | Type                     | Description    |
+| ------------- | ------------------------ | -------------- |
+| `controller`  | `RecorderController`     | 录音器实例     |
+| `sessionId`   | `string`                 | 当前会话 ID    |
+| `emittedAt`   | `number`                 | 毫秒时间戳     |
+| `pluginName`  | `string`                 | 插件名         |
+| `runtimeInfo` | `RecorderRuntimeInfo`    | 运行时信息快照 |
+| `summary`     | `RecorderSessionSummary` | 会话摘要快照   |
+| `payload`     | `FrequencyFftEvent`      | FFT 负载       |
+
+`FrequencyFftEvent` 字段：
+
+| Field         | Type           | Description                    |
+| ------------- | -------------- | ------------------------------ |
+| `bars`        | `Float32Array` | `[0, 1]` 归一化频谱柱数据      |
+| `timestampMs` | `number`       | 当前 FFT 窗口结束时刻          |
+| `fftSize`     | `number`       | 实际使用的 FFT 窗口大小        |
+| `sampleRate`  | `number`       | 被分析 PCM 的采样率            |
+
+### `dtmf`
+
+#### Introduction
+
+DTMF 辅助子路径，包含两类能力：通过 `encodeDtmf()` 离线合成电话按键音，以及通过 `createDtmfDecoderPlugin()` 在录音过程中实时识别按键音。解码插件会先下混到单声道，再使用 Goertzel 检测器识别稳定音调，并通过插件事件总线输出结果。
+
+事件：
+
+- `plugin:dtmf:detect`
+
+#### Quick Start
+
+```ts
+import { createRecorder } from "@csnight/audio-recorder"
+import {
+  createDtmfDecoderPlugin,
+  encodeDtmf,
+} from "@csnight/audio-recorder/plugins/dtmf"
+
+const recorder = createRecorder()
+const tone = encodeDtmf(["1", "2", "3"], { sampleRate: 8000 })
+
+await recorder.use(
+  createDtmfDecoderPlugin({
+    frameWindowMs: 40,
+    minToneMs: 60,
+    minGapMs: 30,
+  })
+)
+
+recorder.on("plugin:dtmf:detect", ({ payload }) => {
+  console.log(payload.key, payload.durationMs, tone.length)
+})
+```
+
+#### API
+
+`@csnight/audio-recorder/plugins/dtmf` 导出：
+
+| Export                             | Description                  |
+| ---------------------------------- | ---------------------------- |
+| `encodeDtmf(keys, options)`        | 生成 DTMF PCM 按键音         |
+| `lookupDtmfFrequencies(key)`       | 返回某个按键对应的行/列频率  |
+| `createDtmfDecoderPlugin(options)` | 创建实时 DTMF 检测插件       |
+| `DtmfKey`                          | 支持的按键联合类型           |
+| `DtmfEncodeOptions`                | 合成选项                     |
+| `DtmfDecodeOptions`                | 检测选项                     |
+| `DtmfDetectEvent`                  | `plugin:dtmf:detect` 负载类型 |
+
+选项：`DtmfEncodeOptions`
+
+| Field        | Type     | Default | Description                |
+| ------------ | -------- | ------- | -------------------------- |
+| `sampleRate` | `number` | `8000`  | 输出 PCM 采样率            |
+| `toneMs`     | `number` | `100`   | 单个按键音时长（毫秒）     |
+| `gapMs`      | `number` | `50`    | 相邻按键之间的静音间隔     |
+| `amplitude`  | `number` | `0.7`   | `[0, 1]` 范围内的合成振幅  |
+
+选项：`DtmfDecodeOptions`
+
+| Field             | Type     | Default | Description                  |
+| ----------------- | -------- | ------- | ---------------------------- |
+| `frameWindowMs`   | `number` | `40`    | Goertzel 分析窗口时长        |
+| `minToneMs`       | `number` | `60`    | 触发事件前所需的最短稳定时长 |
+| `minGapMs`        | `number` | `30`    | 清空当前候选音调前的最短静音 |
+| `energyThreshold` | `number` | `0.03`  | 执行检测前的 RMS 能量门限    |
+
+Event payload: `plugin:dtmf:detect`
+
+| Field         | Type                     | Description    |
+| ------------- | ------------------------ | -------------- |
+| `controller`  | `RecorderController`     | 录音器实例     |
+| `sessionId`   | `string`                 | 当前会话 ID    |
+| `emittedAt`   | `number`                 | 毫秒时间戳     |
+| `pluginName`  | `string`                 | 插件名         |
+| `runtimeInfo` | `RecorderRuntimeInfo`    | 运行时信息快照 |
+| `summary`     | `RecorderSessionSummary` | 会话摘要快照   |
+| `payload`     | `DtmfDetectEvent`        | 检测负载       |
+
+`DtmfDetectEvent` 字段：
+
+| Field         | Type      | Description          |
+| ------------- | --------- | -------------------- |
+| `key`         | `DtmfKey` | 识别到的按键         |
+| `startedAtMs` | `number`  | 稳定音调起始时间     |
+| `endedAtMs`   | `number`  | 稳定音调结束时间     |
+| `durationMs`  | `number`  | 稳定识别时长         |
+| `rowHz`       | `number`  | 匹配到的行频         |
+| `colHz`       | `number`  | 匹配到的列频         |
+
+### `nmn2pcm`
+
+#### Introduction
+
+独立的简谱转 PCM 工具。它会解析数字简谱字符串，结合调号和移调信息编译音符事件，再用纯 TypeScript 合成单声道 PCM，不依赖录音器生命周期。
+
+#### Quick Start
+
+```ts
+import { nmn2pcm } from "@csnight/audio-recorder/plugins/nmn2pcm"
+
+const result = nmn2pcm("!mf! [1 3 5]- 1 ~ 1 0 6.", {
+  sampleRate: 16000,
+  bpm: 96,
+  volume: 0.6,
+  key: "C",
+  transpose: 0,
+})
+
+console.log(result.sampleRate, result.durationMs, result.channels)
+```
+
+#### API
+
+`@csnight/audio-recorder/plugins/nmn2pcm` 导出：
+
+| Export                    | Description                 |
+| ------------------------- | --------------------------- |
+| `nmn2pcm(score, options)` | 将简谱转换为单声道 PCM      |
+| `NmnConvertOptions`       | 转换选项                    |
+| `NmnConvertResult`        | 转换结果                    |
+
+选项：`NmnConvertOptions`
+
+| Field        | Type     | Default | Description                     |
+| ------------ | -------- | ------- | ------------------------------- |
+| `sampleRate` | `number` | `16000` | 输出 PCM 采样率                 |
+| `bpm`        | `number` | `60`    | 每分钟拍数                      |
+| `volume`     | `number` | `0.5`   | `[0, 1]` 范围内的主音量         |
+| `key`        | `string` | `"C"`   | 调号，如 `C`、`F#`、`Am`        |
+| `transpose`  | `number` | `0`     | 在调号解析后再叠加的半音移调量  |
+
+返回值：`NmnConvertResult`
+
+| Field         | Type         | Description      |
+| ------------- | ------------ | ---------------- |
+| `data`        | `Int16Array` | 合成后的单声道 PCM |
+| `sampleRate`  | `number`     | 实际输出采样率   |
+| `durationMs`  | `number`     | 总时长           |
+| `channels`    | `1`          | 固定单声道       |
+
 ### `streaming-player`
 
 #### Introduction
@@ -1170,6 +1387,9 @@ npm run build:wasm:select -- --codec=aac,amr,ac3
 | `sonic-export`     |     66 |      76 |   14.1 | 旁路 Sonic 处理 + 分片导出 |
 | `dsp`              |     66 |      76 |   14.1 | 主链路逐帧 DSP + 有界尾帧  |
 | `asr-export`       |     66 |      76 |   14.1 | PCM 切块 + 编码器          |
+| `frequency-histogram` |  66 |      76 |   14.1 | 录音帧上的纯 TS FFT 分析   |
+| `dtmf`             |     66 |      76 |   14.1 | 实时 DTMF 检测 + 离线按键音 |
+| `nmn2pcm`          |     57 |      52 |     11 | 纯 TypeScript 简谱转 PCM   |
 
 ### 编码器
 
@@ -1258,7 +1478,8 @@ createRecorder
 - 根入口不会自动注册编码器
 - 插件都是显式启用的独立子路径
 - `dsp` 插件会直接改写主链路 PCM，并可在 `stop()` 时补出有界尾帧
-- `streaming-export`、`sonic-export`、`asr-export` 是独立扩展
+- `streaming-export`、`sonic-export`、`asr-export`、`frequency-histogram`、`dtmf` 都是独立扩展
+- `nmn2pcm` 是位于插件子路径体系下的独立简谱转 PCM 工具
 - `opfs` 和 `indexeddb` 是可选持久化后端
 
 详细架构文档：

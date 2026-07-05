@@ -16,7 +16,7 @@
 1. 控制层：`RecorderController` 负责生命周期、状态机、事件分发、编码器注册和插件宿主。
 2. 输入层：`BrowserInputAdapter` 负责取流、选择输入后端，并把原始音频帧交给 `BrowserInputSession`。
 3. 缓冲与导出层：`PcmFramePipeline + PcmBufferStore` 负责积累 PCM 快照，编码器负责全量导出或实时分片编码。
-4. 插件层：Level Meter、StreamingExport、SonicExport、DSP、ASR Export 等插件通过 `PluginHost` 接入，以 `plugin:` 前缀事件或主链路帧变换方式对外生效。
+4. 插件层：Level Meter、StreamingExport、SonicExport、DSP、ASR Export、FrequencyHistogram、DTMF 等插件通过 `PluginHost` 接入，以 `plugin:` 前缀事件或主链路帧变换方式对外生效；`nmn2pcm` 则作为独立合成工具从插件子路径导出。
 5. 扩展层：持久化后端、Worker bridge 通过显式子路径接入，不污染根入口。
 
 ## 1. 模块职责图
@@ -327,6 +327,8 @@ flowchart LR
 - `plugin:level` — 音量电平
 - `plugin:stream` — 实时流式数据包（StreamingExportPlugin 或 SonicExportPlugin 产出）
 - `plugin:asr:chunk` — ASR 导出数据包（AsrExportPlugin 产出）
+- `plugin:fft` — FFT 频谱柱数据（FrequencyHistogramPlugin 产出）
+- `plugin:dtmf:detect` — DTMF 检测结果（DtmfDecoderPlugin 产出）
 
 `RecorderController.on()` 会根据事件名前缀决定路由到哪条总线。
 
@@ -334,7 +336,7 @@ flowchart LR
 
 插件宿主位于 [`src/plugins/plugin-host.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/plugin-host.ts)。
 
-当前内置且稳定的插件能力有五个：
+当前内置且稳定的扩展能力包括七个 Recorder 插件，以及一个独立的简谱转 PCM 工具：
 
 ### 12.1 Level Meter
 
@@ -412,6 +414,39 @@ interface StreamingPacketPayload {
 - 支持独立采样率设置（通常 16kHz）
 - 支持自定义分块时长 `chunkDurationMs`
 - 通过 `plugin:asr:chunk` 输出数据包
+
+### 12.6 Frequency Histogram
+
+入口：[`src/plugins/frequency-histogram/index.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/frequency-histogram/index.ts)
+
+功能：
+
+- 在 `onFrame()` 中累积 `planar[0]` 的 PCM 样本
+- 以固定 `fftSize` 窗口做纯 TypeScript FFT 分析
+- 通过 `plugin:fft` 输出归一化频谱柱数据
+- 不改写主链路 PCM，也不参与 stop 阶段 flush
+
+### 12.7 DTMF
+
+入口：[`src/plugins/dtmf/index.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/dtmf/index.ts)
+
+功能：
+
+- `encodeDtmf()` 可离线合成电话按键音 PCM
+- `createDtmfDecoderPlugin()` 会在 `onFrame()` 中先下混到单声道，再执行 Goertzel 检测
+- 检测到稳定按键后通过 `plugin:dtmf:detect` 发出事件
+- 不修改主链路 PCM，也不依赖快照导出链路
+
+### 12.8 NMN2PCM
+
+入口：[`src/plugins/nmn2pcm/index.ts`](/E:/ai-base-workspace/audio-recorder/src/plugins/nmn2pcm/index.ts)
+
+功能：
+
+- `nmn2pcm()` 解析数字简谱字符串并编译音高/时值事件
+- 以纯 TypeScript 正弦波合成方式输出单声道 PCM
+- 不通过 `RecorderPlugin` 生命周期挂载，也不发出 `plugin:` 事件
+- 适合作为本地预览、素材生成或再编码前的 PCM 来源
 
 ## 13. 流式编码 bridge
 
@@ -513,6 +548,9 @@ flowchart LR
 @csnight/audio-recorder/plugins/sonic-export      — Sonic 实时流导出插件
 @csnight/audio-recorder/plugins/dsp               — 主链路 DSP 滤波插件
 @csnight/audio-recorder/plugins/asr-export        — ASR 导出插件
+@csnight/audio-recorder/plugins/frequency-histogram — FFT 频谱分析插件
+@csnight/audio-recorder/plugins/dtmf              — DTMF 编码/检测插件
+@csnight/audio-recorder/plugins/nmn2pcm           — 简谱转 PCM 工具
 @csnight/audio-recorder/storage/opfs              — OPFS 持久化后端
 @csnight/audio-recorder/storage/indexeddb         — IndexedDB 持久化后端
 ```
