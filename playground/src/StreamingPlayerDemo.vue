@@ -27,7 +27,7 @@
         <i :class="recorder ? 'sp-accent-2' : ''">
           {{
             recorder
-              ? localize("已连接", "Attached")
+              ? sourceName || localize("已连接", "Attached")
               : localize("未连接", "Detached")
           }}
         </i>
@@ -289,10 +289,12 @@ const props = withDefaults(
   defineProps<{
     recorder?: RecorderLike | null
     locale?: SupportedLocale
+    sourceName?: string
   }>(),
   {
     recorder: null,
     locale: "zh-CN",
+    sourceName: "",
   }
 )
 
@@ -369,8 +371,8 @@ function subscribeRecorder(recorderInstance: any) {
   })
   log(
     localize(
-      "已订阅 recorder plugin:stream。",
-      "Subscribed to recorder plugin:stream."
+      `已订阅 ${props.sourceName || "plugin:stream"}。`,
+      `Subscribed to ${props.sourceName || "plugin:stream"}.`
     )
   )
 }
@@ -628,12 +630,6 @@ onUnmounted(() => {
   text-transform: uppercase;
 }
 
-.sp-badge-active {
-  border-color: rgba(49, 214, 155, 0.36);
-  background: rgba(49, 214, 155, 0.1);
-  color: var(--accent);
-}
-
 .sp-two-col {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
@@ -757,10 +753,6 @@ onUnmounted(() => {
 
 .sp-log-item:first-child {
   border-top: 0;
-}
-
-.sp-log-latest {
-  color: var(--accent);
 }
 
 .sp-log-empty {

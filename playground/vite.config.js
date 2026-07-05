@@ -26,6 +26,27 @@ export default defineConfig({
         ),
       },
       {
+        find: "@csnight/audio-recorder/plugins/frequency-histogram",
+        replacement: fileURLToPath(
+          new URL(
+            "../dist/plugins/frequency-histogram/index.js",
+            import.meta.url
+          )
+        ),
+      },
+      {
+        find: "@csnight/audio-recorder/plugins/dtmf",
+        replacement: fileURLToPath(
+          new URL("../dist/plugins/dtmf/index.js", import.meta.url)
+        ),
+      },
+      {
+        find: "@csnight/audio-recorder/plugins/nmn2pcm",
+        replacement: fileURLToPath(
+          new URL("../dist/plugins/nmn2pcm/index.js", import.meta.url)
+        ),
+      },
+      {
         find: "@csnight/audio-recorder/plugins/sonic-export",
         replacement: fileURLToPath(
           new URL("../dist/plugins/sonic-export/index.js", import.meta.url)
