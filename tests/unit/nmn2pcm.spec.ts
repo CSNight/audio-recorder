@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest"
 import { wavExportEncoder } from "../../src/codecs/base"
-import { nmn2pcm } from "../../src/plugins/nmn2pcm/plugin"
+import {
+  DEFAULT_NMN_OPTIONS,
+  DYNAMIC_VELOCITY,
+  NMN_KEY_OFFSETS,
+  nmn2pcm,
+} from "../../src/plugins/nmn2pcm"
 
 describe("nmn2pcm", () => {
   it("converts basic scale notes into mono PCM", () => {
@@ -48,5 +53,11 @@ describe("nmn2pcm", () => {
     expect(new Uint8Array(wav.arrayBuffer).slice(0, 4)).toEqual(
       new Uint8Array([0x52, 0x49, 0x46, 0x46])
     )
+  })
+
+  it("exposes reusable public constants from the subpath entry", () => {
+    expect(DEFAULT_NMN_OPTIONS.key).toBe("C")
+    expect(DYNAMIC_VELOCITY.mf).toBeGreaterThan(0)
+    expect(NMN_KEY_OFFSETS["F#"]).toBe(6)
   })
 })

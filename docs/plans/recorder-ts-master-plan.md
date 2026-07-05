@@ -179,17 +179,17 @@ window.Recorder = ...
 
 当前实际分层如下：
 
-| 层       | 当前目录       | 职责                                                        |
-| -------- | -------------- | ----------------------------------------------------------- |
-| Core     | `src/core`     | 控制器、状态机、事件总线                                    |
-| Input    | `src/input`    | 取流、约束诊断、后端选择、session 装配                      |
-| Pipeline | `src/pipeline` | PCM 帧进入缓冲前的统一入口                                  |
-| Buffer   | `src/buffer`   | 内存缓冲、持久化缓冲、snapshot 合并                         |
-| Codecs   | `src/codecs`   | PCM/WAV/MP3 快照导出与 chunk 编码定义                       |
+| 层       | 当前目录       | 职责                                                                                                        |
+| -------- | -------------- | ----------------------------------------------------------------------------------------------------------- |
+| Core     | `src/core`     | 控制器、状态机、事件总线                                                                                    |
+| Input    | `src/input`    | 取流、约束诊断、后端选择、session 装配                                                                      |
+| Pipeline | `src/pipeline` | PCM 帧进入缓冲前的统一入口                                                                                  |
+| Buffer   | `src/buffer`   | 内存缓冲、持久化缓冲、snapshot 合并                                                                         |
+| Codecs   | `src/codecs`   | PCM/WAV/MP3 快照导出与 chunk 编码定义                                                                       |
 | Plugins  | `src/plugins`  | level-meter、streaming-export、sonic-export、asr-export、frequency-histogram、dtmf、nmn2pcm、dsp 及插件宿主 |
-| Storage  | `src/storage`  | 持久化协议、OPFS / IndexedDB 插件                           |
-| Workers  | `src/workers`  | chunked encoder bridge 与 Worker core                       |
-| Utils    | `src/utils`    | 音频帧转换、重采样、snapshot 序列化                         |
+| Storage  | `src/storage`  | 持久化协议、OPFS / IndexedDB 插件                                                                           |
+| Workers  | `src/workers`  | chunked encoder bridge 与 Worker core                                                                       |
+| Utils    | `src/utils`    | 音频帧转换、重采样、snapshot 序列化                                                                         |
 
 ## 4. 参考其他录音库后的实践结论
 

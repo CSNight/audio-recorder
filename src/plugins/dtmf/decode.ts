@@ -21,10 +21,10 @@ type ActiveCandidate = DtmfCandidate & {
 }
 
 const DEFAULT_OPTIONS: Required<DtmfDecodeOptions> = {
-  frameWindowMs: 40,
-  minToneMs: 60,
-  minGapMs: 30,
-  energyThreshold: 0.03,
+  frameWindowMs: 20,
+  minToneMs: 20,
+  minGapMs: 20,
+  energyThreshold: 0.01,
 }
 
 export class DtmfDetector {

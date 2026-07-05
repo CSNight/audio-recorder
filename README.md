@@ -373,27 +373,27 @@ Returns:
 
 ### Subpaths
 
-| Package path                                       | Exports                                                                        |
-| -------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `@csnight/audio-recorder/codecs/base`              | PCM and WAV encoders / decoders                                                |
-| `@csnight/audio-recorder/codecs/mp3`               | MP3 encoder                                                                    |
-| `@csnight/audio-recorder/codecs/flac`              | FLAC encoder                                                                   |
-| `@csnight/audio-recorder/codecs/opus`              | Opus encoder                                                                   |
-| `@csnight/audio-recorder/codecs/aac`               | AAC encoder                                                                    |
-| `@csnight/audio-recorder/codecs/amr`               | AMR encoder                                                                    |
-| `@csnight/audio-recorder/codecs/ac3`               | AC3 / E-AC3 encoders                                                           |
-| `@csnight/audio-recorder/codecs/g711`              | G.711 encoder                                                                  |
-| `@csnight/audio-recorder/plugins/level-meter`      | `createLevelMeterPlugin()`                                                     |
-| `@csnight/audio-recorder/plugins/streaming-export` | `createStreamingExportPlugin()`                                                |
-| `@csnight/audio-recorder/plugins/sonic-export`     | `createSonicExportPlugin()`                                                    |
-| `@csnight/audio-recorder/plugins/dsp`              | `createHighpassPlugin()` / `createLowpassPlugin()` / `createNoiseGatePlugin()` |
-| `@csnight/audio-recorder/plugins/asr-export`       | `createAsrExportPlugin()`                                                      |
-| `@csnight/audio-recorder/plugins/frequency-histogram` | `createFrequencyHistogramPlugin()`                                          |
-| `@csnight/audio-recorder/plugins/dtmf`             | `encodeDtmf()` / `lookupDtmfFrequencies()` / `createDtmfDecoderPlugin()`       |
-| `@csnight/audio-recorder/plugins/nmn2pcm`          | `nmn2pcm()`                                                                    |
-| `@csnight/audio-recorder/plugins/streaming-player` | `createStreamingPlayer()`                                                      |
-| `@csnight/audio-recorder/storage/opfs`             | `createOpfsPersistencePlugin()`                                                |
-| `@csnight/audio-recorder/storage/indexeddb`        | `createIndexedDbPersistencePlugin()`                                           |
+| Package path                                          | Exports                                                                        |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `@csnight/audio-recorder/codecs/base`                 | PCM and WAV encoders / decoders                                                |
+| `@csnight/audio-recorder/codecs/mp3`                  | MP3 encoder                                                                    |
+| `@csnight/audio-recorder/codecs/flac`                 | FLAC encoder                                                                   |
+| `@csnight/audio-recorder/codecs/opus`                 | Opus encoder                                                                   |
+| `@csnight/audio-recorder/codecs/aac`                  | AAC encoder                                                                    |
+| `@csnight/audio-recorder/codecs/amr`                  | AMR encoder                                                                    |
+| `@csnight/audio-recorder/codecs/ac3`                  | AC3 / E-AC3 encoders                                                           |
+| `@csnight/audio-recorder/codecs/g711`                 | G.711 encoder                                                                  |
+| `@csnight/audio-recorder/plugins/level-meter`         | `createLevelMeterPlugin()`                                                     |
+| `@csnight/audio-recorder/plugins/streaming-export`    | `createStreamingExportPlugin()`                                                |
+| `@csnight/audio-recorder/plugins/sonic-export`        | `createSonicExportPlugin()`                                                    |
+| `@csnight/audio-recorder/plugins/dsp`                 | `createHighpassPlugin()` / `createLowpassPlugin()` / `createNoiseGatePlugin()` |
+| `@csnight/audio-recorder/plugins/asr-export`          | `createAsrExportPlugin()`                                                      |
+| `@csnight/audio-recorder/plugins/frequency-histogram` | `createFrequencyHistogramPlugin()`                                             |
+| `@csnight/audio-recorder/plugins/dtmf`                | `encodeDtmf()` / `lookupDtmfFrequencies()` / `createDtmfDecoderPlugin()`       |
+| `@csnight/audio-recorder/plugins/nmn2pcm`             | `nmn2pcm()` / `DEFAULT_NMN_OPTIONS` / `DYNAMIC_VELOCITY` / `NMN_KEY_OFFSETS`   |
+| `@csnight/audio-recorder/plugins/streaming-player`    | `createStreamingPlayer()`                                                      |
+| `@csnight/audio-recorder/storage/opfs`                | `createOpfsPersistencePlugin()`                                                |
+| `@csnight/audio-recorder/storage/indexeddb`           | `createIndexedDbPersistencePlugin()`                                           |
 
 ### Events
 
@@ -894,19 +894,19 @@ recorder.on("plugin:fft", ({ payload }) => {
 
 Exports from `@csnight/audio-recorder/plugins/frequency-histogram`:
 
-| Export                                  | Description                      |
-| --------------------------------------- | -------------------------------- |
-| `createFrequencyHistogramPlugin(options)` | Create an FFT analysis plugin  |
-| `FrequencyHistogramOptions`             | Plugin options                   |
-| `FrequencyFftEvent`                     | `plugin:fft` payload type        |
+| Export                                    | Description                   |
+| ----------------------------------------- | ----------------------------- |
+| `createFrequencyHistogramPlugin(options)` | Create an FFT analysis plugin |
+| `FrequencyHistogramOptions`               | Plugin options                |
+| `FrequencyFftEvent`                       | `plugin:fft` payload type     |
 
 Options: `FrequencyHistogramOptions`
 
-| Field           | Type                                | Default | Description                                 |
-| --------------- | ----------------------------------- | ------- | ------------------------------------------- |
-| `fftSize`       | `512 \| 1024 \| 2048 \| 4096`       | `2048`  | FFT window size; must be a power of two     |
-| `barCount`      | `number`                            | `64`    | Output spectrum bar count                   |
-| `frameInterval` | `number`                            | `1`     | Analyze every N accepted PCM frames         |
+| Field           | Type                          | Default | Description                             |
+| --------------- | ----------------------------- | ------- | --------------------------------------- |
+| `fftSize`       | `512 \| 1024 \| 2048 \| 4096` | `2048`  | FFT window size; must be a power of two |
+| `barCount`      | `number`                      | `64`    | Output spectrum bar count               |
+| `frameInterval` | `number`                      | `1`     | Analyze every N accepted PCM frames     |
 
 Event payload: `plugin:fft`
 
@@ -922,12 +922,12 @@ Event payload: `plugin:fft`
 
 `FrequencyFftEvent` fields:
 
-| Field         | Type           | Description                               |
-| ------------- | -------------- | ----------------------------------------- |
-| `bars`        | `Float32Array` | Normalized spectrum bars in `[0, 1]`      |
-| `timestampMs` | `number`       | End timestamp of the analyzed FFT window  |
-| `fftSize`     | `number`       | Effective FFT size used by the plugin     |
-| `sampleRate`  | `number`       | Sample rate of the analyzed PCM window    |
+| Field         | Type           | Description                              |
+| ------------- | -------------- | ---------------------------------------- |
+| `bars`        | `Float32Array` | Normalized spectrum bars in `[0, 1]`     |
+| `timestampMs` | `number`       | End timestamp of the analyzed FFT window |
+| `fftSize`     | `number`       | Effective FFT size used by the plugin    |
+| `sampleRate`  | `number`       | Sample rate of the analyzed PCM window   |
 
 ### `dtmf`
 
@@ -968,33 +968,33 @@ recorder.on("plugin:dtmf:detect", ({ payload }) => {
 
 Exports from `@csnight/audio-recorder/plugins/dtmf`:
 
-| Export                           | Description                             |
-| -------------------------------- | --------------------------------------- |
-| `encodeDtmf(keys, options)`      | Generate DTMF PCM tones                 |
-| `lookupDtmfFrequencies(key)`     | Return the row/column frequencies for a key |
-| `createDtmfDecoderPlugin(options)` | Create a realtime DTMF detector plugin |
-| `DtmfKey`                        | Supported keypad key union              |
-| `DtmfEncodeOptions`              | Tone generation options                 |
-| `DtmfDecodeOptions`              | Detector options                        |
-| `DtmfDetectEvent`                | `plugin:dtmf:detect` payload type       |
+| Export                             | Description                                 |
+| ---------------------------------- | ------------------------------------------- |
+| `encodeDtmf(keys, options)`        | Generate DTMF PCM tones                     |
+| `lookupDtmfFrequencies(key)`       | Return the row/column frequencies for a key |
+| `createDtmfDecoderPlugin(options)` | Create a realtime DTMF detector plugin      |
+| `DtmfKey`                          | Supported keypad key union                  |
+| `DtmfEncodeOptions`                | Tone generation options                     |
+| `DtmfDecodeOptions`                | Detector options                            |
+| `DtmfDetectEvent`                  | `plugin:dtmf:detect` payload type           |
 
 Options: `DtmfEncodeOptions`
 
-| Field        | Type     | Default | Description                           |
-| ------------ | -------- | ------- | ------------------------------------- |
-| `sampleRate` | `number` | `8000`  | Output PCM sample rate                |
-| `toneMs`     | `number` | `100`   | Per-key tone duration in milliseconds |
-| `gapMs`      | `number` | `50`    | Silence between adjacent keys         |
+| Field        | Type     | Default | Description                            |
+| ------------ | -------- | ------- | -------------------------------------- |
+| `sampleRate` | `number` | `8000`  | Output PCM sample rate                 |
+| `toneMs`     | `number` | `100`   | Per-key tone duration in milliseconds  |
+| `gapMs`      | `number` | `50`    | Silence between adjacent keys          |
 | `amplitude`  | `number` | `0.7`   | Synthesized tone amplitude in `[0, 1]` |
 
 Options: `DtmfDecodeOptions`
 
-| Field             | Type     | Default | Description                                  |
-| ----------------- | -------- | ------- | -------------------------------------------- |
-| `frameWindowMs`   | `number` | `40`    | Goertzel analysis window duration            |
-| `minToneMs`       | `number` | `60`    | Minimum stable tone duration before emit     |
-| `minGapMs`        | `number` | `30`    | Minimum silence gap before resetting a tone  |
-| `energyThreshold` | `number` | `0.03`  | RMS gate applied before running detection    |
+| Field             | Type     | Default | Description                                 |
+| ----------------- | -------- | ------- | ------------------------------------------- |
+| `frameWindowMs`   | `number` | `40`    | Goertzel analysis window duration           |
+| `minToneMs`       | `number` | `60`    | Minimum stable tone duration before emit    |
+| `minGapMs`        | `number` | `30`    | Minimum silence gap before resetting a tone |
+| `energyThreshold` | `number` | `0.03`  | RMS gate applied before running detection   |
 
 Event payload: `plugin:dtmf:detect`
 
@@ -1010,14 +1010,14 @@ Event payload: `plugin:dtmf:detect`
 
 `DtmfDetectEvent` fields:
 
-| Field         | Type      | Description                          |
-| ------------- | --------- | ------------------------------------ |
-| `key`         | `DtmfKey` | Detected keypad key                  |
-| `startedAtMs` | `number`  | Start timestamp of the stable tone   |
-| `endedAtMs`   | `number`  | End timestamp of the stable tone     |
-| `durationMs`  | `number`  | Stable detected duration             |
-| `rowHz`       | `number`  | Matched row frequency                |
-| `colHz`       | `number`  | Matched column frequency             |
+| Field         | Type      | Description                        |
+| ------------- | --------- | ---------------------------------- |
+| `key`         | `DtmfKey` | Detected keypad key                |
+| `startedAtMs` | `number`  | Start timestamp of the stable tone |
+| `endedAtMs`   | `number`  | End timestamp of the stable tone   |
+| `durationMs`  | `number`  | Stable detected duration           |
+| `rowHz`       | `number`  | Matched row frequency              |
+| `colHz`       | `number`  | Matched column frequency           |
 
 ### `nmn2pcm`
 
@@ -1045,11 +1045,14 @@ console.log(result.sampleRate, result.durationMs, result.channels)
 
 Exports from `@csnight/audio-recorder/plugins/nmn2pcm`:
 
-| Export                  | Description                         |
-| ----------------------- | ----------------------------------- |
+| Export                    | Description                        |
+| ------------------------- | ---------------------------------- |
 | `nmn2pcm(score, options)` | Convert an NMN score into mono PCM |
-| `NmnConvertOptions`     | Conversion options                  |
-| `NmnConvertResult`      | Conversion result                   |
+| `DEFAULT_NMN_OPTIONS`     | Default NMN conversion options     |
+| `DYNAMIC_VELOCITY`        | Built-in dynamic-to-velocity map   |
+| `NMN_KEY_OFFSETS`         | Supported tonic names and semitone offsets |
+| `NmnConvertOptions`       | Conversion options                 |
+| `NmnConvertResult`        | Conversion result                  |
 
 Options: `NmnConvertOptions`
 
@@ -1063,12 +1066,12 @@ Options: `NmnConvertOptions`
 
 Returns: `NmnConvertResult`
 
-| Field         | Type         | Description                    |
-| ------------- | ------------ | ------------------------------ |
-| `data`        | `Int16Array` | Synthesized mono PCM data      |
-| `sampleRate`  | `number`     | Effective output sample rate   |
-| `durationMs`  | `number`     | Total rendered duration        |
-| `channels`    | `1`          | Always mono                    |
+| Field        | Type         | Description                  |
+| ------------ | ------------ | ---------------------------- |
+| `data`       | `Int16Array` | Synthesized mono PCM data    |
+| `sampleRate` | `number`     | Effective output sample rate |
+| `durationMs` | `number`     | Total rendered duration      |
+| `channels`   | `1`          | Always mono                  |
 
 ### `streaming-player`
 
@@ -1381,16 +1384,16 @@ Based on direct API usage in `src/` and `vite.config.ts` target `es2022`.
 
 ### Plugins
 
-| Plugin             | Chrome | Firefox | Safari | Notes                                    |
-| ------------------ | -----: | ------: | -----: | ---------------------------------------- |
-| `level-meter`      |     66 |      76 |   14.1 | PCM frame consumer                       |
-| `streaming-export` |     66 |      76 |   14.1 | Worker-based chunk export                |
-| `sonic-export`     |     66 |      76 |   14.1 | Bypass Sonic transform + chunk export    |
-| `dsp`              |     66 |      76 |   14.1 | Main-path frame DSP + bounded flush tail |
-| `asr-export`       |     66 |      76 |   14.1 | PCM chunking and registered encoders     |
-| `frequency-histogram` |  66 |      76 |   14.1 | Pure TypeScript FFT analysis on recorder frames |
-| `dtmf`             |     66 |      76 |   14.1 | Realtime DTMF detector + offline tone synthesis |
-| `nmn2pcm`          |     57 |      52 |     11 | Pure TypeScript score-to-PCM conversion  |
+| Plugin                | Chrome | Firefox | Safari | Notes                                           |
+| --------------------- | -----: | ------: | -----: | ----------------------------------------------- |
+| `level-meter`         |     66 |      76 |   14.1 | PCM frame consumer                              |
+| `streaming-export`    |     66 |      76 |   14.1 | Worker-based chunk export                       |
+| `sonic-export`        |     66 |      76 |   14.1 | Bypass Sonic transform + chunk export           |
+| `dsp`                 |     66 |      76 |   14.1 | Main-path frame DSP + bounded flush tail        |
+| `asr-export`          |     66 |      76 |   14.1 | PCM chunking and registered encoders            |
+| `frequency-histogram` |     66 |      76 |   14.1 | Pure TypeScript FFT analysis on recorder frames |
+| `dtmf`                |     66 |      76 |   14.1 | Realtime DTMF detector + offline tone synthesis |
+| `nmn2pcm`             |     57 |      52 |     11 | Pure TypeScript score-to-PCM conversion         |
 
 ### Codecs
 

@@ -372,27 +372,27 @@ import {
 
 ### 子路径
 
-| Package path                                       | Exports                                                                        |
-| -------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `@csnight/audio-recorder/codecs/base`              | PCM / WAV 编码器与解码器                                                       |
-| `@csnight/audio-recorder/codecs/mp3`               | MP3 编码器                                                                     |
-| `@csnight/audio-recorder/codecs/flac`              | FLAC 编码器                                                                    |
-| `@csnight/audio-recorder/codecs/opus`              | Opus 编码器                                                                    |
-| `@csnight/audio-recorder/codecs/aac`               | AAC 编码器                                                                     |
-| `@csnight/audio-recorder/codecs/amr`               | AMR 编码器                                                                     |
-| `@csnight/audio-recorder/codecs/ac3`               | AC3 / E-AC3 编码器                                                             |
-| `@csnight/audio-recorder/codecs/g711`              | G.711 编码器                                                                   |
-| `@csnight/audio-recorder/plugins/level-meter`      | `createLevelMeterPlugin()`                                                     |
-| `@csnight/audio-recorder/plugins/streaming-export` | `createStreamingExportPlugin()`                                                |
-| `@csnight/audio-recorder/plugins/sonic-export`     | `createSonicExportPlugin()`                                                    |
-| `@csnight/audio-recorder/plugins/dsp`              | `createHighpassPlugin()` / `createLowpassPlugin()` / `createNoiseGatePlugin()` |
-| `@csnight/audio-recorder/plugins/asr-export`       | `createAsrExportPlugin()`                                                      |
-| `@csnight/audio-recorder/plugins/frequency-histogram` | `createFrequencyHistogramPlugin()`                                          |
-| `@csnight/audio-recorder/plugins/dtmf`             | `encodeDtmf()` / `lookupDtmfFrequencies()` / `createDtmfDecoderPlugin()`       |
-| `@csnight/audio-recorder/plugins/nmn2pcm`          | `nmn2pcm()`                                                                    |
-| `@csnight/audio-recorder/plugins/streaming-player` | `createStreamingPlayer()`                                                      |
-| `@csnight/audio-recorder/storage/opfs`             | `createOpfsPersistencePlugin()`                                                |
-| `@csnight/audio-recorder/storage/indexeddb`        | `createIndexedDbPersistencePlugin()`                                           |
+| Package path                                          | Exports                                                                        |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `@csnight/audio-recorder/codecs/base`                 | PCM / WAV 编码器与解码器                                                       |
+| `@csnight/audio-recorder/codecs/mp3`                  | MP3 编码器                                                                     |
+| `@csnight/audio-recorder/codecs/flac`                 | FLAC 编码器                                                                    |
+| `@csnight/audio-recorder/codecs/opus`                 | Opus 编码器                                                                    |
+| `@csnight/audio-recorder/codecs/aac`                  | AAC 编码器                                                                     |
+| `@csnight/audio-recorder/codecs/amr`                  | AMR 编码器                                                                     |
+| `@csnight/audio-recorder/codecs/ac3`                  | AC3 / E-AC3 编码器                                                             |
+| `@csnight/audio-recorder/codecs/g711`                 | G.711 编码器                                                                   |
+| `@csnight/audio-recorder/plugins/level-meter`         | `createLevelMeterPlugin()`                                                     |
+| `@csnight/audio-recorder/plugins/streaming-export`    | `createStreamingExportPlugin()`                                                |
+| `@csnight/audio-recorder/plugins/sonic-export`        | `createSonicExportPlugin()`                                                    |
+| `@csnight/audio-recorder/plugins/dsp`                 | `createHighpassPlugin()` / `createLowpassPlugin()` / `createNoiseGatePlugin()` |
+| `@csnight/audio-recorder/plugins/asr-export`          | `createAsrExportPlugin()`                                                      |
+| `@csnight/audio-recorder/plugins/frequency-histogram` | `createFrequencyHistogramPlugin()`                                             |
+| `@csnight/audio-recorder/plugins/dtmf`                | `encodeDtmf()` / `lookupDtmfFrequencies()` / `createDtmfDecoderPlugin()`       |
+| `@csnight/audio-recorder/plugins/nmn2pcm`             | `nmn2pcm()` / `DEFAULT_NMN_OPTIONS` / `DYNAMIC_VELOCITY` / `NMN_KEY_OFFSETS`   |
+| `@csnight/audio-recorder/plugins/streaming-player`    | `createStreamingPlayer()`                                                      |
+| `@csnight/audio-recorder/storage/opfs`                | `createOpfsPersistencePlugin()`                                                |
+| `@csnight/audio-recorder/storage/indexeddb`           | `createIndexedDbPersistencePlugin()`                                           |
 
 ### 事件
 
@@ -893,19 +893,19 @@ recorder.on("plugin:fft", ({ payload }) => {
 
 `@csnight/audio-recorder/plugins/frequency-histogram` 导出：
 
-| Export                                    | Description              |
-| ----------------------------------------- | ------------------------ |
-| `createFrequencyHistogramPlugin(options)` | 创建 FFT 分析插件        |
-| `FrequencyHistogramOptions`               | 插件选项                 |
+| Export                                    | Description               |
+| ----------------------------------------- | ------------------------- |
+| `createFrequencyHistogramPlugin(options)` | 创建 FFT 分析插件         |
+| `FrequencyHistogramOptions`               | 插件选项                  |
 | `FrequencyFftEvent`                       | `plugin:fft` 事件负载类型 |
 
 选项：`FrequencyHistogramOptions`
 
-| Field           | Type                          | Default | Description                     |
-| --------------- | ----------------------------- | ------- | ------------------------------- |
-| `fftSize`       | `512 \| 1024 \| 2048 \| 4096` | `2048`  | FFT 窗口大小，必须为 2 的幂     |
-| `barCount`      | `number`                      | `64`    | 输出频谱柱数量                  |
-| `frameInterval` | `number`                      | `1`     | 每隔 N 个已接收 PCM 帧分析一次  |
+| Field           | Type                          | Default | Description                    |
+| --------------- | ----------------------------- | ------- | ------------------------------ |
+| `fftSize`       | `512 \| 1024 \| 2048 \| 4096` | `2048`  | FFT 窗口大小，必须为 2 的幂    |
+| `barCount`      | `number`                      | `64`    | 输出频谱柱数量                 |
+| `frameInterval` | `number`                      | `1`     | 每隔 N 个已接收 PCM 帧分析一次 |
 
 Event payload: `plugin:fft`
 
@@ -921,12 +921,12 @@ Event payload: `plugin:fft`
 
 `FrequencyFftEvent` 字段：
 
-| Field         | Type           | Description                    |
-| ------------- | -------------- | ------------------------------ |
-| `bars`        | `Float32Array` | `[0, 1]` 归一化频谱柱数据      |
-| `timestampMs` | `number`       | 当前 FFT 窗口结束时刻          |
-| `fftSize`     | `number`       | 实际使用的 FFT 窗口大小        |
-| `sampleRate`  | `number`       | 被分析 PCM 的采样率            |
+| Field         | Type           | Description               |
+| ------------- | -------------- | ------------------------- |
+| `bars`        | `Float32Array` | `[0, 1]` 归一化频谱柱数据 |
+| `timestampMs` | `number`       | 当前 FFT 窗口结束时刻     |
+| `fftSize`     | `number`       | 实际使用的 FFT 窗口大小   |
+| `sampleRate`  | `number`       | 被分析 PCM 的采样率       |
 
 ### `dtmf`
 
@@ -967,24 +967,24 @@ recorder.on("plugin:dtmf:detect", ({ payload }) => {
 
 `@csnight/audio-recorder/plugins/dtmf` 导出：
 
-| Export                             | Description                  |
-| ---------------------------------- | ---------------------------- |
-| `encodeDtmf(keys, options)`        | 生成 DTMF PCM 按键音         |
-| `lookupDtmfFrequencies(key)`       | 返回某个按键对应的行/列频率  |
-| `createDtmfDecoderPlugin(options)` | 创建实时 DTMF 检测插件       |
-| `DtmfKey`                          | 支持的按键联合类型           |
-| `DtmfEncodeOptions`                | 合成选项                     |
-| `DtmfDecodeOptions`                | 检测选项                     |
+| Export                             | Description                   |
+| ---------------------------------- | ----------------------------- |
+| `encodeDtmf(keys, options)`        | 生成 DTMF PCM 按键音          |
+| `lookupDtmfFrequencies(key)`       | 返回某个按键对应的行/列频率   |
+| `createDtmfDecoderPlugin(options)` | 创建实时 DTMF 检测插件        |
+| `DtmfKey`                          | 支持的按键联合类型            |
+| `DtmfEncodeOptions`                | 合成选项                      |
+| `DtmfDecodeOptions`                | 检测选项                      |
 | `DtmfDetectEvent`                  | `plugin:dtmf:detect` 负载类型 |
 
 选项：`DtmfEncodeOptions`
 
-| Field        | Type     | Default | Description                |
-| ------------ | -------- | ------- | -------------------------- |
-| `sampleRate` | `number` | `8000`  | 输出 PCM 采样率            |
-| `toneMs`     | `number` | `100`   | 单个按键音时长（毫秒）     |
-| `gapMs`      | `number` | `50`    | 相邻按键之间的静音间隔     |
-| `amplitude`  | `number` | `0.7`   | `[0, 1]` 范围内的合成振幅  |
+| Field        | Type     | Default | Description               |
+| ------------ | -------- | ------- | ------------------------- |
+| `sampleRate` | `number` | `8000`  | 输出 PCM 采样率           |
+| `toneMs`     | `number` | `100`   | 单个按键音时长（毫秒）    |
+| `gapMs`      | `number` | `50`    | 相邻按键之间的静音间隔    |
+| `amplitude`  | `number` | `0.7`   | `[0, 1]` 范围内的合成振幅 |
 
 选项：`DtmfDecodeOptions`
 
@@ -1009,14 +1009,14 @@ Event payload: `plugin:dtmf:detect`
 
 `DtmfDetectEvent` 字段：
 
-| Field         | Type      | Description          |
-| ------------- | --------- | -------------------- |
-| `key`         | `DtmfKey` | 识别到的按键         |
-| `startedAtMs` | `number`  | 稳定音调起始时间     |
-| `endedAtMs`   | `number`  | 稳定音调结束时间     |
-| `durationMs`  | `number`  | 稳定识别时长         |
-| `rowHz`       | `number`  | 匹配到的行频         |
-| `colHz`       | `number`  | 匹配到的列频         |
+| Field         | Type      | Description      |
+| ------------- | --------- | ---------------- |
+| `key`         | `DtmfKey` | 识别到的按键     |
+| `startedAtMs` | `number`  | 稳定音调起始时间 |
+| `endedAtMs`   | `number`  | 稳定音调结束时间 |
+| `durationMs`  | `number`  | 稳定识别时长     |
+| `rowHz`       | `number`  | 匹配到的行频     |
+| `colHz`       | `number`  | 匹配到的列频     |
 
 ### `nmn2pcm`
 
@@ -1044,30 +1044,33 @@ console.log(result.sampleRate, result.durationMs, result.channels)
 
 `@csnight/audio-recorder/plugins/nmn2pcm` 导出：
 
-| Export                    | Description                 |
-| ------------------------- | --------------------------- |
-| `nmn2pcm(score, options)` | 将简谱转换为单声道 PCM      |
-| `NmnConvertOptions`       | 转换选项                    |
-| `NmnConvertResult`        | 转换结果                    |
+| Export                    | Description            |
+| ------------------------- | ---------------------- |
+| `nmn2pcm(score, options)` | 将简谱转换为单声道 PCM |
+| `DEFAULT_NMN_OPTIONS`     | 默认简谱转换选项       |
+| `DYNAMIC_VELOCITY`        | 内置力度到速度映射表   |
+| `NMN_KEY_OFFSETS`         | 支持的调名与半音偏移映射表 |
+| `NmnConvertOptions`       | 转换选项               |
+| `NmnConvertResult`        | 转换结果               |
 
 选项：`NmnConvertOptions`
 
-| Field        | Type     | Default | Description                     |
-| ------------ | -------- | ------- | ------------------------------- |
-| `sampleRate` | `number` | `16000` | 输出 PCM 采样率                 |
-| `bpm`        | `number` | `60`    | 每分钟拍数                      |
-| `volume`     | `number` | `0.5`   | `[0, 1]` 范围内的主音量         |
-| `key`        | `string` | `"C"`   | 调号，如 `C`、`F#`、`Am`        |
-| `transpose`  | `number` | `0`     | 在调号解析后再叠加的半音移调量  |
+| Field        | Type     | Default | Description                    |
+| ------------ | -------- | ------- | ------------------------------ |
+| `sampleRate` | `number` | `16000` | 输出 PCM 采样率                |
+| `bpm`        | `number` | `60`    | 每分钟拍数                     |
+| `volume`     | `number` | `0.5`   | `[0, 1]` 范围内的主音量        |
+| `key`        | `string` | `"C"`   | 调号，如 `C`、`F#`、`Am`       |
+| `transpose`  | `number` | `0`     | 在调号解析后再叠加的半音移调量 |
 
 返回值：`NmnConvertResult`
 
-| Field         | Type         | Description      |
-| ------------- | ------------ | ---------------- |
-| `data`        | `Int16Array` | 合成后的单声道 PCM |
-| `sampleRate`  | `number`     | 实际输出采样率   |
-| `durationMs`  | `number`     | 总时长           |
-| `channels`    | `1`          | 固定单声道       |
+| Field        | Type         | Description        |
+| ------------ | ------------ | ------------------ |
+| `data`       | `Int16Array` | 合成后的单声道 PCM |
+| `sampleRate` | `number`     | 实际输出采样率     |
+| `durationMs` | `number`     | 总时长             |
+| `channels`   | `1`          | 固定单声道         |
 
 ### `streaming-player`
 
@@ -1380,16 +1383,16 @@ npm run build:wasm:select -- --codec=aac,amr,ac3
 
 ### 插件
 
-| Plugin             | Chrome | Firefox | Safari | Notes                      |
-| ------------------ | -----: | ------: | -----: | -------------------------- |
-| `level-meter`      |     66 |      76 |   14.1 | PCM 帧消费者               |
-| `streaming-export` |     66 |      76 |   14.1 | Worker 分片导出            |
-| `sonic-export`     |     66 |      76 |   14.1 | 旁路 Sonic 处理 + 分片导出 |
-| `dsp`              |     66 |      76 |   14.1 | 主链路逐帧 DSP + 有界尾帧  |
-| `asr-export`       |     66 |      76 |   14.1 | PCM 切块 + 编码器          |
-| `frequency-histogram` |  66 |      76 |   14.1 | 录音帧上的纯 TS FFT 分析   |
-| `dtmf`             |     66 |      76 |   14.1 | 实时 DTMF 检测 + 离线按键音 |
-| `nmn2pcm`          |     57 |      52 |     11 | 纯 TypeScript 简谱转 PCM   |
+| Plugin                | Chrome | Firefox | Safari | Notes                       |
+| --------------------- | -----: | ------: | -----: | --------------------------- |
+| `level-meter`         |     66 |      76 |   14.1 | PCM 帧消费者                |
+| `streaming-export`    |     66 |      76 |   14.1 | Worker 分片导出             |
+| `sonic-export`        |     66 |      76 |   14.1 | 旁路 Sonic 处理 + 分片导出  |
+| `dsp`                 |     66 |      76 |   14.1 | 主链路逐帧 DSP + 有界尾帧   |
+| `asr-export`          |     66 |      76 |   14.1 | PCM 切块 + 编码器           |
+| `frequency-histogram` |     66 |      76 |   14.1 | 录音帧上的纯 TS FFT 分析    |
+| `dtmf`                |     66 |      76 |   14.1 | 实时 DTMF 检测 + 离线按键音 |
+| `nmn2pcm`             |     57 |      52 |     11 | 纯 TypeScript 简谱转 PCM    |
 
 ### 编码器
 

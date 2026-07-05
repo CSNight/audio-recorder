@@ -19,7 +19,7 @@ export const DYNAMIC_VELOCITY: Record<NmnDynamicMark, number> = {
 
 const MAJOR_SCALE = [0, 2, 4, 5, 7, 9, 11] as const
 const MINOR_SCALE = [0, 2, 3, 5, 7, 8, 10] as const
-const NOTE_OFFSETS: Record<string, number> = {
+export const NMN_KEY_OFFSETS: Record<string, number> = {
   C: 0,
   "C#": 1,
   Db: 1,
@@ -90,7 +90,7 @@ function resolveKeyScale(key: string): {
 } {
   const isMinor = /m$/i.test(key)
   const noteName = key.replace(/m$/i, "") || "C"
-  const tonicOffset = NOTE_OFFSETS[noteName]
+  const tonicOffset = NMN_KEY_OFFSETS[noteName]
 
   if (tonicOffset === undefined) {
     throw new Error(`Unsupported key "${key}".`)
