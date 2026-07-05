@@ -2,7 +2,7 @@ import { compileNmnScore } from "./compiler"
 import { parseNmnScore } from "./parser"
 import { synthesizeNmnScore } from "./synth"
 import type { NmnConvertOptions, NmnConvertResult } from "./types"
-import { resolveConvertOptions } from "./vendor-compat"
+import { resolveConvertOptions } from "./consts"
 
 export function nmn2pcm(
   score: string,

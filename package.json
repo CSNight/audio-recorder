@@ -99,6 +99,18 @@
       "types": "./dist/plugins/asr-export/index.d.ts",
       "import": "./dist/plugins/asr-export/index.js"
     },
+    "./plugins/frequency-histogram": {
+      "types": "./dist/plugins/frequency-histogram/index.d.ts",
+      "import": "./dist/plugins/frequency-histogram/index.js"
+    },
+    "./plugins/dtmf": {
+      "types": "./dist/plugins/dtmf/index.d.ts",
+      "import": "./dist/plugins/dtmf/index.js"
+    },
+    "./plugins/nmn2pcm": {
+      "types": "./dist/plugins/nmn2pcm/index.d.ts",
+      "import": "./dist/plugins/nmn2pcm/index.js"
+    },
     "./codecs/mp3": {
       "types": "./dist/codecs/mp3/index.d.ts",
       "import": "./dist/codecs/mp3/index.js"

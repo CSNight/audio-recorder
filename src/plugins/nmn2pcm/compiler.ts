@@ -6,7 +6,7 @@ import type {
   ParsedOrnament,
   ParsedScore,
 } from "./types"
-import { DYNAMIC_VELOCITY, resolvePitchMidi } from "./vendor-compat"
+import { DYNAMIC_VELOCITY, resolvePitchMidi } from "./consts"
 
 export function compileNmnScore(
   parsed: ParsedScore,

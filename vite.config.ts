@@ -24,6 +24,15 @@ export default defineConfig({
         "plugins/asr-export/index": fileURLToPath(
           new URL("./src/plugins/asr-export/index.ts", import.meta.url)
         ),
+        "plugins/frequency-histogram/index": fileURLToPath(
+          new URL("./src/plugins/frequency-histogram/index.ts", import.meta.url)
+        ),
+        "plugins/dtmf/index": fileURLToPath(
+          new URL("./src/plugins/dtmf/index.ts", import.meta.url)
+        ),
+        "plugins/nmn2pcm/index": fileURLToPath(
+          new URL("./src/plugins/nmn2pcm/index.ts", import.meta.url)
+        ),
         "plugins/streaming-player/index": fileURLToPath(
           new URL("./src/plugins/streaming-player/index.ts", import.meta.url)
         ),
