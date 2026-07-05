@@ -3,31 +3,31 @@
     <div class="config-section-head">
       <div>
         <span class="section-kicker">{{
-          localize("插件装配", "Plugin Assembly")
+          translate("插件装配", "Plugin Assembly")
         }}</span>
-        <h2>{{ localize("统一配置与挂载", "Unified Config & Mounting") }}</h2>
+        <h2>{{ translate("统一配置与挂载", "Unified Config & Mounting") }}</h2>
       </div>
       <button
         :disabled="applyDisabled || !isDirty"
         class="ghost-button"
         @click="$emit('apply-plugin-config')"
       >
-        {{ localize("统一应用插件", "Apply All Plugins") }}
+        {{ translate("统一应用插件", "Apply All Plugins") }}
       </button>
     </div>
     <p class="field-note">{{ pluginApplyHint }}</p>
 
     <fieldset class="config-fieldset">
-      <legend>{{ localize("实时流插件", "Realtime Stream Plugin") }}</legend>
+      <legend>{{ translate("实时流插件", "Realtime Stream Plugin") }}</legend>
       <label class="field">
-        <span>{{ localize("流模式", "Stream Mode") }}</span>
+        <span>{{ translate("流模式", "Stream Mode") }}</span>
         <select v-model="pluginConfig.streamPluginMode">
           <option :value="streamPluginModes.streaming">Streaming Export</option>
           <option :value="streamPluginModes.sonic">Sonic Export</option>
         </select>
       </label>
       <label class="field">
-        <span>{{ localize("流格式", "Stream Format") }}</span>
+        <span>{{ translate("流格式", "Stream Format") }}</span>
         <select v-model="pluginConfig.streamPluginFormat">
           <option value="wav">WAV</option>
           <option value="pcm">PCM</option>
@@ -84,7 +84,7 @@
       </template>
       <p class="field-note">
         {{
-          localize(
+          translate(
             "当前实时流通过 plugin:stream 对接 Streaming Player。这里的变更会和分析、DSP 一起统一重挂。",
             "The live stream is wired into Streaming Player via plugin:stream. Changes here are remounted together with analysis and DSP plugins."
           )
@@ -93,13 +93,13 @@
     </fieldset>
 
     <fieldset class="config-fieldset">
-      <legend>{{ localize("分析插件", "Analysis Plugins") }}</legend>
+      <legend>{{ translate("分析插件", "Analysis Plugins") }}</legend>
       <label class="dsp-row">
         <input v-model="pluginConfig.enableFftPlugin" type="checkbox" />
         <span class="dsp-row-body">
           <strong>Frequency Histogram / FFT</strong>
           <small>{{
-            localize(
+            translate(
               "通过 plugin:fft 输出实时频谱柱数据，不影响主录音链路。",
               "Streams realtime spectrum bars through plugin:fft without touching the main recorder path."
             )
@@ -143,7 +143,7 @@
         <span class="dsp-row-body">
           <strong>DTMF Detector</strong>
           <small>{{
-            localize(
+            translate(
               "通过 plugin:dtmf:detect 识别电话按键音，适合调试 IVR / 双音频场景。",
               "Detects telephone keypad tones through plugin:dtmf:detect for IVR and dual-tone debugging."
             )
@@ -252,30 +252,30 @@ const props = defineProps({
 
 defineEmits(["apply-plugin-config"])
 
-function localize(zhText, enText) {
+function translate(zhText, enText) {
   return props.localize(zhText, enText)
 }
 
 function getLocalizedCopy(copy) {
-  return localize(copy.zh, copy.en)
+  return translate(copy.zh, copy.en)
 }
 
 const pluginApplyHint = computed(() => {
   if (props.applyDisabled) {
-    return localize(
+    return translate(
       "当前录音器未处于可应用状态；插件修改会先保留在面板里。",
       "The recorder is not ready for plugin apply right now. Changes stay staged in the panel."
     )
   }
 
   if (!props.isDirty) {
-    return localize(
+    return translate(
       "当前面板配置已经同步到录音器。",
       "The current panel configuration is already synced to the recorder."
     )
   }
 
-  return localize(
+  return translate(
     "当前有未应用的插件修改。点击“统一应用插件”后，会一次性重挂实时流、分析和 DSP 插件。",
     "There are unapplied plugin changes. Apply All Plugins remounts live stream, analysis, and DSP plugins in one pass."
   )

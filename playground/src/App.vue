@@ -1,122 +1,57 @@
 <script setup>
-import { computed, onBeforeUnmount, reactive, ref } from "vue"
+import { onBeforeUnmount, reactive, ref } from "vue"
+import PlaygroundAnalysisPanel from "./components/PlaygroundAnalysisPanel.vue"
 import PlaygroundDiagnosticsRail from "./components/PlaygroundDiagnosticsRail.vue"
+import PlaygroundExportPanel from "./components/PlaygroundExportPanel.vue"
+import PlaygroundHeaderBar from "./components/PlaygroundHeaderBar.vue"
 import PlaygroundNmnPanel from "./components/PlaygroundNmnPanel.vue"
-import PlaygroundPluginPanel from "./components/PlaygroundPluginPanel.vue"
+import PlaygroundRecorderConsole from "./components/PlaygroundRecorderConsole.vue"
+import PlaygroundSetupRail from "./components/PlaygroundSetupRail.vue"
 import PlaygroundStreamingPlayerPanel from "./components/PlaygroundStreamingPlayerPanel.vue"
 import {
   createRecorder,
   listMicrophoneDevices,
-  RecorderInputSource,
   RecorderState,
   RecorderWarningCode,
 } from "@csnight/audio-recorder"
 import { createLevelMeterPlugin } from "@csnight/audio-recorder/plugins/level-meter"
-import { createIndexedDbPersistencePlugin } from "@csnight/audio-recorder/storage/indexeddb"
-import { createOpfsPersistencePlugin } from "@csnight/audio-recorder/storage/opfs"
 import { createAsrExportPlugin } from "@csnight/audio-recorder/plugins/asr-export"
 import { createSonicExportPlugin } from "@csnight/audio-recorder/plugins/sonic-export"
 import {
   DEFAULT_NMN_OPTIONS,
   nmn2pcm,
 } from "@csnight/audio-recorder/plugins/nmn2pcm"
-import {
-  pcmExportEncoder,
-  pcmStreamEncoder,
-  wavExportEncoder,
-  wavStreamEncoder,
-} from "@csnight/audio-recorder/codecs/base"
-import { mp3ExportEncoder } from "@csnight/audio-recorder/codecs/mp3"
-import { g711ExportEncoder } from "@csnight/audio-recorder/codecs/g711"
-import {
-  oggExportEncoder,
-  webmExportEncoder,
-} from "@csnight/audio-recorder/codecs/opus"
-import { flacExportEncoder } from "@csnight/audio-recorder/codecs/flac"
-import { aacExportEncoder } from "@csnight/audio-recorder/codecs/aac"
-import { amrExportEncoder } from "@csnight/audio-recorder/codecs/amr"
-import {
-  ac3ExportEncoder,
-  eac3ExportEncoder,
-} from "@csnight/audio-recorder/codecs/ac3"
+import { wavExportEncoder } from "@csnight/audio-recorder/codecs/base"
 import {
   DSP_PLUGIN_OPTIONS,
   PLAYGROUND_STREAM_PLUGIN_MODE,
   usePlaygroundPluginManager,
 } from "./composables/usePlaygroundPluginManager.js"
-
-const PLAYGROUND_SOURCE_MODE = {
-  microphone: RecorderInputSource.Microphone,
-  externalTone: "external-tone",
-}
-
-const PLAYGROUND_STORAGE_MODE = {
-  memory: "memory",
-  persistent: "persistent",
-  auto: "auto",
-}
-
-const PLAYGROUND_LOCALE = {
-  zh: "zh-CN",
-  en: "en-US",
-}
-
-const LOCALE_OPTIONS = [
-  {
-    value: PLAYGROUND_LOCALE.zh,
-    shortLabel: "中",
-    label: "中文",
-  },
-  {
-    value: PLAYGROUND_LOCALE.en,
-    shortLabel: "EN",
-    label: "English",
-  },
-]
-
-const PLAYGROUND_PERSISTENCE_BACKEND = {
-  indexeddb: "indexeddb",
-  opfs: "opfs",
-}
-
-const PLAYGROUND_PERSISTENCE_CHUNK_BYTES = 256 * 1024
-
-const STANDARD_EXPORT_SAMPLE_RATES = [
-  7350, 8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, 64000,
-  88200, 96000, 176400, 192000,
-]
-
-const PERSISTENCE_PLUGIN_FACTORIES = {
-  [PLAYGROUND_PERSISTENCE_BACKEND.indexeddb]: createIndexedDbPersistencePlugin,
-  [PLAYGROUND_PERSISTENCE_BACKEND.opfs]: createOpfsPersistencePlugin,
-}
-
-const EXPORT_FORMAT_ACTIONS = [
-  { type: "pcm", label: "PCM", encoder: pcmExportEncoder },
-  { type: "wav", label: "WAV", encoder: wavExportEncoder },
-  { type: "mp3", label: "MP3", encoder: mp3ExportEncoder },
-  { type: "g711", label: "G.711", encoder: g711ExportEncoder },
-  { type: "aac", label: "AAC", encoder: aacExportEncoder },
-  {
-    type: "amr-nb",
-    exportFormat: "amr",
-    bandMode: "nb",
-    label: "AMR NB",
-    encoder: amrExportEncoder,
-  },
-  {
-    type: "amr-wb",
-    exportFormat: "amr",
-    bandMode: "wb",
-    label: "AMR WB",
-    encoder: amrExportEncoder,
-  },
-  { type: "ac3", label: "AC3", encoder: ac3ExportEncoder },
-  { type: "eac3", label: "E-AC3", encoder: eac3ExportEncoder },
-  { type: "ogg", label: "Opus OGG", encoder: oggExportEncoder },
-  { type: "webm", label: "Opus WebM", encoder: webmExportEncoder },
-  { type: "flac", label: "FLAC", encoder: flacExportEncoder },
-]
+import { usePlaygroundViewState } from "./composables/usePlaygroundViewState.js"
+import {
+  EXPORT_FORMAT_ACTIONS,
+  LOCALE_OPTIONS,
+  PERSISTENCE_PLUGIN_FACTORIES,
+  PLAYGROUND_LOCALE,
+  PLAYGROUND_PERSISTENCE_BACKEND,
+  PLAYGROUND_PERSISTENCE_CHUNK_BYTES,
+  PLAYGROUND_SOURCE_MODE,
+  PLAYGROUND_STORAGE_MODE,
+  STANDARD_EXPORT_SAMPLE_RATES,
+} from "./playground-constants.js"
+import {
+  formatBytes,
+  getExportAction,
+  getExportFormatLabel,
+  getExportResultByteLength,
+  getLogTypeLabel,
+  getSourceModeLabel,
+  getStorageModeLabel,
+} from "./playground-utils.js"
+import {
+  pcmStreamEncoder,
+  wavStreamEncoder,
+} from "@csnight/audio-recorder/codecs/base"
 
 const state = reactive({
   sourceMode: PLAYGROUND_SOURCE_MODE.externalTone,
@@ -202,447 +137,44 @@ const {
   resetRealtimeStreamRuntime,
 })
 
-const runtimeJson = computed(() =>
-  JSON.stringify(
-    {
-      runtimeInfo: state.runtimeInfo,
-      lastFrameDurationMs: state.lastFrameDurationMs,
-      activePersistenceBackend: state.activePersistenceBackend,
-    },
-    null,
-    2
-  )
-)
-
-const summaryJson = computed(() =>
-  JSON.stringify(
-    {
-      summary: state.summary,
-      state: state.recorderState,
-      sourceMode: state.sourceMode,
-      storageMode: state.storageMode,
-      persistenceBackend: state.persistenceBackend,
-      exportedBytes: state.exportedBytes,
-    },
-    null,
-    2
-  )
-)
-
-const storageJson = computed(() =>
-  JSON.stringify(state.storageDiagnostics, null, 2)
-)
-
-function toKvRows(value, prefix = "") {
-  if (value === null || value === undefined) return []
-  if (typeof value !== "object") {
-    return [{ label: prefix || "value", value: String(value) }]
-  }
-  return Object.entries(value).flatMap(([key, val]) => {
-    const label = prefix ? `${prefix}.${key}` : key
-    if (val !== null && typeof val === "object" && !Array.isArray(val)) {
-      return toKvRows(val, label)
-    }
-    return [
-      {
-        label,
-        value: Array.isArray(val) ? JSON.stringify(val) : String(val),
-      },
-    ]
-  })
-}
-
-const runtimeRows = computed(() =>
-  toKvRows({
-    runtimeInfo: state.runtimeInfo,
-    lastFrameDurationMs: state.lastFrameDurationMs,
-    activePersistenceBackend: state.activePersistenceBackend,
-  })
-)
-
-const summaryRows = computed(() =>
-  toKvRows({
-    summary: state.summary,
-    state: state.recorderState,
-    sourceMode: state.sourceMode,
-    storageMode: state.storageMode,
-    persistenceBackend: state.persistenceBackend,
-    exportedBytes: state.exportedBytes,
-  })
-)
-
-const storageRows = computed(() => toKvRows(state.storageDiagnostics))
-
-const hasExportResult = computed(
-  () =>
-    state.lastExportResult !== null &&
-    Object.keys(state.lastExportResult).length > 0
-)
-
-// 空值表示“不指定”，null 表示输入了非法 sampleRate。
-const selectedExportSampleRate = computed(() => {
-  const rawValue = state.exportSampleRateInput
-  if (rawValue === "" || rawValue === null || rawValue === undefined) {
-    return undefined
-  }
-
-  const sampleRate = Number(rawValue)
-  return Number.isInteger(sampleRate) && sampleRate > 0 ? sampleRate : null
+const {
+  analysisPluginBadge,
+  buildExportOptions,
+  canChangeStorageMode,
+  canClose,
+  canExportAudio,
+  canOpen,
+  canPause,
+  canResume,
+  canStart,
+  canStop,
+  combinedExportStats,
+  diagnosticGroups,
+  exportActions,
+  exportHint,
+  fftBarPreview,
+  hasExportResult,
+  hasNmnPreview,
+  headerContextChips,
+  isExportFormatSupported,
+  isNmnPreviewStale,
+  nmnExportHint,
+  nmnPreviewRows,
+  nmnResultRows,
+  runtimeJson,
+  stateBadgeClass,
+  stateBadgeText,
+  storageHint,
+  storageJson,
+  summaryJson,
+  topMetrics,
+} = usePlaygroundViewState({
+  state,
+  pluginConfig,
+  localize,
+  getNmnPreviewKey,
+  getLatestNmnPreviewKey: () => latestNmnPreviewKey,
 })
-
-const canExportAudio = computed(
-  () =>
-    state.pendingActionLabel === "" &&
-    state.recorderState === RecorderState.Stopped &&
-    state.summary !== null
-)
-
-const exportActions = computed(() =>
-  EXPORT_FORMAT_ACTIONS.map((action) => ({
-    ...action,
-    disabled: !canExportAudio.value || !isExportFormatSupported(action.type),
-  }))
-)
-
-const exportHint = computed(() => {
-  if (selectedExportSampleRate.value === null) {
-    return localize(
-      "sampleRate 需要填写为正整数，修正后才会恢复编码按钮可点击状态。",
-      "sampleRate must be a positive integer before export actions become available again."
-    )
-  }
-
-  if (selectedExportSampleRate.value === undefined) {
-    return localize(
-      "当前未显式指定 sampleRate；停止录音后会自动回填实际 sampleRate，并在点击按钮时调用对应编码器。",
-      "No explicit sampleRate is set. After stopping, the actual sampleRate is filled in automatically before encoding."
-    )
-  }
-
-  return localize(
-    `当前导出 sampleRate 为 ${selectedExportSampleRate.value} Hz，按钮可点击状态按各编码器的 isSupportSampleRate 结果更新。`,
-    `Export sampleRate is ${selectedExportSampleRate.value} Hz. Button availability follows each encoder's isSupportSampleRate result.`
-  )
-})
-
-const topMetrics = computed(() => [
-  {
-    label: localize("录音器", "Recorder"),
-    value: getRecorderStateLabel(state.recorderState),
-    detail:
-      state.pendingActionLabel ||
-      localize("等待下一步操作。", "Ready for the next action."),
-  },
-  {
-    label: localize("运行时", "Runtime"),
-    value:
-      state.runtimeInfo?.actualSampleRate ??
-      state.runtimeInfo?.requestedSampleRate ??
-      "-",
-    detail: `${
-      state.runtimeInfo?.actualChannelCount ??
-      state.runtimeInfo?.requestedChannelCount ??
-      "-"
-    } ch · ${getInputStrategyLabel(
-      state.runtimeInfo?.inputStrategy ?? state.inputStrategy
-    )}`,
-  },
-  {
-    label: localize("实时流", "Stream"),
-    value: localize(
-      `${state.realtimeChunkCount} 块`,
-      `${state.realtimeChunkCount} chunk`
-    ),
-    detail: `${formatBytes(state.realtimeChunkBytes)} · ASR ${state.asrChunkCount}`,
-  },
-  {
-    label: localize("持久化", "Persistence"),
-    value:
-      state.storageMode === PLAYGROUND_STORAGE_MODE.memory
-        ? localize("纯内存", "Memory")
-        : getPersistenceBackendLabel(
-            state.activePersistenceBackend ?? state.persistenceBackend
-          ),
-    detail: localize(
-      `${formatBytes(state.storageDiagnostics?.bytes ?? 0)} 已存储 · ${
-        state.storageDiagnostics?.persistedEntries ?? 0
-      } 项`,
-      `${formatBytes(state.storageDiagnostics?.bytes ?? 0)} stored · ${
-        state.storageDiagnostics?.persistedEntries ?? 0
-      } item(s)`
-    ),
-  },
-])
-
-const topSnapshotGroups = computed(() => [
-  {
-    label: localize("运行时", "Runtime"),
-    items: [
-      {
-        label: localize("来源", "Source"),
-        value: getSourceModeLabel(state.sourceMode),
-      },
-      {
-        label: localize("状态", "State"),
-        value: getRecorderStateLabel(state.recorderState),
-      },
-      { label: localize("帧数", "Frames"), value: String(state.frameCount) },
-      {
-        label: localize("最近帧", "Last Frame"),
-        value:
-          state.lastFrameDurationMs > 0
-            ? `${state.lastFrameDurationMs} ms`
-            : "-",
-      },
-    ],
-  },
-  {
-    label: localize("采集", "Capture"),
-    items: [
-      {
-        label: localize("采样率", "Sample Rate"),
-        value:
-          state.runtimeInfo?.actualSampleRate ??
-          state.runtimeInfo?.requestedSampleRate ??
-          "-",
-      },
-      {
-        label: localize("声道", "Channels"),
-        value:
-          state.runtimeInfo?.actualChannelCount ??
-          state.runtimeInfo?.requestedChannelCount ??
-          "-",
-      },
-      {
-        label: localize("输入策略", "Input"),
-        value: getInputStrategyLabel(
-          state.runtimeInfo?.inputStrategy ?? state.inputStrategy
-        ),
-      },
-      { label: localize("电平", "Level"), value: `${state.levelPercent}%` },
-    ],
-  },
-  {
-    label: localize("存储", "Storage"),
-    items: [
-      {
-        label: localize("模式", "Mode"),
-        value: getStorageModeLabel(state.storageMode),
-      },
-      {
-        label: localize("后端", "Backend"),
-        value:
-          state.storageMode === PLAYGROUND_STORAGE_MODE.memory
-            ? localize("纯内存", "Memory")
-            : getPersistenceBackendLabel(
-                state.activePersistenceBackend ?? state.persistenceBackend
-              ),
-      },
-      {
-        label: localize("落盘数", "Persisted"),
-        value: String(state.storageDiagnostics?.persistedEntries ?? 0),
-      },
-      {
-        label: localize("导出体积", "Exported"),
-        value: formatBytes(state.exportedBytes ?? 0),
-      },
-    ],
-  },
-])
-
-const exportStats = computed(() => {
-  if (!state.lastExportResult) return []
-
-  return EXPORT_FORMAT_ACTIONS.flatMap(({ type, label }) => {
-    const result = state.lastExportResult?.[type]
-    if (!result) return []
-
-    return [
-      {
-        label,
-        value: `${formatBytes(getExportResultByteLength(result))} · ${result.sampleRate} Hz`,
-      },
-    ]
-  })
-})
-
-const fftBarPreview = computed(() =>
-  Array.from({ length: Math.max(12, pluginConfig.fftBarCount) }, (_, index) => {
-    return state.fftBars[index] ?? 0
-  })
-)
-
-const nmnExportHint = computed(() =>
-  localize(
-    "NMN2PCM 不接入录音输入；当前 playground 仅提供本地预览和按所选编码器导出下载。",
-    "NMN2PCM does not enter the recorder input path. This playground only provides local preview and export through the selected encoder."
-  )
-)
-
-const nmnResultRows = computed(() => {
-  if (!state.lastNmnExport) return []
-
-  return [
-    {
-      label: localize("格式", "Format"),
-      value: state.lastNmnExport.format.toUpperCase(),
-    },
-    {
-      label: localize("体积", "Size"),
-      value: formatBytes(state.lastNmnExport.byteLength),
-    },
-    {
-      label: localize("采样率", "Sample Rate"),
-      value: `${state.lastNmnExport.sampleRate} Hz`,
-    },
-    {
-      label: localize("时长", "Duration"),
-      value: `${Math.round(state.lastNmnExport.durationMs)} ms`,
-    },
-  ]
-})
-
-const hasNmnPreview = computed(() => state.nmnPreviewUrl !== "")
-
-const nmnPreviewRows = computed(() => {
-  if (!hasNmnPreview.value) return []
-
-  return [
-    {
-      label: localize("预览体积", "Preview Size"),
-      value: formatBytes(state.nmnPreviewByteLength),
-    },
-    {
-      label: localize("预览时长", "Preview Duration"),
-      value: `${Math.round(state.nmnPreviewDurationMs)} ms`,
-    },
-  ]
-})
-
-const isNmnPreviewStale = computed(
-  () => hasNmnPreview.value && latestNmnPreviewKey !== getNmnPreviewKey()
-)
-
-const canOpen = computed(
-  () =>
-    state.pendingActionLabel === "" &&
-    [RecorderState.Idle, RecorderState.Closed].includes(state.recorderState)
-)
-
-const canStart = computed(
-  () =>
-    state.pendingActionLabel === "" &&
-    state.recorderState === RecorderState.Ready
-)
-
-const canPause = computed(
-  () =>
-    state.pendingActionLabel === "" &&
-    state.recorderState === RecorderState.Recording
-)
-
-const canResume = computed(
-  () =>
-    state.pendingActionLabel === "" &&
-    state.recorderState === RecorderState.Paused
-)
-
-const canStop = computed(
-  () =>
-    state.pendingActionLabel === "" &&
-    [RecorderState.Recording, RecorderState.Paused].includes(
-      state.recorderState
-    )
-)
-
-const canClose = computed(
-  () =>
-    state.pendingActionLabel === "" &&
-    [
-      RecorderState.Ready,
-      RecorderState.Recording,
-      RecorderState.Paused,
-      RecorderState.Stopped,
-    ].includes(state.recorderState)
-)
-
-const canChangeStorageMode = computed(
-  () =>
-    state.pendingActionLabel === "" &&
-    [RecorderState.Idle, RecorderState.Closed].includes(state.recorderState)
-)
-
-const sonicExportStats = computed(() => {
-  if (!state.lastSonicExportResult) return []
-
-  return ["pcm", "wav"].flatMap((format) => {
-    const result = state.lastSonicExportResult?.[format]
-    if (!result) return []
-
-    return [
-      {
-        label: localize(
-          `Sonic ${format.toUpperCase()}`,
-          `Sonic ${format.toUpperCase()}`
-        ),
-        value: `${formatBytes(getExportResultByteLength(result))} · ${result.sampleRate} Hz`,
-      },
-    ]
-  })
-})
-
-const storageHint = computed(() => {
-  if (state.storageMode === PLAYGROUND_STORAGE_MODE.memory) {
-    return localize(
-      "只使用内存缓冲，适合快速验证编码、事件和实时播放器链路。",
-      "Uses memory buffers only. Best for fast validation of encoding, events, and live playback."
-    )
-  }
-
-  if (state.storageMode === PLAYGROUND_STORAGE_MODE.persistent) {
-    return localize(
-      `录音开始后立即启用 ${getPersistenceBackendLabel(
-        state.persistenceBackend
-      )}，按 ${PLAYGROUND_PERSISTENCE_CHUNK_BYTES} byte 分块落盘。`,
-      `${getPersistenceBackendLabel(
-        state.persistenceBackend
-      )} is enabled as soon as recording starts, flushing data in ${PLAYGROUND_PERSISTENCE_CHUNK_BYTES}-byte chunks.`
-    )
-  }
-
-  return localize(
-    `录音数据累计超过 ${state.memoryThresholdBytes} byte 后切换到 ${getPersistenceBackendLabel(
-      state.persistenceBackend
-    )}。`,
-    `Switches to ${getPersistenceBackendLabel(
-      state.persistenceBackend
-    )} after buffered audio grows beyond ${state.memoryThresholdBytes} bytes.`
-  )
-})
-
-const analysisPluginBadge = computed(
-  () =>
-    `${pluginConfig.enableFftPlugin ? 1 : 0} FFT / ${
-      pluginConfig.enableDtmfPlugin ? 1 : 0
-    } DTMF`
-)
-
-const diagnosticGroups = computed(() => [
-  { label: localize("运行时", "Runtime"), rows: runtimeRows.value },
-  { label: localize("摘要", "Summary"), rows: summaryRows.value },
-  { label: localize("存储", "Storage"), rows: storageRows.value },
-  {
-    label: localize("插件", "Plugins"),
-    rows: toKvRows({
-      fftEnabled: pluginConfig.enableFftPlugin,
-      fftPeakPercent: state.fftPeakPercent,
-      dtmfEnabled: pluginConfig.enableDtmfPlugin,
-      dtmfLastKey: state.dtmfLastKey,
-      nmnExportFormat: state.nmnExportFormat,
-      nmnLastExport: state.lastNmnExport,
-    }),
-  },
-])
 
 appendLog(
   "info",
@@ -708,12 +240,22 @@ function resetRealtimeStreamRuntime() {
 }
 
 async function initializeRecorder(targetRecorder, generation) {
+  const pcmAsrEncoder = getExportAction("pcm")?.encoder
+  if (!pcmAsrEncoder) {
+    throw new Error(
+      localize(
+        "未找到 PCM 编码器，无法初始化 ASR 导出插件。",
+        "PCM encoder is missing, so the ASR export plugin cannot be initialized."
+      )
+    )
+  }
+
   await targetRecorder.use(createLevelMeterPlugin())
   await initializeRecorderPlugins(targetRecorder)
   await targetRecorder.use(
     createAsrExportPlugin({
       format: "pcm",
-      encoders: [pcmExportEncoder],
+      encoders: [pcmAsrEncoder],
       sampleRate: 16000,
       chunkDurationMs: 40,
     })
@@ -1004,11 +546,11 @@ async function exportSonicSnapshot(format) {
       )
       const result =
         format === "wav"
-          ? wavExportEncoder.export(
+          ? EXPORT_FORMAT_ACTIONS.find((v) => v.type === "wav").encoder?.export(
               transformedSnapshot,
               buildExportOptions("wav")
             )
-          : pcmExportEncoder.export(
+          : EXPORT_FORMAT_ACTIONS.find((v) => v.type === "pcm").encoder?.export(
               transformedSnapshot,
               buildExportOptions("pcm")
             )
@@ -1279,136 +821,12 @@ function createPlaygroundRecorder() {
       state.memoryThresholdBytes,
       persistencePluginFactory
     ),
-    encoders: [
-      pcmExportEncoder,
-      wavExportEncoder,
-      mp3ExportEncoder,
-      g711ExportEncoder,
-      aacExportEncoder,
-      amrExportEncoder,
-      ac3ExportEncoder,
-      eac3ExportEncoder,
-      oggExportEncoder,
-      webmExportEncoder,
-      flacExportEncoder,
-    ],
+    encoders: EXPORT_FORMAT_ACTIONS.map((v) => v.encoder),
   })
 }
 
 function formatError(error) {
   return error instanceof Error ? error.message : String(error)
-}
-
-function getInputStrategyLabel(strategy) {
-  switch (strategy) {
-    case "auto":
-      return localize("自动", "Auto")
-    case "media-recorder":
-      return "MediaRecorder"
-    case "audio-worklet":
-      return "AudioWorklet"
-    case "script-processor":
-      return "ScriptProcessor"
-    default:
-      return String(strategy ?? "-")
-  }
-}
-
-function getSourceModeLabel(mode) {
-  return mode === PLAYGROUND_SOURCE_MODE.externalTone
-    ? localize("外部音调流", "External tone stream")
-    : localize("麦克风", "Microphone")
-}
-
-function getStorageModeLabel(mode) {
-  switch (mode) {
-    case PLAYGROUND_STORAGE_MODE.persistent:
-      return localize("持久化模式", "Persistent")
-    case PLAYGROUND_STORAGE_MODE.auto:
-      return localize("自动模式", "Auto")
-    default:
-      return localize("纯内存", "Memory only")
-  }
-}
-
-function getPersistenceBackendLabel(backend) {
-  return backend === PLAYGROUND_PERSISTENCE_BACKEND.opfs ? "OPFS" : "IndexedDB"
-}
-
-function getRecorderStateLabel(value) {
-  switch (value) {
-    case RecorderState.Idle:
-      return localize("空闲", "Idle")
-    case RecorderState.Ready:
-      return localize("就绪", "Ready")
-    case RecorderState.Recording:
-      return localize("录音中", "Recording")
-    case RecorderState.Paused:
-      return localize("已暂停", "Paused")
-    case RecorderState.Stopped:
-      return localize("已停止", "Stopped")
-    case RecorderState.Closed:
-      return localize("已关闭", "Closed")
-    default:
-      return String(value)
-  }
-}
-
-function getLogTypeLabel(type) {
-  switch (type) {
-    case "info":
-      return localize("信息", "Info")
-    case "warning":
-      return localize("警告", "Warning")
-    case "error":
-      return localize("错误", "Error")
-    default:
-      return type
-  }
-}
-
-function getExportAction(format) {
-  return EXPORT_FORMAT_ACTIONS.find((action) => action.type === format) ?? null
-}
-
-function getExportFormatLabel(format) {
-  return getExportAction(format)?.label ?? format
-}
-
-function buildExportOptions(format) {
-  const sampleRate = selectedExportSampleRate.value
-  const exportAction = getExportAction(format)
-  const options = {}
-
-  if (sampleRate !== undefined && sampleRate !== null) {
-    options.sampleRate = sampleRate
-  }
-
-  // AMR 的 NB/WB 以两个按钮暴露，底层仍共享同一个 amr 编码器。
-  if (exportAction?.exportFormat === "amr" && exportAction.bandMode) {
-    options.bandMode = exportAction.bandMode
-  }
-
-  return Object.keys(options).length > 0 ? options : undefined
-}
-
-function isExportFormatSupported(format) {
-  const sampleRate = selectedExportSampleRate.value
-  if (sampleRate === null) return false
-  if (sampleRate === undefined) return true
-
-  const encoder = getExportAction(format)?.encoder
-  if (typeof encoder?.isSupportSampleRate !== "function") return true
-
-  return encoder.isSupportSampleRate(sampleRate, buildExportOptions(format))
-}
-
-function getExportResultByteLength(result) {
-  if (result?.data instanceof Uint8Array) return result.data.byteLength
-  if (result?.arrayBuffer instanceof ArrayBuffer)
-    return result.arrayBuffer.byteLength
-  if (result?.blob instanceof Blob) return result.blob.size
-  return 0
 }
 
 function deinterleavePcmData(source, channels) {
@@ -1651,40 +1069,6 @@ async function exportNmnAudio() {
   )
 }
 
-function getFftBarHeight(bar) {
-  if (!Number.isFinite(bar) || bar <= 0) {
-    return "0%"
-  }
-
-  return `${Math.max(2, Math.round(bar * 100))}%`
-}
-
-function formatBytes(bytes) {
-  if (bytes === null || bytes === undefined || Number.isNaN(bytes)) return "-"
-  if (bytes < 1024) return `${bytes} B`
-
-  const units = ["KB", "MB", "GB", "TB"]
-  let value = bytes / 1024
-  let unitIndex = 0
-
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024
-    unitIndex += 1
-  }
-
-  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`
-}
-
-function toStateClassName(value) {
-  return String(value)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-}
-
-function getRecorderBadgeClass(value) {
-  return `badge-state-${toStateClassName(value)}`
-}
-
 function createPlaygroundStorageOptions(
   storageMode,
   memoryThresholdBytes,
@@ -1904,265 +1288,55 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="page-shell">
-    <!-- ═══════════════════════════════════════════════════
-         HEADER BAR  ── compact single-row, no tiles
-    ════════════════════════════════════════════════════ -->
-    <header class="site-header topbar">
-      <div class="site-header-left">
-        <p class="eyebrow">Audio Recorder Lab</p>
-        <h1>
-          {{ localize("浏览器录音工作台", "Browser Recorder Workspace") }}
-        </h1>
-        <p class="lede">
-          {{
-            localize(
-              "通过 dist 产物快速校验输入源、持久化、实时编码、播放器与导出链路。",
-              "Use the dist build to validate input sources, persistence, realtime encoding, playback, and export flows."
-            )
-          }}
-        </p>
-      </div>
+    <PlaygroundHeaderBar
+      :badge-class="stateBadgeClass"
+      :badge-text="stateBadgeText"
+      :context-chips="headerContextChips"
+      :is-pending-action="state.pendingActionLabel !== ''"
+      :locale="locale"
+      :locale-options="LOCALE_OPTIONS"
+      :localize="localize"
+      :metrics="topMetrics"
+      @update:locale="setLocale"
+    />
 
-      <div class="site-header-right">
-        <div
-          :aria-label="localize('界面语言', 'Interface language')"
-          class="locale-switch"
-          role="group"
-        >
-          <span class="locale-switch-label">{{
-            localize("界面语言", "Language")
-          }}</span>
-          <div class="locale-switch-buttons">
-            <button
-              v-for="option in LOCALE_OPTIONS"
-              :key="option.value"
-              :class="[
-                'locale-button',
-                { 'locale-button-active': locale === option.value },
-              ]"
-              :data-testid="`locale-${option.value}`"
-              type="button"
-              @click="setLocale(option.value)"
-            >
-              <span>{{ option.shortLabel }}</span>
-              <small>{{ option.label }}</small>
-            </button>
-          </div>
-        </div>
-
-        <!-- state badge -->
-        <span
-          :class="[
-            'state-badge',
-            getRecorderBadgeClass(state.recorderState),
-            state.pendingActionLabel ? 'badge-accent' : '',
-          ]"
-          >{{
-            state.pendingActionLabel ||
-            getRecorderStateLabel(state.recorderState)
-          }}</span
-        >
-
-        <!-- inline metrics strip -->
-        <dl class="metrics-strip">
-          <template v-for="item in topMetrics" :key="item.label">
-            <dt>{{ item.label }}</dt>
-            <dd>
-              <strong>{{ item.value }}</strong>
-              <small>{{ item.detail }}</small>
-            </dd>
-          </template>
-        </dl>
-
-        <!-- context chips -->
-        <div class="context-chips">
-          <span class="mini-chip">{{
-            getSourceModeLabel(state.sourceMode)
-          }}</span>
-          <span class="mini-chip">{{
-            getStorageModeLabel(state.storageMode)
-          }}</span>
-          <span class="mini-chip">
-            {{
-              state.storageMode === PLAYGROUND_STORAGE_MODE.memory
-                ? localize("纯内存", "Memory")
-                : getPersistenceBackendLabel(state.persistenceBackend)
-            }}
-          </span>
-        </div>
-      </div>
-    </header>
-
-    <!-- ═══════════════════════════════════════════════════
-         MAIN WORKSPACE  ── three rails
-    ════════════════════════════════════════════════════ -->
     <div class="workspace">
-      <!-- ─── LEFT RAIL: configuration ─── -->
-      <aside class="rail rail-config">
-        <div class="rail-head">
-          <span class="rail-title">setup.conf</span>
-          <span class="rail-meta">{{
-            localize("采集 / 管线 / DSP", "capture / pipeline / DSP")
-          }}</span>
-        </div>
+      <PlaygroundSetupRail
+        :analysis-hint="analysisHint"
+        :can-apply-plugin-config="canApplyPluginConfig"
+        :can-change-storage-mode="canChangeStorageMode"
+        :dsp-hint="dspHint"
+        :dsp-plugin-options="DSP_PLUGIN_OPTIONS"
+        :input-strategy="state.inputStrategy"
+        :localize="localize"
+        :memory-threshold-bytes="state.memoryThresholdBytes"
+        :microphone-devices="state.microphoneDevices"
+        :persistence-backend="state.persistenceBackend"
+        :persistence-backend-options="PLAYGROUND_PERSISTENCE_BACKEND"
+        :plugin-config="pluginConfig"
+        :plugin-config-dirty="pluginConfigDirty"
+        :requested-channel-count="state.requestedChannelCount"
+        :selected-device-id="state.selectedDeviceId"
+        :source-mode="state.sourceMode"
+        :source-mode-options="PLAYGROUND_SOURCE_MODE"
+        :storage-hint="storageHint"
+        :storage-mode="state.storageMode"
+        :storage-mode-options="PLAYGROUND_STORAGE_MODE"
+        :stream-plugin-modes="PLAYGROUND_STREAM_PLUGIN_MODE"
+        @apply-plugin-config="applyPluginConfig"
+        @refresh-microphone-devices="refreshMicrophoneDevices"
+        @source-mode-change="handleSourceModeChange"
+        @storage-mode-change="handleStorageModeChange"
+        @update:input-strategy="state.inputStrategy = $event"
+        @update:memory-threshold-bytes="state.memoryThresholdBytes = $event"
+        @update:persistence-backend="state.persistenceBackend = $event"
+        @update:plugin-config="Object.assign(pluginConfig, $event)"
+        @update:requested-channel-count="state.requestedChannelCount = $event"
+        @update:selected-device-id="state.selectedDeviceId = $event"
+        @update:source-mode="state.sourceMode = $event"
+        @update:storage-mode="state.storageMode = $event"
+      />
 
-        <!-- §1 Capture Setup -->
-        <section class="config-section">
-          <div class="config-section-head">
-            <span class="section-kicker">{{
-              localize("采集设置", "Capture Setup")
-            }}</span>
-            <span class="badge">{{ localize("步骤 1", "Step 1") }}</span>
-          </div>
-
-          <fieldset class="config-fieldset">
-            <legend>{{ localize("输入源", "Input Source") }}</legend>
-            <label class="field">
-              <span>{{ localize("来源", "Source") }}</span>
-              <select
-                v-model="state.sourceMode"
-                @change="handleSourceModeChange"
-              >
-                <option :value="PLAYGROUND_SOURCE_MODE.microphone">
-                  {{ localize("麦克风", "Microphone") }}
-                </option>
-                <option :value="PLAYGROUND_SOURCE_MODE.externalTone">
-                  {{ localize("外部音调流", "External tone stream") }}
-                </option>
-              </select>
-            </label>
-            <label
-              v-if="state.sourceMode === PLAYGROUND_SOURCE_MODE.microphone"
-              class="field"
-            >
-              <span>{{ localize("设备", "Device") }}</span>
-              <div class="inline-field">
-                <select v-model="state.selectedDeviceId">
-                  <option value="">
-                    {{ localize("默认麦克风", "Default microphone") }}
-                  </option>
-                  <option
-                    v-for="device in state.microphoneDevices"
-                    :key="device.deviceId"
-                    :value="device.deviceId"
-                  >
-                    {{
-                      device.label ||
-                      localize(
-                        `麦克风 ${device.deviceId.slice(0, 8)}…`,
-                        `Microphone ${device.deviceId.slice(0, 8)}…`
-                      )
-                    }}
-                  </option>
-                </select>
-                <button class="ghost-button" @click="refreshMicrophoneDevices">
-                  {{ localize("刷新", "Refresh") }}
-                </button>
-              </div>
-            </label>
-          </fieldset>
-
-          <fieldset class="config-fieldset">
-            <legend>{{ localize("采集参数", "Capture Settings") }}</legend>
-            <label class="field">
-              <span>{{ localize("声道", "Channels") }}</span>
-              <select v-model.number="state.requestedChannelCount">
-                <option :value="1">{{ localize("单声道", "Mono") }}</option>
-                <option :value="2">{{ localize("双声道", "Stereo") }}</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>{{ localize("策略", "Strategy") }}</span>
-              <select v-model="state.inputStrategy">
-                <option value="auto">{{ localize("自动", "Auto") }}</option>
-                <option value="media-recorder">MediaRecorder</option>
-                <option value="audio-worklet">AudioWorklet</option>
-                <option value="script-processor">ScriptProcessor</option>
-              </select>
-            </label>
-          </fieldset>
-        </section>
-
-        <!-- §2 Pipeline Setup -->
-        <section class="config-section">
-          <div class="config-section-head">
-            <span class="section-kicker">{{
-              localize("管线设置", "Pipeline Setup")
-            }}</span>
-            <span class="badge">{{ localize("步骤 2", "Step 2") }}</span>
-          </div>
-
-          <fieldset class="config-fieldset">
-            <legend>
-              {{ localize("缓存与持久化", "Buffer & Persistence") }}
-            </legend>
-            <label class="field">
-              <span>{{ localize("存储模式", "Storage Mode") }}</span>
-              <select
-                v-model="state.storageMode"
-                :disabled="!canChangeStorageMode"
-                @change="handleStorageModeChange"
-              >
-                <option :value="PLAYGROUND_STORAGE_MODE.memory">
-                  {{ localize("纯内存", "Memory only") }}
-                </option>
-                <option :value="PLAYGROUND_STORAGE_MODE.persistent">
-                  {{ localize("持久化", "Persistent") }}
-                </option>
-                <option :value="PLAYGROUND_STORAGE_MODE.auto">
-                  {{ localize("自动切换", "Auto switch") }}
-                </option>
-              </select>
-            </label>
-            <label class="field">
-              <span>{{ localize("后端", "Backend") }}</span>
-              <select
-                v-model="state.persistenceBackend"
-                :disabled="
-                  !canChangeStorageMode ||
-                  state.storageMode === PLAYGROUND_STORAGE_MODE.memory
-                "
-                @change="handleStorageModeChange"
-              >
-                <option :value="PLAYGROUND_PERSISTENCE_BACKEND.indexeddb">
-                  IndexedDB
-                </option>
-                <option :value="PLAYGROUND_PERSISTENCE_BACKEND.opfs">
-                  OPFS
-                </option>
-              </select>
-            </label>
-            <label class="field">
-              <span>{{ localize("溢写阈值", "Spill Threshold") }}</span>
-              <input
-                v-model.number="state.memoryThresholdBytes"
-                :disabled="
-                  !canChangeStorageMode ||
-                  state.storageMode !== PLAYGROUND_STORAGE_MODE.auto
-                "
-                min="1"
-                step="1"
-                type="number"
-              />
-            </label>
-            <p class="field-note">{{ storageHint }}</p>
-          </fieldset>
-
-          <PlaygroundPluginPanel
-            v-model:plugin-config="pluginConfig"
-            :analysis-hint="analysisHint"
-            :apply-disabled="!canApplyPluginConfig"
-            :dsp-hint="dspHint"
-            :dsp-plugin-options="DSP_PLUGIN_OPTIONS"
-            :is-dirty="pluginConfigDirty"
-            :localize="localize"
-            :stream-plugin-modes="PLAYGROUND_STREAM_PLUGIN_MODE"
-            @apply-plugin-config="applyPluginConfig"
-          />
-        </section>
-      </aside>
-
-      <!-- ─── CENTER: action console + output ─── -->
       <div class="rail rail-center">
         <div class="rail-head">
           <span class="rail-title">session.ctrl</span>
@@ -2171,260 +1345,61 @@ onBeforeUnmount(() => {
           }}</span>
         </div>
 
-        <!-- Action console -->
-        <section class="center-block">
-          <div class="center-block-head">
-            <div>
-              <p class="section-kicker">
-                {{ localize("操作台", "Action Console") }}
-              </p>
-              <h2>{{ localize("录音流程", "Recording Flow") }}</h2>
-            </div>
-            <span
-              :class="[
-                'state-badge',
-                getRecorderBadgeClass(state.recorderState),
-                state.pendingActionLabel ? 'badge-accent' : '',
-              ]"
-              >{{
-                state.pendingActionLabel ||
-                getRecorderStateLabel(state.recorderState)
-              }}</span
-            >
-          </div>
+        <PlaygroundRecorderConsole
+          :asr-chunk-bytes="state.asrChunkBytes"
+          :badge-class="stateBadgeClass"
+          :badge-text="stateBadgeText"
+          :can-close="canClose"
+          :can-open="canOpen"
+          :can-pause="canPause"
+          :can-resume="canResume"
+          :can-start="canStart"
+          :can-stop="canStop"
+          :dtmf-last-key="state.dtmfLastKey"
+          :exported-bytes="state.exportedBytes"
+          :fft-peak-percent="state.fftPeakPercent"
+          :frame-count="state.frameCount"
+          :has-export-result="hasExportResult"
+          :is-pending-action="state.pendingActionLabel !== ''"
+          :level-percent="state.levelPercent"
+          :localize="localize"
+          :realtime-chunk-bytes="state.realtimeChunkBytes"
+          @close="closeRecorder"
+          @open="openRecorder"
+          @pause="pauseRecorder"
+          @resume="resumeRecorder"
+          @start="startRecorder"
+          @stop="stopRecorder"
+        />
 
-          <!-- live stats row -->
-          <div class="live-stats-row">
-            <span class="live-stat">
-              <b>{{ localize("帧数", "Frames") }}</b
-              ><i>{{ state.frameCount }}</i>
-            </span>
-            <span class="live-stat">
-              <b>{{ localize("实时流", "Realtime") }}</b
-              ><i>{{ formatBytes(state.realtimeChunkBytes) }}</i>
-            </span>
-            <span class="live-stat">
-              <b>ASR</b><i>{{ formatBytes(state.asrChunkBytes) }}</i>
-            </span>
-            <span class="live-stat">
-              <b>FFT</b><i>{{ state.fftPeakPercent }}%</i>
-            </span>
-            <span class="live-stat">
-              <b>DTMF</b><i>{{ state.dtmfLastKey }}</i>
-            </span>
-            <span class="live-stat">
-              <b>{{ localize("导出", "Export") }}</b>
-              <i>{{
-                hasExportResult
-                  ? formatBytes(state.exportedBytes ?? 0)
-                  : localize("等待中", "Pending")
-              }}</i>
-            </span>
-          </div>
+        <PlaygroundAnalysisPanel
+          :badge-text="analysisPluginBadge"
+          :dtmf-detections="state.dtmfDetections"
+          :dtmf-last-key="state.dtmfLastKey"
+          :fft-bars="fftBarPreview"
+          :fft-peak-percent="state.fftPeakPercent"
+          :localize="localize"
+        />
 
-          <!-- level meter -->
-          <div class="meter-row">
-            <span
-              >{{ localize("输入电平", "Input Level") }}
-              {{ state.levelPercent }}%</span
-            >
-            <div class="meter-shell">
-              <div
-                :style="{ width: `${state.levelPercent}%` }"
-                class="meter-fill"
-              ></div>
-            </div>
-          </div>
-
-          <!-- recorder actions -->
-          <div class="action-bar">
-            <button :disabled="!canOpen" @click="openRecorder">
-              {{ localize("打开", "Open") }}
-            </button>
-            <button :disabled="!canStart" @click="startRecorder">
-              {{ localize("开始", "Start") }}
-            </button>
-            <button :disabled="!canPause" @click="pauseRecorder">
-              {{ localize("暂停", "Pause") }}
-            </button>
-            <button :disabled="!canResume" @click="resumeRecorder">
-              {{ localize("恢复", "Resume") }}
-            </button>
-            <button :disabled="!canStop" @click="stopRecorder">
-              {{ localize("停止", "Stop") }}
-            </button>
-            <button :disabled="!canClose" @click="closeRecorder">
-              {{ localize("关闭", "Close") }}
-            </button>
-          </div>
-        </section>
-
-        <section class="center-block">
-          <div class="center-block-head">
-            <div>
-              <p class="section-kicker">
-                {{ localize("分析插件", "Analysis Plugins") }}
-              </p>
-              <h2>{{ localize("频谱与按键识别", "FFT & DTMF") }}</h2>
-            </div>
-            <span class="badge">{{ analysisPluginBadge }}</span>
-          </div>
-
-          <div class="analysis-grid">
-            <article class="analysis-card">
-              <div class="analysis-card-head">
-                <span>plugin:fft</span>
-                <strong>{{ state.fftPeakPercent }}%</strong>
-              </div>
-              <div aria-label="FFT bars" class="fft-strip">
-                <span
-                  v-for="(bar, index) in fftBarPreview"
-                  :key="index"
-                  :style="{ height: getFftBarHeight(bar) }"
-                  class="fft-bar"
-                ></span>
-              </div>
-              <p class="field-note">
-                {{
-                  localize(
-                    "显示最近一次频谱分析结果；关闭 FFT 插件后这里会回到空态。",
-                    "Shows the latest FFT spectrum slice. It returns to idle when the FFT plugin is disabled."
-                  )
-                }}
-              </p>
-            </article>
-
-            <article class="analysis-card">
-              <div class="analysis-card-head">
-                <span>plugin:dtmf:detect</span>
-                <strong>{{ state.dtmfLastKey }}</strong>
-              </div>
-              <div v-if="state.dtmfDetections.length" class="token-pile">
-                <span
-                  v-for="item in state.dtmfDetections"
-                  :key="`${item.key}-${item.startedAtMs}`"
-                  class="token-chip"
-                >
-                  {{ item.key }} · {{ Math.round(item.durationMs) }}ms
-                </span>
-              </div>
-              <p v-else class="field-note">
-                {{
-                  localize(
-                    "暂无识别结果；启用 DTMF 插件后向录音链路输入按键音即可在这里看到最近序列。",
-                    "No detections yet. Enable the DTMF plugin and feed keypad tones into the recorder to see recent events here."
-                  )
-                }}
-              </p>
-            </article>
-          </div>
-        </section>
-
-        <!-- Output / Export -->
-        <section class="center-block">
-          <div class="center-block-head">
-            <div>
-              <p class="section-kicker">
-                {{ localize("导出阶段", "Output Stage") }}
-              </p>
-              <h2>{{ localize("导出与下载", "Export & Download") }}</h2>
-            </div>
-            <span class="badge">
-              {{
-                hasExportResult
-                  ? formatBytes(state.exportedBytes ?? 0)
-                  : localize("等待导出", "Waiting")
-              }}
-            </span>
-          </div>
-
-          <!-- export options inline -->
-          <div class="export-options-row">
-            <label class="field field-inline">
-              <span>sampleRate</span>
-              <select v-model="state.exportSampleRateInput">
-                <option value="">{{ localize("不指定", "Unset") }}</option>
-                <option
-                  v-for="sampleRate in STANDARD_EXPORT_SAMPLE_RATES"
-                  :key="sampleRate"
-                  :value="String(sampleRate)"
-                >
-                  {{ sampleRate }} Hz
-                </option>
-              </select>
-            </label>
-          </div>
-          <p class="field-note">{{ exportHint }}</p>
-
-          <!-- export buttons: wrapping flex row -->
-          <div class="export-btn-row">
-            <button
-              v-for="action in exportActions"
-              :key="action.type"
-              :disabled="action.disabled"
-              @click="exportAudio(action.type)"
-            >
-              {{ action.label }}
-            </button>
-          </div>
-
-          <!-- sonic export -->
-          <div class="subsection-divider">
-            <span>{{
-              localize(
-                "Sonic Snapshot — 变速变调离线导出",
-                "Sonic Snapshot — Offline speed and pitch export"
-              )
-            }}</span>
-            <span class="badge">{{
-              getRealtimePluginModeLabel(pluginConfig.streamPluginMode)
-            }}</span>
-          </div>
-          <p class="field-note">
-            {{
-              localize(
-                "始终基于 stopped 后的 PCM snapshot 做 Sonic 处理，再导出为 PCM/WAV，与实时流插件是否为 Sonic 无关。",
-                "Sonic export always starts from the stopped PCM snapshot and then exports PCM/WAV, independent of the live stream plugin mode."
-              )
-            }}
-          </p>
-          <div class="export-btn-row export-btn-row-sm">
-            <button
-              :disabled="!canExportAudio"
-              @click="exportSonicSnapshot('pcm')"
-            >
-              Sonic PCM
-            </button>
-            <button
-              :disabled="!canExportAudio"
-              @click="exportSonicSnapshot('wav')"
-            >
-              Sonic WAV
-            </button>
-          </div>
-
-          <!-- export results -->
-          <template v-if="exportStats.length || sonicExportStats.length">
-            <div class="result-list">
-              <div
-                v-for="item in [...exportStats, ...sonicExportStats]"
-                :key="item.label"
-                class="result-row"
-              >
-                <span>{{ item.label }}</span>
-                <strong>{{ item.value }}</strong>
-              </div>
-            </div>
-          </template>
-          <p v-else class="field-note muted-block">
-            {{
-              localize(
-                "停止录音后点击任一编码按钮，触发对应格式导出并下载。",
-                "Stop the recorder, then click any encoder button to export and download that format."
-              )
-            }}
-          </p>
-        </section>
+        <PlaygroundExportPanel
+          :can-export-audio="canExportAudio"
+          :export-actions="exportActions"
+          :export-hint="exportHint"
+          :export-sample-rate-input="state.exportSampleRateInput"
+          :exported-bytes="state.exportedBytes"
+          :has-export-result="hasExportResult"
+          :localize="localize"
+          :result-rows="combinedExportStats"
+          :standard-export-sample-rates="STANDARD_EXPORT_SAMPLE_RATES"
+          :stream-plugin-mode-label="
+            getRealtimePluginModeLabel(pluginConfig.streamPluginMode)
+          "
+          @export-audio="exportAudio"
+          @export-sonic-snapshot="exportSonicSnapshot"
+          @update:export-sample-rate-input="
+            state.exportSampleRateInput = $event
+          "
+        />
 
         <PlaygroundNmnPanel
           :export-format="state.nmnExportFormat"
@@ -2458,7 +1433,7 @@ onBeforeUnmount(() => {
       <PlaygroundDiagnosticsRail
         :diagnostic-groups="diagnosticGroups"
         :diagnostics-raw-view="state.diagnosticsRawView"
-        :get-log-type-label="getLogTypeLabel"
+        :get-log-type-label="(type) => getLogTypeLabel(localize, type)"
         :localize="localize"
         :logs="state.logs"
         :runtime-json="runtimeJson"

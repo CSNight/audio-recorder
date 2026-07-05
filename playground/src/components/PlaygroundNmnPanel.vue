@@ -3,14 +3,14 @@
     <div class="center-block-head">
       <div>
         <p class="section-kicker">NMN2PCM</p>
-        <h2>{{ localize("简谱生成器", "Numbered Music Notation") }}</h2>
+        <h2>{{ translate("简谱生成器", "Numbered Music Notation") }}</h2>
       </div>
       <span class="badge">{{ exportFormat.toUpperCase() }}</span>
     </div>
 
     <div class="nmn-grid">
       <label class="field nmn-score-field">
-        <span>{{ localize("简谱文本", "Score Text") }}</span>
+        <span>{{ translate("简谱文本", "Score Text") }}</span>
         <textarea
           v-model.trim="scoreModel"
           rows="7"
@@ -53,7 +53,15 @@
         </label>
         <label class="field">
           <span>key</span>
-          <input v-model.trim="keyModel" type="text" />
+          <select v-model="keyModel">
+            <option
+              v-for="keyOption in keyOptions"
+              :key="`nmn-key-${keyOption}`"
+              :value="keyOption"
+            >
+              {{ keyOption }}
+            </option>
+          </select>
         </label>
         <label class="field">
           <span>transpose</span>
@@ -66,7 +74,7 @@
           />
         </label>
         <label class="field">
-          <span>{{ localize("导出格式", "Export Format") }}</span>
+          <span>{{ translate("导出格式", "Export Format") }}</span>
           <select v-model="exportFormatModel">
             <option
               v-for="action in exportFormatActions"
@@ -85,24 +93,24 @@
 
     <div class="export-btn-row export-btn-row-sm">
       <button @click="$emit('generate-preview')">
-        {{ localize("生成预览", "Generate Preview") }}
+        {{ translate("生成预览", "Generate Preview") }}
       </button>
       <button
         :disabled="!isExportFormatSupported(exportFormat)"
         @click="$emit('export-audio')"
       >
-        {{ localize("生成并下载", "Generate & Download") }}
+        {{ translate("生成并下载", "Generate & Download") }}
       </button>
     </div>
 
     <div class="nmn-grid">
       <article class="analysis-card nmn-preview-card">
         <div class="analysis-card-head">
-          <span>{{ localize("本地预览", "Local Preview") }}</span>
+          <span>{{ translate("本地预览", "Local Preview") }}</span>
           <strong>{{
             hasPreview
               ? `${Math.round(previewDurationMs)} ms`
-              : localize("未生成", "Idle")
+              : translate("未生成", "Idle")
           }}</strong>
         </div>
         <audio
@@ -114,7 +122,7 @@
         ></audio>
         <p v-else class="field-note">
           {{
-            localize(
+            translate(
               "点击“生成预览”后，这里会提供可直接试听的 WAV 预览。",
               'Click "Generate Preview" to render a WAV preview for direct playback here.'
             )
@@ -122,7 +130,7 @@
         </p>
         <p v-if="isPreviewStale" class="field-note">
           {{
-            localize(
+            translate(
               "当前参数已变化，试听内容还是上一次生成结果；重新生成后才会刷新。",
               "The score or parameters changed. This preview still reflects the previous render until you generate again."
             )
@@ -132,16 +140,16 @@
 
       <article class="analysis-card nmn-preview-card">
         <div class="analysis-card-head">
-          <span>{{ localize("预览信息", "Preview Info") }}</span>
+          <span>{{ translate("预览信息", "Preview Info") }}</span>
           <strong>{{
             hasPreview
-              ? localize("已就绪", "Ready")
-              : localize("待生成", "Pending")
+              ? translate("已就绪", "Ready")
+              : translate("待生成", "Pending")
           }}</strong>
         </div>
         <p class="field-note">
           {{
-            localize(
+            translate(
               "NMN 预览只用于本地试听，不接入录音输入，也不会推送到实时播放器链路。",
               "The NMN preview is only for local playback. It never enters recorder input or the realtime streaming-player chain."
             )
@@ -167,7 +175,10 @@
 
 <script lang="ts" setup>
 import { computed } from "vue"
-import type { NmnConvertOptions } from "@csnight/audio-recorder/plugins/nmn2pcm"
+import {
+  NMN_KEY_OFFSETS,
+  type NmnConvertOptions,
+} from "@csnight/audio-recorder/plugins/nmn2pcm"
 import type {
   PlaygroundExportAction,
   PlaygroundResultRow,
@@ -228,6 +239,11 @@ const volumeModel = computed({
   set: (value: number) => updateOptions({ volume: value }),
 })
 
+const keyOptions = Object.keys(NMN_KEY_OFFSETS).flatMap((key) => [
+  key,
+  `${key}m`,
+])
+
 const keyModel = computed({
   get: () => props.options.key,
   set: (value: string) => updateOptions({ key: value }),
@@ -243,7 +259,7 @@ const exportFormatModel = computed({
   set: (value: string) => emit("update:exportFormat", value),
 })
 
-function localize(zhText: string, enText: string): string {
+function translate(zhText: string, enText: string): string {
   return props.localize(zhText, enText)
 }
 

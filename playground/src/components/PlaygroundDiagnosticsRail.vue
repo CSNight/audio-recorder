@@ -3,17 +3,17 @@
     <div class="rail-head">
       <span class="rail-title">diag.log</span>
       <span class="rail-meta">{{
-        localize("运行时 / 存储 / 事件", "runtime / storage / events")
+        translate("运行时 / 存储 / 事件", "runtime / storage / events")
       }}</span>
     </div>
 
     <section class="info-section">
       <div class="info-section-head">
         <span class="section-kicker">{{
-          localize("诊断", "Diagnostics")
+          translate("诊断", "Diagnostics")
         }}</span>
         <button class="ghost-button" @click="$emit('toggle-raw-view')">
-          {{ diagnosticsRawView ? localize("结构化", "Structured") : "JSON" }}
+          {{ diagnosticsRawView ? translate("结构化", "Structured") : "JSON" }}
         </button>
       </div>
 
@@ -39,7 +39,7 @@
             </template>
           </dl>
           <p v-else class="field-note">
-            {{ localize("暂无数据。", "No data yet.") }}
+            {{ translate("暂无数据。", "No data yet.") }}
           </p>
         </div>
       </template>
@@ -47,9 +47,9 @@
 
     <section class="info-section info-section-logs">
       <div class="info-section-head">
-        <span class="section-kicker">{{ localize("日志", "Logs") }}</span>
+        <span class="section-kicker">{{ translate("日志", "Logs") }}</span>
         <button class="ghost-button" @click="$emit('clear-logs')">
-          {{ localize("清空", "Clear") }}
+          {{ translate("清空", "Clear") }}
         </button>
       </div>
       <ul class="log-list log-panel-body">
@@ -61,7 +61,7 @@
           <div class="log-head">
             <span class="log-time">{{ item.time }}</span>
             <span :class="['log-type', item.type]">{{
-              getLogTypeLabel(item.type)
+              resolveLogTypeLabel(item.type)
             }}</span>
           </div>
           <p class="log-message">{{ item.message }}</p>
@@ -69,7 +69,7 @@
         <li v-if="logs.length === 0" class="log-item log-item-empty">
           <p class="log-message">
             {{
-              localize(
+              translate(
                 "暂无日志，操作录音器后会在这里展示事件流。",
                 "No logs yet. Recorder events will appear here after you interact with it."
               )
@@ -105,11 +105,11 @@ defineEmits<{
   "clear-logs": []
 }>()
 
-function localize(zhText: string, enText: string): string {
+function translate(zhText: string, enText: string): string {
   return props.localize(zhText, enText)
 }
 
-function getLogTypeLabel(type: string): string {
+function resolveLogTypeLabel(type: string): string {
   return props.getLogTypeLabel(type)
 }
 </script>

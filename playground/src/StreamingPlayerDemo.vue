@@ -3,32 +3,32 @@
     <!-- ── stats strip ── -->
     <div class="sp-stats-strip">
       <span class="sp-stat">
-        <b>{{ localize("状态", "State") }}</b>
+        <b>{{ translate("状态", "State") }}</b>
         <i :class="`sp-state-${state}`">{{ getPlayerStateLabel(state) }}</i>
       </span>
       <span class="sp-stat">
-        <b>{{ localize("缓冲", "Buffered") }}</b>
+        <b>{{ translate("缓冲", "Buffered") }}</b>
         <i>{{ bufferedMs }} ms</i>
       </span>
       <span class="sp-stat">
-        <b>{{ localize("已存储", "Stored") }}</b>
+        <b>{{ translate("已存储", "Stored") }}</b>
         <i>{{ storedMs }} ms</i>
       </span>
       <span class="sp-stat">
-        <b>{{ localize("丢包", "Dropped") }}</b>
+        <b>{{ translate("丢包", "Dropped") }}</b>
         <i :class="{ 'sp-danger': droppedPackets > 0 }">{{ droppedPackets }}</i>
       </span>
       <span class="sp-stat">
-        <b>{{ localize("包数", "Packets") }}</b>
+        <b>{{ translate("包数", "Packets") }}</b>
         <i class="sp-accent">{{ rxCount }}</i>
       </span>
       <span class="sp-stat">
-        <b>{{ localize("来源", "Source") }}</b>
+        <b>{{ translate("来源", "Source") }}</b>
         <i :class="recorder ? 'sp-accent-2' : ''">
           {{
             recorder
-              ? sourceName || localize("已连接", "Attached")
-              : localize("未连接", "Detached")
+              ? sourceName || translate("已连接", "Attached")
+              : translate("未连接", "Detached")
           }}
         </i>
       </span>
@@ -39,12 +39,12 @@
       <!-- Config -->
       <fieldset class="sp-fieldset">
         <legend>
-          {{ localize("配置", "Config") }}
+          {{ translate("配置", "Config") }}
           <span :class="['sp-badge', player ? 'sp-badge-active' : '']">
             {{
               player
-                ? localize("已启用", "Active")
-                : localize("未创建", "Not Created")
+                ? translate("已启用", "Active")
+                : translate("未创建", "Not Created")
             }}
           </span>
         </legend>
@@ -94,7 +94,7 @@
           <!-- 音量范围独占一行 -->
           <label class="sp-cfg-cell sp-cfg-full">
             <span
-              >{{ localize("初始音量", "Initial Volume") }}
+              >{{ translate("初始音量", "Initial Volume") }}
               {{ (cfg.volume * 100).toFixed(0) }}%</span
             >
             <input
@@ -114,14 +114,14 @@
             data-testid="player-create"
             @click="createPlayer"
           >
-            {{ localize("创建播放器", "Create Player") }}
+            {{ translate("创建播放器", "Create Player") }}
           </button>
           <button
             :disabled="!player"
             data-testid="player-destroy"
             @click="doDestroy"
           >
-            {{ localize("销毁播放器", "Destroy Player") }}
+            {{ translate("销毁播放器", "Destroy Player") }}
           </button>
         </div>
       </fieldset>
@@ -129,33 +129,33 @@
       <!-- Playback + Replay + Events 竖排 -->
       <div class="sp-right-col">
         <fieldset class="sp-fieldset">
-          <legend>{{ localize("播放控制", "Playback") }}</legend>
+          <legend>{{ translate("播放控制", "Playback") }}</legend>
           <div class="sp-action-row">
             <button
               :disabled="!player || state !== 'idle'"
               data-testid="player-start"
               @click="doStart"
             >
-              {{ localize("开始播放", "Start") }}
+              {{ translate("开始播放", "Start") }}
             </button>
             <button
               :disabled="!player || state !== 'playing'"
               data-testid="player-pause"
               @click="doPause"
             >
-              {{ localize("暂停播放", "Pause") }}
+              {{ translate("暂停播放", "Pause") }}
             </button>
             <button
               :disabled="!player || state !== 'paused'"
               data-testid="player-resume"
               @click="doResume"
             >
-              {{ localize("继续播放", "Resume") }}
+              {{ translate("继续播放", "Resume") }}
             </button>
           </div>
           <label class="sp-cfg-cell sp-cfg-full sp-mt">
             <span
-              >{{ localize("实时音量", "Live Volume") }}
+              >{{ translate("实时音量", "Live Volume") }}
               {{ (liveVolume * 100).toFixed(0) }}%</span
             >
             <input
@@ -172,14 +172,14 @@
 
         <fieldset class="sp-fieldset">
           <legend>
-            {{ localize("回放", "Replay") }}
+            {{ translate("回放", "Replay") }}
             <small>{{
-              localize("仅暂停状态可用", "Available only while paused")
+              translate("仅暂停状态可用", "Available only while paused")
             }}</small>
           </legend>
           <div class="sp-inline-row">
             <label class="sp-cfg-cell" style="flex: 1">
-              <span>{{ localize("时长（秒）", "Duration (s)") }}</span>
+              <span>{{ translate("时长（秒）", "Duration (s)") }}</span>
               <input
                 v-model.number="replaySec"
                 :disabled="state !== 'paused'"
@@ -194,16 +194,16 @@
               data-testid="player-replay"
               @click="doReplay"
             >
-              {{ localize(`回放 ${replaySec}s`, `Replay ${replaySec}s`) }}
+              {{ translate(`回放 ${replaySec}s`, `Replay ${replaySec}s`) }}
             </button>
           </div>
         </fieldset>
 
         <fieldset class="sp-fieldset">
-          <legend>{{ localize("事件", "Events") }}</legend>
+          <legend>{{ translate("事件", "Events") }}</legend>
           <p class="sp-note">
             {{
-              localize(
+              translate(
                 "动态赋值 onStateChange",
                 "Dynamically assign onStateChange"
               )
@@ -215,14 +215,14 @@
               data-testid="player-bind-state"
               @click="bindStateChange"
             >
-              {{ localize("绑定回调", "Bind Callback") }}
+              {{ translate("绑定回调", "Bind Callback") }}
             </button>
             <button
               :disabled="!player"
               data-testid="player-unbind-state"
               @click="unbindStateChange"
             >
-              {{ localize("清空回调", "Unbind Callback") }}
+              {{ translate("清空回调", "Unbind Callback") }}
             </button>
           </div>
         </fieldset>
@@ -232,9 +232,9 @@
     <!-- ── Log ── -->
     <div class="sp-log-wrap">
       <div class="sp-log-head">
-        <span class="section-kicker">{{ localize("日志", "Log") }}</span>
+        <span class="section-kicker">{{ translate("日志", "Log") }}</span>
         <button class="ghost-button" @click="logs = []">
-          {{ localize("清空", "Clear") }}
+          {{ translate("清空", "Clear") }}
         </button>
       </div>
       <ul class="sp-log-list">
@@ -246,7 +246,7 @@
           {{ entry }}
         </li>
         <li v-if="logs.length === 0" class="sp-log-empty">
-          {{ localize("暂无日志", "No logs yet") }}
+          {{ translate("暂无日志", "No logs yet") }}
         </li>
       </ul>
     </div>
@@ -319,27 +319,27 @@ const logs = ref<string[]>([])
 let statusTimer: ReturnType<typeof setInterval> | null = null
 let streamUnsub: (() => void) | null = null
 
-function localize(zhText: string, enText: string) {
+function translate(zhText: string, enText: string) {
   return props.locale === PLAYGROUND_LOCALE.en ? enText : zhText
 }
 
 function getPlayerStateLabel(value: StreamingPlayerState) {
   switch (value) {
     case "idle":
-      return localize("空闲", "Idle")
+      return translate("空闲", "Idle")
     case "playing":
-      return localize("播放中", "Playing")
+      return translate("播放中", "Playing")
     case "paused":
-      return localize("已暂停", "Paused")
+      return translate("已暂停", "Paused")
     case "stopped":
-      return localize("已停止", "Stopped")
+      return translate("已停止", "Stopped")
     default:
       return value
   }
 }
 
 function getPersistModeLabel(value: "memory" | "indexeddb") {
-  return value === "memory" ? localize("内存", "Memory") : "IndexedDB"
+  return value === "memory" ? translate("内存", "Memory") : "IndexedDB"
 }
 
 function log(message: string) {
@@ -370,7 +370,7 @@ function subscribeRecorder(recorderInstance: any) {
     player.value.push(packet)
   })
   log(
-    localize(
+    translate(
       `已订阅 ${props.sourceName || "plugin:stream"}。`,
       `Subscribed to ${props.sourceName || "plugin:stream"}.`
     )
@@ -398,7 +398,7 @@ async function createPlayer() {
       onStateChange: (nextState) => {
         state.value = nextState
         log(
-          localize(
+          translate(
             `状态回调 -> ${getPlayerStateLabel(nextState)}`,
             `onStateChange -> ${getPlayerStateLabel(nextState)}`
           )
@@ -406,14 +406,14 @@ async function createPlayer() {
       },
       onUnderrun: (detail) =>
         log(
-          localize(
+          translate(
             `欠载 bufferedMs=${detail.bufferedMs}`,
             `Underrun bufferedMs=${detail.bufferedMs}`
           )
         ),
       onPacketDrop: (detail) =>
         log(
-          localize(
+          translate(
             `丢包 ${detail.count} ${detail.reason}`,
             `Packet drop ${detail.count} ${detail.reason}`
           )
@@ -427,7 +427,7 @@ async function createPlayer() {
       syncPlayerSnapshot()
     }, 200)
     log(
-      localize(
+      translate(
         `播放器已创建，模式=${getPersistModeLabel(cfg.value.persistMode)}。`,
         `Player created with mode=${getPersistModeLabel(cfg.value.persistMode)}.`
       )
@@ -435,7 +435,7 @@ async function createPlayer() {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     log(
-      localize(
+      translate(
         `createStreamingPlayer 失败：${errorMessage}`,
         `createStreamingPlayer failed: ${errorMessage}`
       )
@@ -448,11 +448,14 @@ async function doStart() {
   try {
     await player.value.start()
     syncPlayerSnapshot()
-    log(localize("已开始播放。", "Playback started."))
+    log(translate("已开始播放。", "Playback started."))
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     log(
-      localize(`开始播放失败：${errorMessage}`, `Start failed: ${errorMessage}`)
+      translate(
+        `开始播放失败：${errorMessage}`,
+        `Start failed: ${errorMessage}`
+      )
     )
   }
 }
@@ -460,13 +463,13 @@ async function doStart() {
 function doPause() {
   player.value?.pause()
   syncPlayerSnapshot()
-  log(localize("已暂停播放。", "Playback paused."))
+  log(translate("已暂停播放。", "Playback paused."))
 }
 
 function doResume() {
   player.value?.resume()
   syncPlayerSnapshot()
-  log(localize("已恢复播放。", "Playback resumed."))
+  log(translate("已恢复播放。", "Playback resumed."))
 }
 
 function doSetVolume() {
@@ -476,7 +479,9 @@ function doSetVolume() {
 function doReplay() {
   if (!player.value) return
   player.value.replay(replaySec.value)
-  log(localize(`执行回放 ${replaySec.value}s。`, `Replay ${replaySec.value}s.`))
+  log(
+    translate(`执行回放 ${replaySec.value}s。`, `Replay ${replaySec.value}s.`)
+  )
 }
 
 function doDestroy() {
@@ -492,7 +497,7 @@ function doDestroy() {
     clearInterval(statusTimer)
     statusTimer = null
   }
-  log(localize("播放器已销毁。", "Player destroyed."))
+  log(translate("播放器已销毁。", "Player destroyed."))
 }
 
 function bindStateChange() {
@@ -500,19 +505,19 @@ function bindStateChange() {
   player.value.onStateChange = (nextState) => {
     state.value = nextState
     log(
-      localize(
+      translate(
         `动态状态回调 -> ${getPlayerStateLabel(nextState)}`,
         `Dynamic onStateChange -> ${getPlayerStateLabel(nextState)}`
       )
     )
   }
-  log(localize("onStateChange 已重新绑定。", "onStateChange rebound."))
+  log(translate("onStateChange 已重新绑定。", "onStateChange rebound."))
 }
 
 function unbindStateChange() {
   if (!player.value) return
   player.value.onStateChange = null
-  log(localize("onStateChange 已清空。", "onStateChange cleared."))
+  log(translate("onStateChange 已清空。", "onStateChange cleared."))
 }
 
 onUnmounted(() => {

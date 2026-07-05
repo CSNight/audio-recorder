@@ -1,12 +1,37 @@
 import { fileURLToPath, URL } from "node:url"
+import { readdirSync } from "node:fs"
 import { defineConfig } from "vite"
 import vue from "@vitejs/plugin-vue"
+
+const DIST_CODECS_BASE_DIR = fileURLToPath(
+  new URL("../dist/codecs/base/", import.meta.url)
+)
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+function createDistWorkerAliases() {
+  return readdirSync(DIST_CODECS_BASE_DIR)
+    .filter((filename) => /^(pcm|wav)-worker-.*\.js$/.test(filename))
+    .map((filename) => ({
+      // playground 引用根仓库 dist 产物时，Vite 会把 worker 入口折算成
+      // 相对 playground 根目录的路径；这里显式映射回真实文件，避免构建阶段丢失。
+      find: new RegExp(
+        `^\\.\\.\\/dist\\/codecs\\/base\\/${escapeRegex(filename)}$`
+      ),
+      replacement: fileURLToPath(
+        new URL(`../dist/codecs/base/${filename}`, import.meta.url)
+      ),
+    }))
+}
 
 export default defineConfig({
   plugins: [vue()],
   publicDir: false,
   resolve: {
     alias: [
+      ...createDistWorkerAliases(),
       {
         find: "@csnight/audio-recorder/plugins/level-meter",
         replacement: fileURLToPath(
