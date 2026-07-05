@@ -1,7 +1,7 @@
 {
   "name": "@csnight/audio-recorder",
   "private": false,
-  "version": "1.0.4",
+  "version": "1.0.5",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "description": "TypeScript browser audio recorder for microphone and MediaStream input with PCM pipelines, plugins, streaming export, persistence, and WAV/MP3/Opus/FLAC/AAC/AMR/AC3 output.",
