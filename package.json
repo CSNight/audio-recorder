@@ -1,7 +1,7 @@
 {
   "name": "@csnight/audio-recorder",
   "private": false,
-  "version": "1.0.6",
+  "version": "1.0.7",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "description": "TypeScript browser audio recorder for microphone and MediaStream input with PCM pipelines, plugins, streaming export, persistence, and WAV/MP3/Opus/FLAC/AAC/AMR/AC3 output.",
@@ -60,7 +60,7 @@
     "commitlint": "commitlint --edit",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build && npm run verify:exports",
     "verify:exports": "node ./scripts/verify-exports.mjs",
-    "publish": "npm publish --access public --registry=https://registry.npmjs.org/"
+    "publish": "npm run build && npm publish --access public --registry=https://registry.npmjs.org/"
   },
   "exports": {
     ".": {
