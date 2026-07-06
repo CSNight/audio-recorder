@@ -80,7 +80,7 @@
 - `media-recorder / audio-worklet / script-processor` 三种输入策略
 - `frame:async`、`statechange`、`issue` 三类核心事件
 - `plugin:level`、`plugin:stream`、`plugin:asr:chunk`、`plugin:fft`、`plugin:dtmf:detect` 五类稳定插件事件
-- `storage/opfs`、`storage/indexeddb` 两个可选持久化子路径
+- `storage/opfs`、`storage/indexeddb` 两个可选持久化子路径，并各自导出工厂与静态能力探测函数
 - `codecs/base`、`codecs/mp3` 等编解码器子路径，以及 `plugins/frequency-histogram`、`plugins/dtmf`、`plugins/nmn2pcm` 等扩展子路径
 
 ### 2.2 当前核心链路
@@ -696,6 +696,8 @@ await recorder.use(
 - `./storage/indexeddb`
 - `./codecs/base`
 - `./codecs/mp3`
+
+其中 `./storage/opfs` 与 `./storage/indexeddb` 的对外 API 统一为 `create...Plugin() + isSupport()`，同时保持插件实例 `isSupported()` 兼容。
 
 ### 4.6 Codec 插件化架构基线
 

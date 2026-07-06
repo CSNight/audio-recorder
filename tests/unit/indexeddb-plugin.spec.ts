@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import type { PcmBufferSnapshot } from "../../src/buffer/types"
+import type { PcmBufferSnapshot } from "../../src"
 import { serializePcmSnapshot } from "../../src"
-import { createIndexedDbPersistencePlugin } from "../../src/storage/indexeddb"
+import {
+  createIndexedDbPersistencePlugin,
+  isSupport,
+} from "../../src/storage/indexeddb"
 
-const DATABASE_NAME = "csnight-audio-recorder"
+const DATABASE_NAME = "audio-recorder"
 const STORE_NAME = "sessions"
 
 class MockIdbRequest<Result> {
@@ -426,10 +429,11 @@ describe("createIndexedDbPersistencePlugin", () => {
     vi.restoreAllMocks()
   })
 
-  it("requires indexedDB to report support", async () => {
+  it("exports a static IndexedDB support probe and keeps instance checks compatible", async () => {
     const plugin = createIndexedDbPersistencePlugin()
 
-    expect(await plugin.isSupported()).toBe(typeof indexedDB !== "undefined")
+    expect(isSupport()).toBe(typeof indexedDB !== "undefined")
+    expect(await plugin.isSupported()).toBe(isSupport())
   })
 
   it("appends, reads, clears, and closes session snapshots", async () => {

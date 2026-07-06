@@ -392,8 +392,8 @@ Returns:
 | `@csnight/audio-recorder/plugins/dtmf`                | `encodeDtmf()` / `lookupDtmfFrequencies()` / `createDtmfDecoderPlugin()`       |
 | `@csnight/audio-recorder/plugins/nmn2pcm`             | `nmn2pcm()` / `DEFAULT_NMN_OPTIONS` / `DYNAMIC_VELOCITY` / `NMN_KEY_OFFSETS`   |
 | `@csnight/audio-recorder/plugins/streaming-player`    | `createStreamingPlayer()`                                                      |
-| `@csnight/audio-recorder/storage/opfs`                | `createOpfsPersistencePlugin()`                                                |
-| `@csnight/audio-recorder/storage/indexeddb`           | `createIndexedDbPersistencePlugin()`                                           |
+| `@csnight/audio-recorder/storage/opfs`                | `createOpfsPersistencePlugin()` / `isSupport()`                                |
+| `@csnight/audio-recorder/storage/indexeddb`           | `createIndexedDbPersistencePlugin()` / `isSupport()`                           |
 
 ### Events
 
@@ -1175,7 +1175,14 @@ OPFS persistence backend. Stores snapshots as chunk files and is suitable for lo
 
 ```ts
 import { createRecorder } from "@csnight/audio-recorder"
-import { createOpfsPersistencePlugin } from "@csnight/audio-recorder/storage/opfs"
+import {
+  createOpfsPersistencePlugin,
+  isSupport,
+} from "@csnight/audio-recorder/storage/opfs"
+
+if (!isSupport()) {
+  throw new Error("OPFS is not supported in this browser.")
+}
 
 const recorder = createRecorder({
   storage: {
@@ -1191,10 +1198,21 @@ const recorder = createRecorder({
 | Export                          | Description                       |
 | ------------------------------- | --------------------------------- |
 | `createOpfsPersistencePlugin()` | Create an OPFS persistence plugin |
+| `isSupport()`                   | Check OPFS support                |
 
 Use with the main recorder `storage` option:
 
 ```ts
+import { createRecorder } from "@csnight/audio-recorder"
+import {
+  createOpfsPersistencePlugin,
+  isSupport,
+} from "@csnight/audio-recorder/storage/opfs"
+
+if (!isSupport()) {
+  throw new Error("OPFS is not supported in this browser.")
+}
+
 createRecorder({
   storage: {
     mode: "auto",
@@ -1213,7 +1231,14 @@ IndexedDB persistence backend. Stores snapshots as chunk entries in an object st
 
 ```ts
 import { createRecorder } from "@csnight/audio-recorder"
-import { createIndexedDbPersistencePlugin } from "@csnight/audio-recorder/storage/indexeddb"
+import {
+  createIndexedDbPersistencePlugin,
+  isSupport,
+} from "@csnight/audio-recorder/storage/indexeddb"
+
+if (!isSupport()) {
+  throw new Error("IndexedDB is not supported in this browser.")
+}
 
 const recorder = createRecorder({
   storage: {
@@ -1229,10 +1254,21 @@ const recorder = createRecorder({
 | Export                               | Description                            |
 | ------------------------------------ | -------------------------------------- |
 | `createIndexedDbPersistencePlugin()` | Create an IndexedDB persistence plugin |
+| `isSupport()`                        | Check IndexedDB support                |
 
 Use with the main recorder `storage` option:
 
 ```ts
+import { createRecorder } from "@csnight/audio-recorder"
+import {
+  createIndexedDbPersistencePlugin,
+  isSupport,
+} from "@csnight/audio-recorder/storage/indexeddb"
+
+if (!isSupport()) {
+  throw new Error("IndexedDB is not supported in this browser.")
+}
+
 createRecorder({
   storage: {
     mode: "auto",

@@ -8,8 +8,19 @@ import type {
   RecorderPersistenceSessionOptions,
 } from "../types"
 
-// OPFS 根目录名，所有会话子目录都挂在这一目录下
-const ROOT_DIRECTORY = "csnight-audio-recorder"
+// OPFS 根目录名固定为 audio-recorder，便于跨会话清理历史残留数据。
+const ROOT_DIRECTORY = "audio-recorder"
+
+/**
+ * 在创建插件实例前做静态能力探测，便于调用方按浏览器能力选择持久化后端。
+ */
+export function isSupport(): boolean {
+  return (
+    typeof navigator !== "undefined" &&
+    "storage" in navigator &&
+    typeof navigator.storage?.getDirectory === "function"
+  )
+}
 
 /**
  * 基于 Origin Private File System (OPFS) 的持久化插件。
@@ -20,11 +31,7 @@ export function createOpfsPersistencePlugin(): RecorderPersistencePlugin {
   return {
     backend: "opfs",
     isSupported() {
-      return (
-        typeof navigator !== "undefined" &&
-        "storage" in navigator &&
-        typeof navigator.storage?.getDirectory === "function"
-      )
+      return isSupport()
     },
     async createSession(
       options: RecorderPersistenceSessionOptions
