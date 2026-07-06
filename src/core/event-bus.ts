@@ -1,86 +1,99 @@
 type Listener<T> = (payload: T) => void
+type WildcardListener<TEvents extends object> = <TKey extends keyof TEvents>(
+  event: TKey,
+  payload: TEvents[TKey]
+) => void
+
+const WILDCARD = "*" as const
 
 /**
  * 轻量级类型安全事件总线。
  * 泛型参数 `TEvents` 为事件名到载荷类型的映射对象。
- * 支持 on / once / off / emit / clear 操作，内部用 Map<key, Set<listener>> 管理订阅。
+ * 支持 on / once / off / emit / clear 操作，内部用统一的 Map<key, Set<listener>> 管理订阅。
+ * 支持通配符 '*' 监听所有事件，以及无 payload 事件（emit 第二参数可选）。
  */
 export class EventBus<TEvents extends object> {
-  private readonly listeners = new Map<
-    keyof TEvents,
-    Set<(payload: TEvents[keyof TEvents]) => void>
-  >()
+  private readonly listeners = new Map<keyof TEvents | "*", Set<unknown>>()
 
   once<TKey extends keyof TEvents>(
     event: TKey,
     listener: Listener<TEvents[TKey]>
   ): () => void {
-    // 包装成自移除监听器：触发一次后立即从 Set 中删除自身。
     const wrapper = (payload: TEvents[TKey]) => {
-      this.off(event, wrapper as unknown as Listener<TEvents[TKey]>)
+      this.off(event, wrapper as Listener<TEvents[TKey]>)
       listener(payload)
     }
-    return this.on(event, wrapper as unknown as Listener<TEvents[TKey]>)
+    return this.on(event, wrapper as Listener<TEvents[TKey]>)
   }
 
   on<TKey extends keyof TEvents>(
     event: TKey,
     listener: Listener<TEvents[TKey]>
+  ): () => void
+  on(event: "*", listener: WildcardListener<TEvents>): () => void
+  on<TKey extends keyof TEvents>(
+    event: TKey | "*",
+    listener: Listener<TEvents[TKey]> | WildcardListener<TEvents>
   ): () => void {
-    // 同一个事件统一复用一个监听集合，避免重复创建容器。
-    const eventListeners =
-      this.listeners.get(event) ??
-      new Set<(payload: TEvents[keyof TEvents]) => void>()
-    const typedListener = listener as (payload: TEvents[keyof TEvents]) => void
-
-    eventListeners.add(typedListener)
-    this.listeners.set(event, eventListeners)
-
+    let set = this.listeners.get(event)
+    if (!set) this.listeners.set(event, (set = new Set()))
+    set.add(listener)
     return () => {
-      this.off(event, listener)
+      if (event === WILDCARD) {
+        this.off(WILDCARD, listener as WildcardListener<TEvents>)
+      } else {
+        this.off(event as TKey, listener as Listener<TEvents[TKey]>)
+      }
     }
   }
 
   off<TKey extends keyof TEvents>(
     event: TKey,
-    listener: Listener<TEvents[TKey]>
+    listener?: Listener<TEvents[TKey]>
+  ): void
+  off(event: "*", listener?: WildcardListener<TEvents>): void
+  off<TKey extends keyof TEvents>(
+    event: TKey | "*",
+    listener?: Listener<TEvents[TKey]> | WildcardListener<TEvents>
   ): void {
-    const eventListeners = this.listeners.get(event)
-    if (!eventListeners) {
+    if (!listener) {
+      this.listeners.delete(event)
       return
     }
-
-    eventListeners.delete(listener as (payload: TEvents[keyof TEvents]) => void)
-    if (eventListeners.size === 0) {
-      // 最后一个监听器移除后直接清理键，避免事件表长期残留空集合。
-      this.listeners.delete(event)
-    }
+    const set = this.listeners.get(event)
+    if (!set) return
+    set.delete(listener)
+    if (set.size === 0) this.listeners.delete(event)
   }
 
   hasListeners<TKey extends keyof TEvents>(event: TKey): boolean {
-    const eventListeners = this.listeners.get(event)
-    return eventListeners !== undefined && eventListeners.size > 0
+    return this.listenerCount(event) > 0
   }
 
   listenerCount<TKey extends keyof TEvents>(event: TKey): number {
     return this.listeners.get(event)?.size ?? 0
   }
 
-  emit<TKey extends keyof TEvents>(event: TKey, payload: TEvents[TKey]): void {
-    const eventListeners = this.listeners.get(event)
-    if (!eventListeners) {
-      return
+  emit<TKey extends keyof TEvents>(event: TKey, payload?: TEvents[TKey]): void {
+    const set = this.listeners.get(event)
+    if (set) {
+      for (const listener of Array.from(set)) {
+        ;(listener as Listener<TEvents[TKey]>)(payload as TEvents[TKey])
+      }
     }
 
-    // snapshot listeners before iteration so that a listener added
-    // inside a callback (e.g. via once()) does not fire in the current emit.
-    for (const listener of [...eventListeners]) {
-      ;(listener as Listener<TEvents[TKey]>)(payload)
+    const wildcardSet = this.listeners.get(WILDCARD)
+    if (wildcardSet) {
+      for (const listener of Array.from(wildcardSet)) {
+        ;(listener as WildcardListener<TEvents>)(
+          event,
+          payload as TEvents[TKey]
+        )
+      }
     }
   }
 
   clear(): void {
-    // destroy 时一次性释放所有订阅，避免控制器被外部监听器意外持有。
     this.listeners.clear()
   }
 }

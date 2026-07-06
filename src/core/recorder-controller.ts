@@ -273,7 +273,7 @@ export class RecorderController {
     const session = this.requireSession()
 
     // 每次录音开始时检测一次，避免热路径每帧都查
-    this.hasAsyncFrameListeners = this.eventBus.listenerCount("frame:async") > 0
+    this.hasAsyncFrameListeners = this.eventBus.hasListeners("frame:async")
 
     await session.start()
     this.syncRuntimeFromSession(session)
