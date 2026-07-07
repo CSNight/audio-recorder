@@ -1,1 +1,1 @@
-export { createOpfsPersistencePlugin } from "./plugin"
+export { createOpfsPersistencePlugin, isSupport } from "./plugin"

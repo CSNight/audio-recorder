@@ -60,7 +60,7 @@
     "commitlint": "commitlint --edit",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build && npm run verify:exports",
     "verify:exports": "node ./scripts/verify-exports.mjs",
-    "publish": "npm publish --access public --registry=https://registry.npmjs.org/"
+    "publish": "npm run build && npm publish --access public --registry=https://registry.npmjs.org/"
   },
   "exports": {
     ".": {

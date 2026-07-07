@@ -4,7 +4,6 @@ import { PluginEventBus } from "./plugin-event-bus"
 import type {
   RecorderPlugin,
   RecorderPluginContext,
-  RecorderPluginEventContext,
   RecorderPluginEventMap,
 } from "./types"
 import type {
@@ -17,6 +16,9 @@ import type {
 import { cloneAudioFrame } from "../utils/audio-frame"
 
 const MAX_FLUSH_ROUNDS = 16
+type PluginEventListener<TKey extends keyof RecorderPluginEventMap> = (
+  payload: RecorderPluginEventMap[TKey]
+) => void
 
 interface ExpectedFlushFormat {
   sampleRate: number
@@ -63,16 +65,16 @@ export class PluginHost {
 
   constructor(private readonly options: PluginHostOptions) {}
 
-  on(
-    event: string,
-    listener: (payload: RecorderPluginEventContext) => void
+  on<TKey extends keyof RecorderPluginEventMap>(
+    event: TKey,
+    listener: PluginEventListener<TKey>
   ): () => void {
     return this.pluginEventBus.on(event, listener)
   }
 
-  off(
-    event: string,
-    listener: (payload: RecorderPluginEventContext) => void
+  off<TKey extends keyof RecorderPluginEventMap>(
+    event: TKey,
+    listener?: PluginEventListener<TKey>
   ): void {
     this.pluginEventBus.off(event, listener)
   }

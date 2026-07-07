@@ -29,6 +29,10 @@ import { PluginHost } from "../plugins/plugin-host"
 import type { RecorderStorageOptions } from "../storage"
 import { EventBus } from "./event-bus"
 
+type RecorderEventListener<TKey extends keyof RecorderEventMap> = (
+  payload: RecorderEventMap[TKey]
+) => void
+
 /**
  * 录音控制器核心类，管理录音会话的完整生命周期。
  *
@@ -87,7 +91,7 @@ export class RecorderController {
 
   on<TKey extends keyof RecorderEventMap>(
     event: TKey,
-    listener: (payload: RecorderEventMap[TKey]) => void
+    listener: RecorderEventListener<TKey>
   ): () => void {
     if (typeof event === "string" && event.startsWith("plugin:")) {
       return this.pluginHost.on(
@@ -95,12 +99,13 @@ export class RecorderController {
         listener as (payload: RecorderPluginEventContext) => void
       )
     }
-    return this.eventBus.on(event, listener)
+
+    return this.eventBus.on(event, listener as RecorderEventListener<TKey>)
   }
 
   off<TKey extends keyof RecorderEventMap>(
     event: TKey,
-    listener: (payload: RecorderEventMap[TKey]) => void
+    listener?: RecorderEventListener<TKey>
   ): void {
     if (typeof event === "string" && event.startsWith("plugin:")) {
       this.pluginHost.off(
@@ -109,7 +114,11 @@ export class RecorderController {
       )
       return
     }
-    this.eventBus.off(event, listener)
+
+    this.eventBus.off(
+      event,
+      listener as RecorderEventListener<TKey> | undefined
+    )
   }
 
   getState(): RecorderState {
@@ -294,7 +303,7 @@ export class RecorderController {
     }
 
     // 每次录音开始时检测一次，避免热路径每帧都查
-    this.hasAsyncFrameListeners = this.eventBus.listenerCount("frame:async") > 0
+    this.hasAsyncFrameListeners = this.eventBus.hasListeners("frame:async")
 
     await session.start()
     this.syncRuntimeFromSession(session)

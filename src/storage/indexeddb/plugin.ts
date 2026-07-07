@@ -8,12 +8,19 @@ import type {
   RecorderPersistenceSessionOptions,
 } from "../types"
 
-/** IndexedDB 数据库名，全局唯一，避免与其他库冲突。 */
-const DATABASE_NAME = "csnight-audio-recorder"
+/** IndexedDB 数据库名固定为 audio-recorder，便于跨会话清理历史残留数据。 */
+const DATABASE_NAME = "audio-recorder"
 /** ObjectStore 名称，所有录音 chunk 均存储于此。 */
 const STORE_NAME = "sessions"
 /** chunk key 格式："{sessionId}::chunk::{index}"，分隔符用于解析 sessionId 和 chunk 序号。 */
 const CHUNK_KEY_SEPARATOR = "::chunk::"
+
+/**
+ * 在创建插件实例前做静态能力探测，便于调用方按浏览器能力选择持久化后端。
+ */
+export function isSupport(): boolean {
+  return typeof indexedDB !== "undefined"
+}
 
 /**
  * 创建基于 IndexedDB 的持久化插件。
@@ -24,7 +31,7 @@ export function createIndexedDbPersistencePlugin(): RecorderPersistencePlugin {
   return {
     backend: "indexeddb",
     isSupported() {
-      return Promise.resolve(typeof indexedDB !== "undefined")
+      return isSupport()
     },
     async createSession(
       options: RecorderPersistenceSessionOptions

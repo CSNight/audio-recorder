@@ -293,8 +293,10 @@ flowchart TD
 
 当前可用持久化插件：
 
-- `audio-recorder/storage/opfs`
-- `audio-recorder/storage/indexeddb`
+- `audio-recorder/storage/opfs`：`createOpfsPersistencePlugin()` / `isSupport()`
+- `audio-recorder/storage/indexeddb`：`createIndexedDbPersistencePlugin()` / `isSupport()`
+
+两条子路径都同时保留插件实例 `isSupported()`，静态函数只用于在实例化前先做能力探测。
 
 持久化链路如下：
 
@@ -560,8 +562,8 @@ flowchart LR
 @csnight/audio-recorder/plugins/frequency-histogram — FFT 频谱分析插件
 @csnight/audio-recorder/plugins/dtmf              — DTMF 编码/检测插件
 @csnight/audio-recorder/plugins/nmn2pcm           — 简谱转 PCM 工具
-@csnight/audio-recorder/storage/opfs              — OPFS 持久化后端
-@csnight/audio-recorder/storage/indexeddb         — IndexedDB 持久化后端
+@csnight/audio-recorder/storage/opfs              — OPFS 持久化后端 + 静态能力探测
+@csnight/audio-recorder/storage/indexeddb         — IndexedDB 持久化后端 + 静态能力探测
 ```
 
 ## 16. Playground

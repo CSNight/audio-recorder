@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import type { PcmBufferSnapshot } from "../../src/buffer/types"
+import type { PcmBufferSnapshot } from "../../src"
 import { serializePcmSnapshot } from "../../src"
-import { createOpfsPersistencePlugin } from "../../src/storage/opfs"
+import { createOpfsPersistencePlugin, isSupport } from "../../src/storage/opfs"
+
+const ROOT_DIRECTORY = "audio-recorder"
 
 class MockWritableFileStream {
   constructor(private readonly fileHandle: MockFileHandle) {}
@@ -124,19 +126,26 @@ function createSnapshot(samples: readonly number[]): PcmBufferSnapshot {
   }
 }
 
+async function getRootStorageDirectory(
+  rootDirectory: MockDirectoryHandle
+): Promise<MockDirectoryHandle> {
+  return rootDirectory.getDirectoryHandle(ROOT_DIRECTORY)
+}
+
 describe("createOpfsPersistencePlugin", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
   })
 
-  it("requires navigator.storage.getDirectory to report support", () => {
+  it("exports a static OPFS support probe and keeps instance checks compatible", () => {
     const plugin = createOpfsPersistencePlugin()
 
-    expect(plugin.isSupported()).toBe(
+    expect(isSupport()).toBe(
       typeof navigator !== "undefined" &&
         "storage" in navigator &&
         typeof navigator.storage?.getDirectory === "function"
     )
+    expect(plugin.isSupported()).toBe(isSupport())
   })
 
   it("appends, reads, clears, and closes chunked session files", async () => {
@@ -165,9 +174,7 @@ describe("createOpfsPersistencePlugin", () => {
     await session.clear()
     await expect(session.readSnapshots()).resolves.toEqual([])
 
-    const baseDirectory = await rootDirectory.getDirectoryHandle(
-      "csnight-audio-recorder"
-    )
+    const baseDirectory = await getRootStorageDirectory(rootDirectory)
     await baseDirectory.getDirectoryHandle("session-opfs-1")
 
     await session.close()
@@ -180,7 +187,7 @@ describe("createOpfsPersistencePlugin", () => {
   it("cleans up stale session directories before creating a new session", async () => {
     const rootDirectory = new MockDirectoryHandle("root")
     const baseDirectory = await rootDirectory.getDirectoryHandle(
-      "csnight-audio-recorder",
+      ROOT_DIRECTORY,
       {
         create: true,
       }
@@ -219,7 +226,7 @@ describe("createOpfsPersistencePlugin", () => {
   it("resumes chunk indexing for an existing session and ignores empty or non-bin entries", async () => {
     const rootDirectory = new MockDirectoryHandle("root")
     const baseDirectory = await rootDirectory.getDirectoryHandle(
-      "csnight-audio-recorder",
+      ROOT_DIRECTORY,
       {
         create: true,
       }
@@ -285,9 +292,7 @@ describe("createOpfsPersistencePlugin", () => {
 
     await session.appendSnapshot(createSnapshot([100, 200]))
 
-    const baseDirectory = await rootDirectory.getDirectoryHandle(
-      "csnight-audio-recorder"
-    )
+    const baseDirectory = await getRootStorageDirectory(rootDirectory)
     const sessionDirectory = await baseDirectory.getDirectoryHandle(
       "session-clear-errors"
     )
@@ -327,9 +332,7 @@ describe("createOpfsPersistencePlugin", () => {
       startedAt: 5,
     })
 
-    const baseDirectory = await rootDirectory.getDirectoryHandle(
-      "csnight-audio-recorder"
-    )
+    const baseDirectory = await getRootStorageDirectory(rootDirectory)
     vi.spyOn(baseDirectory, "removeEntry").mockRejectedValue(
       new Error("Simulated OPFS close failure.")
     )
