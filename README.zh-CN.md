@@ -1146,21 +1146,21 @@ player.destroy()
 
 句柄：`StreamingPlayerHandle`
 
-| 成员              | 类型                        | 说明                                                                                                  |
-| ----------------- | --------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `state`           | `StreamingPlayerState`      | 当前状态：`idle \| buffering \| playing \| paused \| stopped`                                         |
-| `bufferedMs`      | `number`                    | 当前整条播放管线的总余量（毫秒），包含 `ReorderBuffer + JitterBuffer + 待解码时长 + 已调度未播完音频` |
-| `droppedPackets`  | `number`                    | 累计丢弃数据包数量                                                                                    |
-| `storedMs`        | `number`                    | 持久化存储中的音频时长（毫秒），可用于展示可重播时长                                                  |
-| `use(store)`      | `void`                      | 注册自定义 `PersistStore`；仅 `persistMode === "custom"` 且首次 `push()` / `start()` 之前可调用       |
+| 成员              | 类型                        | 说明                                                                                                                                                                                                                         |
+| ----------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `state`           | `StreamingPlayerState`      | 当前状态：`idle \| buffering \| playing \| paused \| stopped`                                                                                                                                                                |
+| `bufferedMs`      | `number`                    | 当前整条播放管线的总余量（毫秒），包含 `ReorderBuffer + JitterBuffer + 待解码时长 + 已调度未播完音频`                                                                                                                        |
+| `droppedPackets`  | `number`                    | 累计丢弃数据包数量                                                                                                                                                                                                           |
+| `storedMs`        | `number`                    | 持久化存储中的音频时长（毫秒），可用于展示可重播时长                                                                                                                                                                         |
+| `use(store)`      | `void`                      | 注册自定义 `PersistStore`；仅 `persistMode === "custom"` 且首次 `push()` / `start()` 之前可调用                                                                                                                              |
 | `push(packet)`    | `void`                      | 推入一个 `StreamingPacketPayload`；始终写入持久化存储，只有 `buffering / playing` 时才进入播放管线；若检测到 `sessionId` 变化（录音停止后重新开始），自动重置整条播放管线并丢弃旧 session 的积压数据，无需重新调用 `start()` |
-| `start()`         | `Promise<void>`             | 从 `idle` 切换到 `buffering`；从 live edge 起播，并用最近一小段历史作为启动垫片                       |
-| `pause()`         | `void`                      | 暂停 `AudioContext` 并停止管线；新数据包仍写入持久化存储                                              |
-| `resume()`        | `void`                      | 重置管线积压并从新的 live 数据包恢复播放                                                              |
-| `setVolume(v)`    | `void`                      | 随时调整增益 `[0, 1]`                                                                                 |
-| `replay(seconds)` | `void`                      | 从持久化存储播放最近 N 秒；仅暂停状态下有效                                                           |
-| `destroy()`       | `void`                      | 释放所有资源                                                                                          |
-| `onStateChange`   | `((state) => void) \| null` | 创建后可直接赋值；`null` 表示取消监听                                                                 |
+| `start()`         | `Promise<void>`             | 从 `idle` 切换到 `buffering`；从 live edge 起播，并用最近一小段历史作为启动垫片                                                                                                                                              |
+| `pause()`         | `void`                      | 暂停 `AudioContext` 并停止管线；新数据包仍写入持久化存储                                                                                                                                                                     |
+| `resume()`        | `void`                      | 重置管线积压并从新的 live 数据包恢复播放                                                                                                                                                                                     |
+| `setVolume(v)`    | `void`                      | 随时调整增益 `[0, 1]`                                                                                                                                                                                                        |
+| `replay(seconds)` | `void`                      | 从持久化存储播放最近 N 秒；仅暂停状态下有效                                                                                                                                                                                  |
+| `destroy()`       | `void`                      | 释放所有资源                                                                                                                                                                                                                 |
+| `onStateChange`   | `((state) => void) \| null` | 创建后可直接赋值；`null` 表示取消监听                                                                                                                                                                                        |
 
 ## 存储
 

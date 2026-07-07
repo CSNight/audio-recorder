@@ -21,14 +21,20 @@
                 :key="mode.key"
                 :class="['viz-tab', { active: currentVizMode === mode.key }]"
                 @click="currentVizMode = mode.key"
-              >{{ mode.label }}</button>
+              >
+                {{ mode.label }}
+              </button>
             </div>
             <strong>{{ fftPeakPercent }}%</strong>
           </div>
         </div>
 
         <!-- Histogram1: classic vertical bars -->
-        <div v-if="currentVizMode === 'histogram1'" aria-label="FFT bars histogram1" class="fft-strip fft-histogram1">
+        <div
+          v-if="currentVizMode === 'histogram1'"
+          aria-label="FFT bars histogram1"
+          class="fft-strip fft-histogram1"
+        >
           <span
             v-for="(bar, index) in fftBars"
             :key="index"
@@ -38,7 +44,11 @@
         </div>
 
         <!-- Histogram2: mirrored / symmetrical bars (center baseline) -->
-        <div v-else-if="currentVizMode === 'histogram2'" aria-label="FFT bars histogram2" class="fft-strip fft-histogram2">
+        <div
+          v-else-if="currentVizMode === 'histogram2'"
+          aria-label="FFT bars histogram2"
+          class="fft-strip fft-histogram2"
+        >
           <span
             v-for="(bar, index) in fftBars"
             :key="index"
@@ -56,7 +66,11 @@
         </div>
 
         <!-- Histogram3: dot/pill style -->
-        <div v-else-if="currentVizMode === 'histogram3'" aria-label="FFT bars histogram3" class="fft-strip fft-histogram3">
+        <div
+          v-else-if="currentVizMode === 'histogram3'"
+          aria-label="FFT bars histogram3"
+          class="fft-strip fft-histogram3"
+        >
           <span
             v-for="(bar, index) in fftBars"
             :key="index"
@@ -72,7 +86,11 @@
         </div>
 
         <!-- WaveView: sine-wave style using SVG polyline -->
-        <div v-else-if="currentVizMode === 'waveview'" aria-label="FFT waveview" class="fft-strip fft-waveview">
+        <div
+          v-else-if="currentVizMode === 'waveview'"
+          aria-label="FFT waveview"
+          class="fft-strip fft-waveview"
+        >
           <svg
             :viewBox="`0 0 ${waveViewWidth} ${waveViewHeight}`"
             preserveAspectRatio="none"
@@ -80,12 +98,28 @@
           >
             <defs>
               <linearGradient id="waveGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="var(--accent-2)" stop-opacity="0.9" />
-                <stop offset="100%" stop-color="var(--accent)" stop-opacity="0.5" />
+                <stop
+                  offset="0%"
+                  stop-color="var(--accent-2)"
+                  stop-opacity="0.9"
+                />
+                <stop
+                  offset="100%"
+                  stop-color="var(--accent)"
+                  stop-opacity="0.5"
+                />
               </linearGradient>
               <linearGradient id="waveFillGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="var(--accent-2)" stop-opacity="0.18" />
-                <stop offset="100%" stop-color="var(--accent)" stop-opacity="0.04" />
+                <stop
+                  offset="0%"
+                  stop-color="var(--accent-2)"
+                  stop-opacity="0.18"
+                />
+                <stop
+                  offset="100%"
+                  stop-color="var(--accent)"
+                  stop-opacity="0.04"
+                />
               </linearGradient>
             </defs>
             <!-- fill area -->
@@ -209,7 +243,10 @@ const wavePolylinePoints = computed(() => {
   return bars
     .map((bar, i) => {
       const x = i * step
-      const y = waveViewHeight - Math.max(0, Math.min(1, bar ?? 0)) * (waveViewHeight - 4) - 2
+      const y =
+        waveViewHeight -
+        Math.max(0, Math.min(1, bar ?? 0)) * (waveViewHeight - 4) -
+        2
       return `${x.toFixed(1)},${y.toFixed(1)}`
     })
     .join(" ")
@@ -221,7 +258,10 @@ const wavePolygonPoints = computed(() => {
   const step = waveViewWidth / Math.max(1, bars.length - 1)
   const top = bars.map((bar, i) => {
     const x = i * step
-    const y = waveViewHeight - Math.max(0, Math.min(1, bar ?? 0)) * (waveViewHeight - 4) - 2
+    const y =
+      waveViewHeight -
+      Math.max(0, Math.min(1, bar ?? 0)) * (waveViewHeight - 4) -
+      2
     return `${x.toFixed(1)},${y.toFixed(1)}`
   })
   return [

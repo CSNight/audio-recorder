@@ -892,7 +892,9 @@ code {
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
-  transition: background 120ms, color 120ms;
+  transition:
+    background 120ms,
+    color 120ms;
   line-height: 1.4;
 }
 
