@@ -1076,7 +1076,7 @@ console.log(result.sampleRate, result.durationMs, result.channels)
 
 #### Introduction
 
-独立流式音频播放引擎。接收来自任意来源（WebSocket、录音插件等）的 `StreamingPacketPayload` 数据包，经重排与抖动缓冲管线处理后，通过调用方提供的解码器解码，并在 `AudioContext` 上调度连续播放。每次 `push()` 都会写入持久化存储，`start()` 和 `resume()` 会重置 live 播放管线并回到 live edge，`replay()` 仅在暂停状态下可用，`persistMode` 支持 `"memory"`、`"indexeddb"` 和 `"custom"`，而当 `ReorderBuffer + JitterBuffer` 的 live 积压超过 `maxBufferMs` 时会触发 `onPacketDrop`。
+独立流式音频播放引擎。接收来自任意来源（WebSocket、录音插件等）的 `StreamingPacketPayload` 数据包，经重排与抖动缓冲管线处理后，通过调用方提供的解码器解码，并在 `AudioContext` 上调度连续播放。每次 `push()` 都会写入持久化存储，`start()` 和 `resume()` 会重置 live 播放管线并回到 live edge，`replay()` 仅在暂停状态下可用，`persistMode` 支持 `"memory"`、`"indexeddb"` 和 `"custom"`，而当 `ReorderBuffer + JitterBuffer` 的 live 积压超过 `maxBufferMs` 时会触发 `onPacketDrop`。播放器通过 `StreamingPacketPayload.sessionId` 自动检测录音会话切换：当推入的数据包携带与当前不同的 `sessionId` 时，播放器会自动重置管线并从新会话的 live edge 重新起播，无需调用方手动干预，适用于录音器 stop→start 多轮录音场景。
 
 #### Quick Start
 
@@ -1153,7 +1153,7 @@ player.destroy()
 | `droppedPackets`  | `number`                    | 累计丢弃数据包数量                                                                                    |
 | `storedMs`        | `number`                    | 持久化存储中的音频时长（毫秒），可用于展示可重播时长                                                  |
 | `use(store)`      | `void`                      | 注册自定义 `PersistStore`；仅 `persistMode === "custom"` 且首次 `push()` / `start()` 之前可调用       |
-| `push(packet)`    | `void`                      | 推入一个 `StreamingPacketPayload`；始终写入持久化存储，只有 `buffering / playing` 时才进入播放管线    |
+| `push(packet)`    | `void`                      | 推入一个 `StreamingPacketPayload`；始终写入持久化存储，只有 `buffering / playing` 时才进入播放管线；若检测到 `sessionId` 变化（录音停止后重新开始），自动重置整条播放管线并丢弃旧 session 的积压数据，无需重新调用 `start()` |
 | `start()`         | `Promise<void>`             | 从 `idle` 切换到 `buffering`；从 live edge 起播，并用最近一小段历史作为启动垫片                       |
 | `pause()`         | `void`                      | 暂停 `AudioContext` 并停止管线；新数据包仍写入持久化存储                                              |
 | `resume()`        | `void`                      | 重置管线积压并从新的 live 数据包恢复播放                                                              |

@@ -48,6 +48,7 @@ export async function createStreamingPlayer(
 
   // 播放器状态
   let _state: StreamingPlayerState = "idle"
+  let _currentSessionId: string | null = null
   // _bufferedMs 表示整条播放管线的总余量：
   //   reorder 队列 + jitter 队列 + 等待解码/调度的包 + 已调度未播完的音频。
   let _bufferedMs = 0
@@ -162,13 +163,23 @@ export async function createStreamingPlayer(
   jitterBuf.onRelease = (pkt) => {
     _pendingDecodeMs += pkt.durationMs
     syncBufferedMs()
+    // 捕获当前 sessionId：若解码完成时 session 已切换，则丢弃该包，
+    // 避免旧 session 的 decode 任务调用 scheduleAudioBuffer 污染新 session 的 _scheduleTime。
+    const sessionIdAtEnqueue = _currentSessionId
     // 将每个包的解码任务追加到串行链，保证先出队的包先完成调度
     _decodeChain = _decodeChain.then(async () => {
       if (_destroyed || _paused) return
+      // session 已切换，丢弃旧包，但仍需修正 _pendingDecodeMs
+      if (sessionIdAtEnqueue !== _currentSessionId) {
+        _pendingDecodeMs = Math.max(0, _pendingDecodeMs - pkt.durationMs)
+        syncBufferedMs()
+        return
+      }
       try {
         const buf = await decodePacket(pkt)
-        // 解码完成后再次检查状态，避免解码期间 pause/destroy 导致错误排队
+        // 解码完成后再次检查状态，避免解码期间 pause/destroy 或 session 切换导致错误排队
         if (!buf || _destroyed || _paused) return
+        if (sessionIdAtEnqueue !== _currentSessionId) return
         scheduleAudioBuffer(buf)
         if (!_playbackStarted) {
           _playbackStarted = true
@@ -219,6 +230,11 @@ export async function createStreamingPlayer(
     _bufferedMs = 0
     _scheduleTime = 0
     _playbackStarted = false
+    // 截断旧的串行解码链：旧链上 pending 的 async 任务完成时会调用 scheduleAudioBuffer，
+    // 把 _scheduleTime 推到未来某个点，导致新 session 的包"憋一阵才有声"。
+    // 新链从空 Promise 开始，旧链的任务完成时检查到 _destroyed 或 _paused 就会跳过；
+    // 没有 _paused 时靠 _scheduleTime 已归零后在 scheduleAudioBuffer 里 clamp 到 now。
+    _decodeChain = Promise.resolve()
   }
 
   async function decodePacket(
@@ -308,6 +324,20 @@ export async function createStreamingPlayer(
     if (_destroyed) return
 
     const store = requirePersistStore()
+
+    // 检测新录音会话（sessionId 发生变化）。
+    // 停止后重新开始录音时，_scheduleTime 还停在上次播放结束的时间轴位置，
+    // 新包会被调度到很久之后才播出（"憋一阵才有声"）。
+    // 检测到 sessionId 切换时重置管线，让新会话的包立即从 audioCtx.currentTime 开始调度。
+    const isNewSession =
+      _currentSessionId !== null && packet.sessionId !== _currentSessionId
+    if (isNewSession) {
+      stopActiveSources()
+      resetPipeline()
+      store.clear()
+    }
+
+    _currentSessionId = packet.sessionId
     _hasSeenPacket = true
 
     // 双写：始终写入 persistStore

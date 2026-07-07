@@ -513,6 +513,15 @@ flowchart LR
 - `maxBufferMs` 约束的是 `ReorderBuffer + JitterBuffer` 的总 live 积压，而不是单个子缓冲
 - `persistMode: "custom"` 时不会自动创建 store，必须先通过 `player.use(store)` 注册外部 `PersistStore`
 
+**录音 stop → start 的 session 切换**（`StreamingPacketPayload.sessionId` 变化时自动处理）：
+
+- `push()` 检测到 `sessionId` 与上一包不同时，自动触发 session 切换：
+  1. 停止当前所有 `AudioBufferSourceNode`
+  2. 调用 `resetPipeline()`：清空 `ReorderBuffer / JitterBuffer`、重置 `_scheduleTime = 0`、**截断旧串行解码链** (`_decodeChain = Promise.resolve()`)
+  3. 清空 `persistStore`（旧 session 历史不带入新 session）
+- `jitterBuf.onRelease` 在入队时捕获 `sessionIdAtEnqueue`；解码完成后若 session 已切换则丢弃该包，避免旧 session 的异步解码任务污染新 session 的 `_scheduleTime`
+- 调用方**无需手动重置播放器**，只需继续 `push()` 新 session 的数据包即可无缝衔接
+
 链路如下：
 
 ```mermaid

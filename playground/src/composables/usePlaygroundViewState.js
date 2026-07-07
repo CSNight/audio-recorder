@@ -311,7 +311,7 @@ export function usePlaygroundViewState({
   const canStart = computed(
     () =>
       state.pendingActionLabel === "" &&
-      state.recorderState === RecorderState.Ready
+      [RecorderState.Ready, RecorderState.Stopped].includes(state.recorderState)
   )
 
   const canPause = computed(

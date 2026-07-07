@@ -389,6 +389,20 @@ async function openRecorder() {
 async function startRecorder() {
   await runLoggedAction(
     async () => {
+      // 从 Stopped 重新开始时清理上一段录音的显示状态，避免旧数据残留在 UI 上。
+      // summary、exportedBytes、导出结果等均在新录音的对应事件中重新赋值。
+      if (state.recorderState === RecorderState.Stopped) {
+        state.summary = null
+        state.frameCount = 0
+        state.lastFrameDurationMs = 0
+        state.levelPercent = 0
+        state.exportedBytes = null
+        state.lastExportResult = null
+        state.lastSonicExportResult = null
+        resetAnalysisRuntime()
+        resetRealtimeStreamRuntime()
+        state.storageDiagnostics = null
+      }
       state.runtimeInfo = await recorder.start()
     },
     localize("录音已开始。", "Recording started."),

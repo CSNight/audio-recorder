@@ -1077,7 +1077,7 @@ Returns: `NmnConvertResult`
 
 #### Introduction
 
-Standalone streaming audio playback engine. Receives `StreamingPacketPayload` packets from any source (WebSocket, recorder plugin, etc.), buffers them through a reorder and jitter pipeline, decodes them via caller-supplied decoders, and schedules continuous playback on an `AudioContext`. Every `push()` writes to a persist-store, `start()` and `resume()` reset the live pipeline to follow the live edge, `replay()` is only available while paused, `persistMode` supports `"memory"`, `"indexeddb"`, and `"custom"`, and `onPacketDrop` fires when live backlog across `ReorderBuffer + JitterBuffer` exceeds `maxBufferMs`.
+Standalone streaming audio playback engine. Receives `StreamingPacketPayload` packets from any source (WebSocket, recorder plugin, etc.), buffers them through a reorder and jitter pipeline, decodes them via caller-supplied decoders, and schedules continuous playback on an `AudioContext`. Every `push()` writes to a persist-store, `start()` and `resume()` reset the live pipeline to follow the live edge, `replay()` is only available while paused, `persistMode` supports `"memory"`, `"indexeddb"`, and `"custom"`, and `onPacketDrop` fires when live backlog across `ReorderBuffer + JitterBuffer` exceeds `maxBufferMs`. When the `sessionId` field on an incoming packet differs from the previous session, the player automatically resets its pipeline (reorder buffer, jitter buffer, decode chain, and scheduled audio) and begins buffering for the new session — no external call to `start()` is required between recorder stop and restart cycles.
 
 #### Quick Start
 
@@ -1154,7 +1154,7 @@ Handle: `StreamingPlayerHandle`
 | `droppedPackets`  | `number`                    | Cumulative dropped packet count                                                                                               |
 | `storedMs`        | `number`                    | Audio duration currently held in the persist-store (available for replay)                                                     |
 | `use(store)`      | `void`                      | Register a custom `PersistStore`; only valid when `persistMode === "custom"` and before the first `push()` / `start()`        |
-| `push(packet)`    | `void`                      | Feed a `StreamingPacketPayload`; always writes to persist-store and only enters the playback pipeline while buffering/playing |
+| `push(packet)`    | `void`                      | Feed a `StreamingPacketPayload`; always writes to persist-store and only enters the playback pipeline while buffering/playing. If `packet.sessionId` differs from the previous packet's session, the pipeline resets automatically (stop-sources, clear buffers, cut off stale decode tasks) so a recorder stop→start cycle is handled transparently without any extra player call. |
 | `start()`         | `Promise<void>`             | Transition from `idle` to `buffering`; start from the live edge and prime playback with the recent startup pad                |
 | `pause()`         | `void`                      | Stop pipeline and active sources; if the player created its own `AudioContext`, it also suspends it                           |
 | `resume()`        | `void`                      | Reset pipeline backlog and resume from fresh live-edge packets                                                                |

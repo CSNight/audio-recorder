@@ -866,6 +866,114 @@ code {
   font-size: 0.84rem;
 }
 
+/* --- Viz mode tabs --- */
+.fft-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.viz-mode-tabs {
+  display: flex;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.viz-tab {
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+  line-height: 1.4;
+}
+
+.viz-tab:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+}
+
+.viz-tab.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* --- Histogram2: mirrored center-baseline --- */
+.fft-histogram2 {
+  display: flex !important;
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+}
+
+.fft-bar-mirror-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-height: 90px;
+  justify-content: center;
+}
+
+.fft-bar-mirror {
+  width: 100%;
+  min-height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--accent-2), var(--accent));
+  transition: height 120ms linear;
+}
+
+.fft-bar-mirror.bottom {
+  background: linear-gradient(0deg, var(--accent-2), var(--accent));
+  opacity: 0.55;
+}
+
+/* --- Histogram3: dot column --- */
+.fft-histogram3 {
+  align-items: flex-end !important;
+  padding: 8px 10px 6px !important;
+}
+
+.fft-dot-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 2px;
+  min-height: 90px;
+  justify-content: flex-start;
+}
+
+.fft-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent-2), var(--accent));
+  flex-shrink: 0;
+  transition: opacity 120ms linear;
+}
+
+/* --- WaveView: SVG canvas --- */
+.fft-waveview {
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.fft-wave-svg {
+  width: 100%;
+  height: 110px;
+  display: block;
+}
+
 .fft-strip {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(4px, 1fr));

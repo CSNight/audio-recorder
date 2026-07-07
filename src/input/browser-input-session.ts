@@ -153,6 +153,12 @@ export class BrowserInputSession
       InputSessionState.Paused,
     ])
     this.envInFixTs = []
+    // 从 Stopped 重新开始时必须重置帧计数，否则 stop() 返回的 summary 是两段录音的累计值，
+    // 导致上层 RecorderController.stopSession() → syncRuntimeFromSession() → latestSessionSummary 计算错误。
+    if (this.sessionState === InputSessionState.Stopped) {
+      this.summary.frames = 0
+      this.summary.durationMs = 0
+    }
     this.sessionState = InputSessionState.Recording
     this.backend?.resume()
     await this.audioContext.resume()

@@ -269,8 +269,29 @@ export class RecorderController {
   }
 
   async start(): Promise<RecorderRuntimeInfo> {
-    this.assertState([RecorderState.Ready])
+    this.assertState([RecorderState.Ready, RecorderState.Stopped])
     const session = this.requireSession()
+
+    if (this.recorderState === RecorderState.Stopped) {
+      // 1. 先清旧数据（framePipeline 持有旧 sessionId，reset 用旧 id 找到对应 session 删除）
+      //    ComplexPcmBufferStore.clear() 会先 await promotion，确保持久化迁移完成后再清
+      await this.framePipeline.reset()
+
+      // 2. 更新 sessionId（此后 createEventContext、createFramePipeline 均用新 id）
+      this.activeSessionId = this.createSessionId()
+
+      // 3. 重置 summary（必须！不清会导致下游读取到上段录音的 frames/durationMs）
+      this.latestSessionSummary = {
+        frames: 0,
+        durationMs: 0,
+        sampleRate: this.latestSessionSummary.sampleRate,
+        channels: this.latestSessionSummary.channels,
+      }
+
+      // 4. 用新 sessionId 重建 pipeline 并初始化（persistent 模式下打开新的存储 session）
+      this.framePipeline = this.createFramePipeline()
+      await this.framePipeline.initialize?.()
+    }
 
     // 每次录音开始时检测一次，避免热路径每帧都查
     this.hasAsyncFrameListeners = this.eventBus.listenerCount("frame:async") > 0

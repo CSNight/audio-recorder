@@ -8,7 +8,7 @@
       </span>
       <span class="sp-stat">
         <b>{{ translate("缓冲", "Buffered") }}</b>
-        <i>{{ bufferedMs }} ms</i>
+        <i>{{ Number(bufferedMs).toFixed(2) }} ms</i>
       </span>
       <span class="sp-stat">
         <b>{{ translate("已存储", "Stored") }}</b>
