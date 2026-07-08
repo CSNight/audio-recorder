@@ -119,6 +119,7 @@ export function exportMp3Snapshot(
   }
 
   return {
+    mimeType: "audio/mp3",
     sampleRate: encoderOptions.sampleRate,
     channels: desiredChannels,
     bitrateKbps: encoderOptions.bitrateKbps,

@@ -11,6 +11,7 @@ export interface PcmExportOptions {
 export interface PcmExportResult {
   sampleRate: number
   channels: number
+  mimeType: string
   /**
    * 位深：8 或 16。
    * 描述 `data` 字节流的编码方式：

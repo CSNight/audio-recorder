@@ -58,6 +58,7 @@ export interface Mp3ExportResult {
   channels: 1 | 2
   bitrateKbps: number
   durationMs: number
+  mimeType: string
   /** 编码后的 MP3 二进制数据 */
   data: Uint8Array
 }

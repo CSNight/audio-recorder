@@ -56,6 +56,7 @@ export function createPcmExportResult(
     sampleRate: snapshot.sampleRate,
     channels: snapshot.channels,
     bitRate,
+    mimeType: "audio/pcm", //fake
     durationMs: snapshot.durationMs,
     data: pcmData,
   }

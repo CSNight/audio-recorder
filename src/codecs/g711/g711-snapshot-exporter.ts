@@ -40,6 +40,7 @@ export function exportG711Snapshot(
 
   return {
     variant,
+    mimeType: "audio/g711",
     sampleRate: normalized.sampleRate,
     channels: 1,
     durationMs: normalized.durationMs,

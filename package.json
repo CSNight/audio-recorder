@@ -1,7 +1,7 @@
 {
   "name": "@media-studio/audio-recorder",
   "private": false,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "license": "MPL-2.0",
   "type": "module",
   "description": "TypeScript browser audio recorder for microphone and MediaStream input with PCM pipelines, plugins, streaming export, persistence, and WAV/MP3/Opus/FLAC/AAC/AMR/AC3 output.",

@@ -13,6 +13,7 @@ export interface G711ExportOptions {
 
 /** G.711 导出结果 */
 export interface G711ExportResult {
+  mimeType: string
   /** 实际使用的编码变体 */
   variant: G711Variant
   /** 编码采样率（Hz） */
