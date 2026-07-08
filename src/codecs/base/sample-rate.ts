@@ -1,4 +1,4 @@
-import { isPositiveIntegerSampleRate } from "@csnight/audio-recorder"
+import { isPositiveIntegerSampleRate } from "@media-studio/audio-recorder"
 
 export function isSupportSampleRate(sampleRate: number): boolean {
   return isPositiveIntegerSampleRate(sampleRate)

@@ -447,7 +447,7 @@ export class RecorderController {
   private handleIssue(issue: RecorderIssue): void {
     if (issue.kind === "warning") {
       console.warn(
-        `[@csnight/audio-recorder][${issue.warning.code}] ${issue.warning.message}`
+        `[@media-studio/audio-recorder][${issue.warning.code}] ${issue.warning.message}`
       )
     }
 

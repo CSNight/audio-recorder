@@ -1,4 +1,4 @@
-# @csnight/audio-recorder
+# @media-studio/audio-recorder
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
@@ -33,7 +33,7 @@ TypeScript browser audio recorder library for microphone and `MediaStream` input
 
 ## Overview
 
-`@csnight/audio-recorder` is a browser audio recording library for web apps that need:
+`@media-studio/audio-recorder` is a browser audio recording library for web apps that need:
 
 - microphone recording or external `MediaStream` input
 - automatic browser input backend fallback
@@ -47,25 +47,25 @@ Build target: `es2022`.
 ## Installation
 
 ```bash
-npm install @csnight/audio-recorder
+npm install @media-studio/audio-recorder
 ```
 
 You can also use:
 
 ```bash
-pnpm add @csnight/audio-recorder
-yarn add @csnight/audio-recorder
+pnpm add @media-studio/audio-recorder
+yarn add @media-studio/audio-recorder
 ```
 
 ## Quick Start
 
 ```ts
-import { createRecorder } from "@csnight/audio-recorder"
+import { createRecorder } from "@media-studio/audio-recorder"
 import {
   pcmExportEncoder,
   wavExportEncoder,
-} from "@csnight/audio-recorder/codecs/base"
-import { createLevelMeterPlugin } from "@csnight/audio-recorder/plugins/level-meter"
+} from "@media-studio/audio-recorder/codecs/base"
+import { createLevelMeterPlugin } from "@media-studio/audio-recorder/plugins/level-meter"
 
 const recorder = createRecorder({
   channelCount: 1,
@@ -80,7 +80,7 @@ await recorder.start()
 const summary = await recorder.stop()
 const wav = await recorder.exportEncoded("wav", { bitRate: 16 })
 
-console.log(summary.durationMs, wav.arrayBuffer.byteLength)
+console.log(summary.durationMs, wav.data.byteLength)
 ```
 
 ## Features
@@ -104,7 +104,7 @@ import {
   listMicrophoneDevices,
   checkRecorderCapability,
   RecorderController,
-} from "@csnight/audio-recorder"
+} from "@media-studio/audio-recorder"
 ```
 
 Exports:
@@ -375,25 +375,25 @@ Returns:
 
 | Package path                                          | Exports                                                                        |
 | ----------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `@csnight/audio-recorder/codecs/base`                 | PCM and WAV encoders / decoders                                                |
-| `@csnight/audio-recorder/codecs/mp3`                  | MP3 encoder                                                                    |
-| `@csnight/audio-recorder/codecs/flac`                 | FLAC encoder                                                                   |
-| `@csnight/audio-recorder/codecs/opus`                 | Opus encoder                                                                   |
-| `@csnight/audio-recorder/codecs/aac`                  | AAC encoder                                                                    |
-| `@csnight/audio-recorder/codecs/amr`                  | AMR encoder                                                                    |
-| `@csnight/audio-recorder/codecs/ac3`                  | AC3 / E-AC3 encoders                                                           |
-| `@csnight/audio-recorder/codecs/g711`                 | G.711 encoder                                                                  |
-| `@csnight/audio-recorder/plugins/level-meter`         | `createLevelMeterPlugin()`                                                     |
-| `@csnight/audio-recorder/plugins/streaming-export`    | `createStreamingExportPlugin()`                                                |
-| `@csnight/audio-recorder/plugins/sonic-export`        | `createSonicExportPlugin()`                                                    |
-| `@csnight/audio-recorder/plugins/dsp`                 | `createHighpassPlugin()` / `createLowpassPlugin()` / `createNoiseGatePlugin()` |
-| `@csnight/audio-recorder/plugins/asr-export`          | `createAsrExportPlugin()`                                                      |
-| `@csnight/audio-recorder/plugins/frequency-histogram` | `createFrequencyHistogramPlugin()`                                             |
-| `@csnight/audio-recorder/plugins/dtmf`                | `encodeDtmf()` / `lookupDtmfFrequencies()` / `createDtmfDecoderPlugin()`       |
-| `@csnight/audio-recorder/plugins/nmn2pcm`             | `nmn2pcm()` / `DEFAULT_NMN_OPTIONS` / `DYNAMIC_VELOCITY` / `NMN_KEY_OFFSETS`   |
-| `@csnight/audio-recorder/plugins/streaming-player`    | `createStreamingPlayer()`                                                      |
-| `@csnight/audio-recorder/storage/opfs`                | `createOpfsPersistencePlugin()` / `isSupport()`                                |
-| `@csnight/audio-recorder/storage/indexeddb`           | `createIndexedDbPersistencePlugin()` / `isSupport()`                           |
+| `@media-studio/audio-recorder/codecs/base`                 | PCM and WAV encoders / decoders                                                |
+| `@media-studio/audio-recorder/codecs/mp3`                  | MP3 encoder                                                                    |
+| `@media-studio/audio-recorder/codecs/flac`                 | FLAC encoder                                                                   |
+| `@media-studio/audio-recorder/codecs/opus`                 | Opus encoder                                                                   |
+| `@media-studio/audio-recorder/codecs/aac`                  | AAC encoder                                                                    |
+| `@media-studio/audio-recorder/codecs/amr`                  | AMR encoder                                                                    |
+| `@media-studio/audio-recorder/codecs/ac3`                  | AC3 / E-AC3 encoders                                                           |
+| `@media-studio/audio-recorder/codecs/g711`                 | G.711 encoder                                                                  |
+| `@media-studio/audio-recorder/plugins/level-meter`         | `createLevelMeterPlugin()`                                                     |
+| `@media-studio/audio-recorder/plugins/streaming-export`    | `createStreamingExportPlugin()`                                                |
+| `@media-studio/audio-recorder/plugins/sonic-export`        | `createSonicExportPlugin()`                                                    |
+| `@media-studio/audio-recorder/plugins/dsp`                 | `createHighpassPlugin()` / `createLowpassPlugin()` / `createNoiseGatePlugin()` |
+| `@media-studio/audio-recorder/plugins/asr-export`          | `createAsrExportPlugin()`                                                      |
+| `@media-studio/audio-recorder/plugins/frequency-histogram` | `createFrequencyHistogramPlugin()`                                             |
+| `@media-studio/audio-recorder/plugins/dtmf`                | `encodeDtmf()` / `lookupDtmfFrequencies()` / `createDtmfDecoderPlugin()`       |
+| `@media-studio/audio-recorder/plugins/nmn2pcm`             | `nmn2pcm()` / `DEFAULT_NMN_OPTIONS` / `DYNAMIC_VELOCITY` / `NMN_KEY_OFFSETS`   |
+| `@media-studio/audio-recorder/plugins/streaming-player`    | `createStreamingPlayer()`                                                      |
+| `@media-studio/audio-recorder/storage/opfs`                | `createOpfsPersistencePlugin()` / `isSupport()`                                |
+| `@media-studio/audio-recorder/storage/indexeddb`           | `createIndexedDbPersistencePlugin()` / `isSupport()`                           |
 
 ### Events
 
@@ -469,8 +469,8 @@ Event:
 #### Quick Start
 
 ```ts
-import { createRecorder } from "@csnight/audio-recorder"
-import { createLevelMeterPlugin } from "@csnight/audio-recorder/plugins/level-meter"
+import { createRecorder } from "@media-studio/audio-recorder"
+import { createLevelMeterPlugin } from "@media-studio/audio-recorder/plugins/level-meter"
 
 const recorder = createRecorder()
 
@@ -483,7 +483,7 @@ recorder.on("plugin:level", ({ payload }) => {
 
 #### API
 
-The following runtime and event types are exported from `@csnight/audio-recorder/plugins/level-meter`.
+The following runtime and event types are exported from `@media-studio/audio-recorder/plugins/level-meter`.
 
 | Export                     | Description                       |
 | -------------------------- | --------------------------------- |
@@ -529,9 +529,9 @@ Event:
 #### Quick Start
 
 ```ts
-import { createRecorder } from "@csnight/audio-recorder"
-import { pcmStreamEncoder } from "@csnight/audio-recorder/codecs/base"
-import { createStreamingExportPlugin } from "@csnight/audio-recorder/plugins/streaming-export"
+import { createRecorder } from "@media-studio/audio-recorder"
+import { pcmStreamEncoder } from "@media-studio/audio-recorder/codecs/base"
+import { createStreamingExportPlugin } from "@media-studio/audio-recorder/plugins/streaming-export"
 
 const recorder = createRecorder()
 
@@ -618,9 +618,9 @@ Event:
 #### Quick Start
 
 ```ts
-import { createRecorder } from "@csnight/audio-recorder"
-import { wavStreamEncoder } from "@csnight/audio-recorder/codecs/base"
-import { createSonicExportPlugin } from "@csnight/audio-recorder/plugins/sonic-export"
+import { createRecorder } from "@media-studio/audio-recorder"
+import { wavStreamEncoder } from "@media-studio/audio-recorder/codecs/base"
+import { createSonicExportPlugin } from "@media-studio/audio-recorder/plugins/sonic-export"
 
 const recorder = createRecorder()
 const sonic = createSonicExportPlugin({
@@ -645,7 +645,7 @@ recorder.on("plugin:stream", ({ payload }) => {
 Offline transform example:
 
 ```ts
-import { deserializePcmSnapshot } from "@csnight/audio-recorder"
+import { deserializePcmSnapshot } from "@media-studio/audio-recorder"
 
 const snapshot = deserializePcmSnapshot(savedSnapshotBuffer)
 const processed = await sonic.transformSnapshot(snapshot, { speed: 0.85 })
@@ -717,12 +717,12 @@ Events:
 #### Quick Start
 
 ```ts
-import { createRecorder } from "@csnight/audio-recorder"
-import { wavExportEncoder } from "@csnight/audio-recorder/codecs/base"
+import { createRecorder } from "@media-studio/audio-recorder"
+import { wavExportEncoder } from "@media-studio/audio-recorder/codecs/base"
 import {
   createHighpassPlugin,
   createNoiseGatePlugin,
-} from "@csnight/audio-recorder/plugins/dsp"
+} from "@media-studio/audio-recorder/plugins/dsp"
 
 const recorder = createRecorder({
   encoders: [wavExportEncoder],
@@ -737,12 +737,12 @@ await recorder.start()
 const summary = await recorder.stop()
 const wav = await recorder.exportEncoded("wav", { bitRate: 16 })
 
-console.log(summary.durationMs, wav.arrayBuffer.byteLength)
+console.log(summary.durationMs, wav.data.byteLength)
 ```
 
 #### API
 
-The following APIs are exported from `@csnight/audio-recorder/plugins/dsp`.
+The following APIs are exported from `@media-studio/audio-recorder/plugins/dsp`.
 
 | Export                    | Description                      |
 | ------------------------- | -------------------------------- |
@@ -793,9 +793,9 @@ Event:
 #### Quick Start
 
 ```ts
-import { createRecorder } from "@csnight/audio-recorder"
-import { pcmExportEncoder } from "@csnight/audio-recorder/codecs/base"
-import { createAsrExportPlugin } from "@csnight/audio-recorder/plugins/asr-export"
+import { createRecorder } from "@media-studio/audio-recorder"
+import { pcmExportEncoder } from "@media-studio/audio-recorder/codecs/base"
+import { createAsrExportPlugin } from "@media-studio/audio-recorder/plugins/asr-export"
 
 const recorder = createRecorder()
 
@@ -815,7 +815,7 @@ recorder.on("plugin:asr:chunk", ({ payload }) => {
 
 #### API
 
-The following types are exported from `@csnight/audio-recorder/plugins/asr-export`.
+The following types are exported from `@media-studio/audio-recorder/plugins/asr-export`.
 
 | Export                           | Description                 |
 | -------------------------------- | --------------------------- |
@@ -872,8 +872,8 @@ Event:
 #### Quick Start
 
 ```ts
-import { createRecorder } from "@csnight/audio-recorder"
-import { createFrequencyHistogramPlugin } from "@csnight/audio-recorder/plugins/frequency-histogram"
+import { createRecorder } from "@media-studio/audio-recorder"
+import { createFrequencyHistogramPlugin } from "@media-studio/audio-recorder/plugins/frequency-histogram"
 
 const recorder = createRecorder()
 
@@ -892,7 +892,7 @@ recorder.on("plugin:fft", ({ payload }) => {
 
 #### API
 
-Exports from `@csnight/audio-recorder/plugins/frequency-histogram`:
+Exports from `@media-studio/audio-recorder/plugins/frequency-histogram`:
 
 | Export                                    | Description                   |
 | ----------------------------------------- | ----------------------------- |
@@ -942,11 +942,11 @@ Event:
 #### Quick Start
 
 ```ts
-import { createRecorder } from "@csnight/audio-recorder"
+import { createRecorder } from "@media-studio/audio-recorder"
 import {
   createDtmfDecoderPlugin,
   encodeDtmf,
-} from "@csnight/audio-recorder/plugins/dtmf"
+} from "@media-studio/audio-recorder/plugins/dtmf"
 
 const recorder = createRecorder()
 const tone = encodeDtmf(["1", "2", "3"], { sampleRate: 8000 })
@@ -966,7 +966,7 @@ recorder.on("plugin:dtmf:detect", ({ payload }) => {
 
 #### API
 
-Exports from `@csnight/audio-recorder/plugins/dtmf`:
+Exports from `@media-studio/audio-recorder/plugins/dtmf`:
 
 | Export                             | Description                                 |
 | ---------------------------------- | ------------------------------------------- |
@@ -1028,7 +1028,7 @@ Standalone numbered-musical-notation to PCM converter. It parses NMN score strin
 #### Quick Start
 
 ```ts
-import { nmn2pcm } from "@csnight/audio-recorder/plugins/nmn2pcm"
+import { nmn2pcm } from "@media-studio/audio-recorder/plugins/nmn2pcm"
 
 const result = nmn2pcm("!mf! [1 3 5]- 1 ~ 1 0 6.", {
   sampleRate: 16000,
@@ -1043,7 +1043,7 @@ console.log(result.sampleRate, result.durationMs, result.channels)
 
 #### API
 
-Exports from `@csnight/audio-recorder/plugins/nmn2pcm`:
+Exports from `@media-studio/audio-recorder/plugins/nmn2pcm`:
 
 | Export                    | Description                                |
 | ------------------------- | ------------------------------------------ |
@@ -1082,8 +1082,8 @@ Standalone streaming audio playback engine. Receives `StreamingPacketPayload` pa
 #### Quick Start
 
 ```ts
-import { createStreamingPlayer } from "@csnight/audio-recorder/plugins/streaming-player"
-import { pcmDecoderDefinition } from "@csnight/audio-recorder/codecs/base"
+import { createStreamingPlayer } from "@media-studio/audio-recorder/plugins/streaming-player"
+import { pcmDecoderDefinition } from "@media-studio/audio-recorder/codecs/base"
 
 const player = await createStreamingPlayer({
   decoders: [pcmDecoderDefinition],
@@ -1106,7 +1106,7 @@ player.destroy()
 
 #### API
 
-Exports from `@csnight/audio-recorder/plugins/streaming-player`:
+Exports from `@media-studio/audio-recorder/plugins/streaming-player`:
 
 | Export                           | Description                                                             |
 | -------------------------------- | ----------------------------------------------------------------------- |
@@ -1174,11 +1174,11 @@ OPFS persistence backend. Stores snapshots as chunk files and is suitable for lo
 #### Quick Start
 
 ```ts
-import { createRecorder } from "@csnight/audio-recorder"
+import { createRecorder } from "@media-studio/audio-recorder"
 import {
   createOpfsPersistencePlugin,
   isSupport,
-} from "@csnight/audio-recorder/storage/opfs"
+} from "@media-studio/audio-recorder/storage/opfs"
 
 if (!isSupport()) {
   throw new Error("OPFS is not supported in this browser.")
@@ -1203,11 +1203,11 @@ const recorder = createRecorder({
 Use with the main recorder `storage` option:
 
 ```ts
-import { createRecorder } from "@csnight/audio-recorder"
+import { createRecorder } from "@media-studio/audio-recorder"
 import {
   createOpfsPersistencePlugin,
   isSupport,
-} from "@csnight/audio-recorder/storage/opfs"
+} from "@media-studio/audio-recorder/storage/opfs"
 
 if (!isSupport()) {
   throw new Error("OPFS is not supported in this browser.")
@@ -1230,11 +1230,11 @@ IndexedDB persistence backend. Stores snapshots as chunk entries in an object st
 #### Quick Start
 
 ```ts
-import { createRecorder } from "@csnight/audio-recorder"
+import { createRecorder } from "@media-studio/audio-recorder"
 import {
   createIndexedDbPersistencePlugin,
   isSupport,
-} from "@csnight/audio-recorder/storage/indexeddb"
+} from "@media-studio/audio-recorder/storage/indexeddb"
 
 if (!isSupport()) {
   throw new Error("IndexedDB is not supported in this browser.")
@@ -1259,11 +1259,11 @@ const recorder = createRecorder({
 Use with the main recorder `storage` option:
 
 ```ts
-import { createRecorder } from "@csnight/audio-recorder"
+import { createRecorder } from "@media-studio/audio-recorder"
 import {
   createIndexedDbPersistencePlugin,
   isSupport,
-} from "@csnight/audio-recorder/storage/indexeddb"
+} from "@media-studio/audio-recorder/storage/indexeddb"
 
 if (!isSupport()) {
   throw new Error("IndexedDB is not supported in this browser.")

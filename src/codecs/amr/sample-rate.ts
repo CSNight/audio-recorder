@@ -1,5 +1,5 @@
 import type { AmrBandMode, AmrExportOptions } from "./types"
-import { pickNearestSupportedSampleRate } from "@csnight/audio-recorder"
+import { pickNearestSupportedSampleRate } from "@media-studio/audio-recorder"
 
 const AMR_SAMPLE_RATES = {
   nb: 8000,

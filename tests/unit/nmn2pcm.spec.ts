@@ -49,8 +49,8 @@ describe("nmn2pcm", () => {
       planar: [result.data],
     })
 
-    expect(wav.arrayBuffer.byteLength).toBeGreaterThan(44)
-    expect(new Uint8Array(wav.arrayBuffer).slice(0, 4)).toEqual(
+    expect(wav.data.byteLength).toBeGreaterThan(44)
+    expect(wav.data.slice(0, 4)).toEqual(
       new Uint8Array([0x52, 0x49, 0x46, 0x46])
     )
   })

@@ -258,12 +258,12 @@ import { onUnmounted, ref, watch } from "vue"
 import type {
   StreamingPlayerHandle,
   StreamingPlayerState,
-} from "@csnight/audio-recorder/plugins/streaming-player"
-import { createStreamingPlayer } from "@csnight/audio-recorder/plugins/streaming-player"
+} from "@media-studio/audio-recorder/plugins/streaming-player"
+import { createStreamingPlayer } from "@media-studio/audio-recorder/plugins/streaming-player"
 import {
   pcmDecoderDefinition,
   wavDecoderDefinition,
-} from "@csnight/audio-recorder/codecs/base"
+} from "@media-studio/audio-recorder/codecs/base"
 
 const PLAYGROUND_LOCALE = {
   zh: "zh-CN",

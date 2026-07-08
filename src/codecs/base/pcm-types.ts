@@ -11,11 +11,16 @@ export interface PcmExportOptions {
 export interface PcmExportResult {
   sampleRate: number
   channels: number
+  /**
+   * 位深：8 或 16。
+   * 描述 `data` 字节流的编码方式：
+   * - `16`：每两个字节为一个有符号小端 Int16 样本（范围 -32768..32767）。
+   * - `8`：每个字节为一个有符号 Int8 样本（范围 -128..127）。
+   *   注意与 WAV 不同：WAV 内的 8-bit PCM 按标准存为无符号字节（0..255）。
+   * 如需按样本操作，可用 `new Int16Array(data.buffer)` 或 `new Int8Array(data.buffer)`。
+   */
   bitRate: 8 | 16
   durationMs: number
-  /**
-   * 16-bit 为有符号 `Int16Array`；8-bit 为**有符号** `Int8Array`（范围 -128..127）。
-   * 注意与 WAV 导出不同：WAV 内的 8-bit PCM 按标准存为无符号字节（0..255）。
-   */
-  data: Int16Array | Int8Array
+  /** 交织（interleaved）裸 PCM 字节流，编码方式见 `bitRate` 字段说明。 */
+  data: Uint8Array
 }

@@ -178,7 +178,7 @@ import { computed } from "vue"
 import {
   NMN_KEY_OFFSETS,
   type NmnConvertOptions,
-} from "@csnight/audio-recorder/plugins/nmn2pcm"
+} from "@media-studio/audio-recorder/plugins/nmn2pcm"
 import type {
   PlaygroundExportAction,
   PlaygroundResultRow,

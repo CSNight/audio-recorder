@@ -1,7 +1,7 @@
 import {
   deserializePcmSnapshot,
   serializePcmSnapshot,
-} from "@csnight/audio-recorder"
+} from "@media-studio/audio-recorder"
 import type {
   RecorderPersistencePlugin,
   RecorderPersistenceSession,

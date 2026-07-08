@@ -546,24 +546,24 @@ flowchart LR
 ## 15. 子路径导出结构
 
 ```text
-@csnight/audio-recorder               — 核心控制器、类型、工具
-@csnight/audio-recorder/codecs/base   — WAV / PCM 编码器
-@csnight/audio-recorder/codecs/mp3    — MP3 编码器（WASM）
-@csnight/audio-recorder/codecs/g711   — G711 编码器
-@csnight/audio-recorder/codecs/opus   — Opus/OGG/WebM 编码器（WASM）
-@csnight/audio-recorder/codecs/flac   — FLAC 编码器（WASM）
-@csnight/audio-recorder/codecs/aac    — AAC 编码器（WASM）
-@csnight/audio-recorder/codecs/amr    — AMR-NB/WB 编码器（WASM）
-@csnight/audio-recorder/plugins/level-meter       — 音量插件
-@csnight/audio-recorder/plugins/streaming-export  — 实时流导出插件
-@csnight/audio-recorder/plugins/sonic-export      — Sonic 实时流导出插件
-@csnight/audio-recorder/plugins/dsp               — 主链路 DSP 滤波插件
-@csnight/audio-recorder/plugins/asr-export        — ASR 导出插件
-@csnight/audio-recorder/plugins/frequency-histogram — FFT 频谱分析插件
-@csnight/audio-recorder/plugins/dtmf              — DTMF 编码/检测插件
-@csnight/audio-recorder/plugins/nmn2pcm           — 简谱转 PCM 工具
-@csnight/audio-recorder/storage/opfs              — OPFS 持久化后端 + 静态能力探测
-@csnight/audio-recorder/storage/indexeddb         — IndexedDB 持久化后端 + 静态能力探测
+@media-studio/audio-recorder               — 核心控制器、类型、工具
+@media-studio/audio-recorder/codecs/base   — WAV / PCM 编码器
+@media-studio/audio-recorder/codecs/mp3    — MP3 编码器（WASM）
+@media-studio/audio-recorder/codecs/g711   — G711 编码器
+@media-studio/audio-recorder/codecs/opus   — Opus/OGG/WebM 编码器（WASM）
+@media-studio/audio-recorder/codecs/flac   — FLAC 编码器（WASM）
+@media-studio/audio-recorder/codecs/aac    — AAC 编码器（WASM）
+@media-studio/audio-recorder/codecs/amr    — AMR-NB/WB 编码器（WASM）
+@media-studio/audio-recorder/plugins/level-meter       — 音量插件
+@media-studio/audio-recorder/plugins/streaming-export  — 实时流导出插件
+@media-studio/audio-recorder/plugins/sonic-export      — Sonic 实时流导出插件
+@media-studio/audio-recorder/plugins/dsp               — 主链路 DSP 滤波插件
+@media-studio/audio-recorder/plugins/asr-export        — ASR 导出插件
+@media-studio/audio-recorder/plugins/frequency-histogram — FFT 频谱分析插件
+@media-studio/audio-recorder/plugins/dtmf              — DTMF 编码/检测插件
+@media-studio/audio-recorder/plugins/nmn2pcm           — 简谱转 PCM 工具
+@media-studio/audio-recorder/storage/opfs              — OPFS 持久化后端 + 静态能力探测
+@media-studio/audio-recorder/storage/indexeddb         — IndexedDB 持久化后端 + 静态能力探测
 ```
 
 ## 16. Playground
@@ -571,7 +571,7 @@ flowchart LR
 Playground 位于 `playground/`，是独立 Vite + Vue 3 应用。
 
 当前 playground 依赖 `dist/` 编译产物（而非 npm 包），通过 vite alias 将所有
-`@csnight/audio-recorder` 路径映射到 `../dist`。
+`@media-studio/audio-recorder` 路径映射到 `../dist`。
 
 这使 playground 成为库本身的直接集成测试环境：
 

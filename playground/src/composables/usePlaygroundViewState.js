@@ -1,5 +1,5 @@
 import { computed } from "vue"
-import { RecorderState } from "@csnight/audio-recorder"
+import { RecorderState } from "@media-studio/audio-recorder"
 import {
   EXPORT_FORMAT_ACTIONS,
   PLAYGROUND_PERSISTENCE_CHUNK_BYTES,

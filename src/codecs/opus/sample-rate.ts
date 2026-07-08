@@ -1,5 +1,5 @@
 import type { OpusSampleRate } from "./types"
-import { pickNearestSupportedSampleRate } from "@csnight/audio-recorder"
+import { pickNearestSupportedSampleRate } from "@media-studio/audio-recorder"
 
 export const OPUS_SAMPLE_RATES = [
   8000, 12000, 16000, 24000, 48000,

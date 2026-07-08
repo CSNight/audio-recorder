@@ -1,6 +1,6 @@
 import type { PcmBufferSnapshot } from "../../buffer/types"
 import type { ExportEncoderDefinition } from "../../types"
-import { resample } from "@csnight/audio-recorder"
+import { resample } from "@media-studio/audio-recorder"
 import {
   createAmrEncoder,
   getAmrMimeType,

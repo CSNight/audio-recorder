@@ -134,7 +134,7 @@ describe("createSonicExportPlugin", () => {
     await flushMicrotasks()
 
     const rawPcm = await recorder.exportEncoded("pcm")
-    expect(rawPcm.data.length).toBe(frame.planar[0]?.length ?? 0)
+    expect(rawPcm.data.byteLength / 2).toBe(frame.planar[0]?.length ?? 0)
 
     expect(events).toHaveLength(2)
     expect(events[0]?.format).toBe("pcm")

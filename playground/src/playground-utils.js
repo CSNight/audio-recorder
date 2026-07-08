@@ -1,4 +1,4 @@
-import { RecorderState } from "@csnight/audio-recorder"
+import { RecorderState } from "@media-studio/audio-recorder"
 import {
   EXPORT_FORMAT_ACTIONS,
   PLAYGROUND_PERSISTENCE_BACKEND,
@@ -112,9 +112,6 @@ export function getExportFormatLabel(format) {
 
 export function getExportResultByteLength(result) {
   if (result?.data instanceof Uint8Array) return result.data.byteLength
-  if (result?.arrayBuffer instanceof ArrayBuffer)
-    return result.arrayBuffer.byteLength
-  if (result?.blob instanceof Blob) return result.blob.size
   return 0
 }
 

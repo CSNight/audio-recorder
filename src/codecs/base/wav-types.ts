@@ -15,8 +15,6 @@ export interface WavExportResult {
   bitRate: 8 | 16
   durationMs: number
   mimeType: "audio/wav"
-  /** 完整的 WAV 文件数据（含 RIFF/WAVE 文件头） */
-  arrayBuffer: ArrayBuffer
-  /** 由 arrayBuffer 包装的 Blob，便于下载或上传 */
-  data: Blob
+  /** 完整的 WAV 文件字节流（含 RIFF/WAVE 文件头）。如需 Blob 可用 `new Blob([data], { type: mimeType })`。 */
+  data: Uint8Array
 }

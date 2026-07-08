@@ -1,7 +1,7 @@
 import type { PcmBufferSnapshot } from "../../buffer/types"
 import type { ExportEncoderDefinition } from "../../types"
 import type { RecorderPlugin } from "../types"
-import { resample } from "@csnight/audio-recorder"
+import { resample } from "@media-studio/audio-recorder"
 import type {
   AsrChunkPayload,
   AsrExportFormat,
@@ -202,10 +202,7 @@ function createChunkPayload(
 
   const format = encoderDefinition.type as AsrExportFormat
   const result = encoderDefinition.export(snapshot, { bitRate: bitsPerSample })
-  const chunk =
-    format === "wav"
-      ? new Uint8Array((result as { arrayBuffer: ArrayBuffer }).arrayBuffer)
-      : toUint8Array((result as { data: Int8Array | Int16Array }).data)
+  const chunk = (result as { data: Uint8Array }).data
 
   return {
     format,
@@ -217,10 +214,6 @@ function createChunkPayload(
     channels: 1,
     isFinal,
   }
-}
-
-function toUint8Array(data: Int8Array | Int16Array): Uint8Array {
-  return new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
 }
 
 function resolveAsrEncoder(

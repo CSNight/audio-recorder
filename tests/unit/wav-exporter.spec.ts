@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import type { PcmBufferSnapshot } from "../../src/buffer/types"
+import type { PcmBufferSnapshot } from "../../src"
 import { exportWavSnapshot } from "../../src/codecs/base/wav-exporter"
 
 function readAscii(view: DataView, offset: number, length: number): string {
@@ -19,11 +19,10 @@ describe("exportWavSnapshot", () => {
     }
 
     const result = exportWavSnapshot(snapshot)
-    const view = new DataView(result.arrayBuffer)
+    const view = new DataView(result.data.buffer, result.data.byteOffset, result.data.byteLength)
 
     expect(result.mimeType).toBe("audio/wav")
     expect(result.bitRate).toBe(16)
-    expect(result.blob.type).toBe("audio/wav")
     expect(readAscii(view, 0, 4)).toBe("RIFF")
     expect(readAscii(view, 8, 4)).toBe("WAVE")
     expect(readAscii(view, 12, 4)).toBe("fmt ")
@@ -32,7 +31,7 @@ describe("exportWavSnapshot", () => {
     expect(view.getUint32(24, true)).toBe(16_000)
     expect(view.getUint16(34, true)).toBe(16)
     expect(view.getUint32(40, true)).toBe(8)
-    expect(result.arrayBuffer.byteLength).toBe(52)
+    expect(result.data.byteLength).toBe(52)
   })
 
   it("exports stereo 8-bit WAV data and converts payload to unsigned bytes", () => {
@@ -45,7 +44,7 @@ describe("exportWavSnapshot", () => {
     }
 
     const result = exportWavSnapshot(snapshot, { bitRate: 8 })
-    const payload = Array.from(new Uint8Array(result.arrayBuffer.slice(44)))
+    const payload = Array.from(result.data.slice(44))
 
     expect(result.bitRate).toBe(8)
     expect(payload).toEqual([0, 255, 128, 129])
@@ -64,7 +63,7 @@ describe("exportWavSnapshot", () => {
       sampleRate: 16_000,
       bitRate: 16,
     })
-    const view = new DataView(result.arrayBuffer)
+    const view = new DataView(result.data.buffer, result.data.byteOffset, result.data.byteLength)
 
     expect(result.sampleRate).toBe(16_000)
     expect(view.getUint32(24, true)).toBe(16_000)

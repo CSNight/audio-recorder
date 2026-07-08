@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import type { PcmBufferSnapshot } from "../../src/buffer/types"
+import type { PcmBufferSnapshot } from "../../src"
 import { wavDecoderDefinition } from "../../src/codecs/base"
 import { exportWavSnapshot } from "../../src/codecs/base/wav-exporter"
 
@@ -15,7 +15,7 @@ describe("wavDecoderDefinition", () => {
 
     const wav = exportWavSnapshot(snapshot)
     const decoded = await wavDecoderDefinition.decode({
-      chunk: new Uint8Array(wav.arrayBuffer),
+      chunk: wav.data,
       format: "wav",
       sampleRate: 16000,
       channels: 1,
@@ -37,7 +37,7 @@ describe("wavDecoderDefinition", () => {
 
     const wav = exportWavSnapshot(snapshot, { bitRate: 8 })
     const decoded = await wavDecoderDefinition.decode({
-      chunk: new Uint8Array(wav.arrayBuffer),
+      chunk: wav.data,
       format: "wav",
       sampleRate: 8000,
       channels: 2,
@@ -60,7 +60,7 @@ describe("wavDecoderDefinition", () => {
 
     const wav = exportWavSnapshot(snapshot)
     const decoded = await wavDecoderDefinition.decode({
-      chunk: new Uint8Array(wav.arrayBuffer),
+      chunk: wav.data,
       format: "wav",
       sampleRate: 48000,
       channels: 2,
@@ -165,7 +165,7 @@ describe("wavDecoderDefinition", () => {
     }
     const wav = exportWavSnapshot(snapshot)
     // Tamper: inflate the data chunk size field (bytes 40-43) to exceed buffer
-    const arr = new Uint8Array(wav.arrayBuffer)
+    const arr = new Uint8Array(wav.data)
     const view = new DataView(arr.buffer)
     // Find data chunk (at offset 36 for simple WAV)
     view.setUint32(40, 999999, true) // inflate data size
@@ -182,7 +182,7 @@ describe("wavDecoderDefinition", () => {
 
   it("throws for non-PCM audio format", async () => {
     // Build WAV with audioFormat != 1 (e.g. 3 = IEEE float)
-    const buf = new ArrayBuffer(12 + 8 + 16 + 8 + 0 + 44)
+    const buf = new ArrayBuffer(12 + 8 + 16 + 8 + 44)
     const view = new DataView(buf)
     const enc = new TextEncoder()
     const writeAscii = (offset: number, s: string) =>
@@ -212,7 +212,7 @@ describe("wavDecoderDefinition", () => {
   })
 
   it("throws for unsupported fmt metadata (invalid bit rate)", async () => {
-    const buf = new ArrayBuffer(12 + 8 + 16 + 8 + 0 + 44)
+    const buf = new ArrayBuffer(12 + 8 + 16 + 8 + 44)
     const view = new DataView(buf)
     const enc = new TextEncoder()
     const writeAscii = (offset: number, s: string) =>

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import type { PcmBufferSnapshot } from "../../src/buffer/types"
+import type { PcmBufferSnapshot } from "../../src"
 
 function makeSnapshot(sampleRate = 48000, channels = 1): PcmBufferSnapshot {
   const samplesPerChannel = 320
@@ -42,9 +42,9 @@ describe("exporter HQ resample forwarding", () => {
       (value: PcmBufferSnapshot, targetSampleRate: number) =>
         createResampledSnapshot(value, targetSampleRate)
     )
-    vi.doMock("@csnight/audio-recorder", async (importOriginal) => {
+    vi.doMock("@media-studio/audio-recorder", async (importOriginal) => {
       const actual =
-        await importOriginal<typeof import("@csnight/audio-recorder")>()
+        await importOriginal<typeof import("@media-studio/audio-recorder")>()
       return { ...actual, resample }
     })
 
@@ -61,9 +61,9 @@ describe("exporter HQ resample forwarding", () => {
       (value: PcmBufferSnapshot, targetSampleRate: number) =>
         createResampledSnapshot(value, targetSampleRate)
     )
-    vi.doMock("@csnight/audio-recorder", async (importOriginal) => {
+    vi.doMock("@media-studio/audio-recorder", async (importOriginal) => {
       const actual =
-        await importOriginal<typeof import("@csnight/audio-recorder")>()
+        await importOriginal<typeof import("@media-studio/audio-recorder")>()
       return { ...actual, resample }
     })
 
@@ -80,9 +80,9 @@ describe("exporter HQ resample forwarding", () => {
       (value: PcmBufferSnapshot, targetSampleRate: number) =>
         createResampledSnapshot(value, targetSampleRate)
     )
-    vi.doMock("@csnight/audio-recorder", async (importOriginal) => {
+    vi.doMock("@media-studio/audio-recorder", async (importOriginal) => {
       const actual =
-        await importOriginal<typeof import("@csnight/audio-recorder")>()
+        await importOriginal<typeof import("@media-studio/audio-recorder")>()
       return { ...actual, resample }
     })
     vi.doMock("../../src/codecs/aac/aac-wasm-api", () => ({
@@ -113,9 +113,9 @@ describe("exporter HQ resample forwarding", () => {
       (value: PcmBufferSnapshot, targetSampleRate: number) =>
         createResampledSnapshot(value, targetSampleRate)
     )
-    vi.doMock("@csnight/audio-recorder", async (importOriginal) => {
+    vi.doMock("@media-studio/audio-recorder", async (importOriginal) => {
       const actual =
-        await importOriginal<typeof import("@csnight/audio-recorder")>()
+        await importOriginal<typeof import("@media-studio/audio-recorder")>()
       return { ...actual, resample }
     })
     vi.doMock("../../src/codecs/mp3/mp3-wasm-api", () => ({
@@ -156,9 +156,9 @@ describe("exporter HQ resample forwarding", () => {
       (value: PcmBufferSnapshot, targetSampleRate: number) =>
         createResampledSnapshot(value, targetSampleRate)
     )
-    vi.doMock("@csnight/audio-recorder", async (importOriginal) => {
+    vi.doMock("@media-studio/audio-recorder", async (importOriginal) => {
       const actual =
-        await importOriginal<typeof import("@csnight/audio-recorder")>()
+        await importOriginal<typeof import("@media-studio/audio-recorder")>()
       return { ...actual, resample }
     })
     vi.doMock("../../src/codecs/flac/flac-wasm-api", () => ({
@@ -186,9 +186,9 @@ describe("exporter HQ resample forwarding", () => {
       (value: PcmBufferSnapshot, targetSampleRate: number) =>
         createResampledSnapshot(value, targetSampleRate)
     )
-    vi.doMock("@csnight/audio-recorder", async (importOriginal) => {
+    vi.doMock("@media-studio/audio-recorder", async (importOriginal) => {
       const actual =
-        await importOriginal<typeof import("@csnight/audio-recorder")>()
+        await importOriginal<typeof import("@media-studio/audio-recorder")>()
       return { ...actual, resample }
     })
     vi.doMock("../../src/codecs/opus/opus-wasm-api", () => ({
@@ -217,9 +217,9 @@ describe("exporter HQ resample forwarding", () => {
       (value: PcmBufferSnapshot, targetSampleRate: number) =>
         createResampledSnapshot(value, targetSampleRate)
     )
-    vi.doMock("@csnight/audio-recorder", async (importOriginal) => {
+    vi.doMock("@media-studio/audio-recorder", async (importOriginal) => {
       const actual =
-        await importOriginal<typeof import("@csnight/audio-recorder")>()
+        await importOriginal<typeof import("@media-studio/audio-recorder")>()
       return { ...actual, resample }
     })
     vi.doMock("../../src/codecs/amr/amr-wasm-api", () => ({
@@ -249,9 +249,9 @@ describe("exporter HQ resample forwarding", () => {
       (value: PcmBufferSnapshot, targetSampleRate: number) =>
         createResampledSnapshot(value, targetSampleRate)
     )
-    vi.doMock("@csnight/audio-recorder", async (importOriginal) => {
+    vi.doMock("@media-studio/audio-recorder", async (importOriginal) => {
       const actual =
-        await importOriginal<typeof import("@csnight/audio-recorder")>()
+        await importOriginal<typeof import("@media-studio/audio-recorder")>()
       return { ...actual, resample }
     })
     vi.doMock("../../src/codecs/ac3/ac3-wasm-api", () => ({

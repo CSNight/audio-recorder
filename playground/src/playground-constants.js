@@ -1,23 +1,23 @@
-import { RecorderInputSource } from "@csnight/audio-recorder"
-import { createIndexedDbPersistencePlugin } from "@csnight/audio-recorder/storage/indexeddb"
-import { createOpfsPersistencePlugin } from "@csnight/audio-recorder/storage/opfs"
+import { RecorderInputSource } from "@media-studio/audio-recorder"
+import { createIndexedDbPersistencePlugin } from "@media-studio/audio-recorder/storage/indexeddb"
+import { createOpfsPersistencePlugin } from "@media-studio/audio-recorder/storage/opfs"
 import {
   pcmExportEncoder,
   wavExportEncoder,
-} from "@csnight/audio-recorder/codecs/base"
-import { mp3ExportEncoder } from "@csnight/audio-recorder/codecs/mp3"
-import { g711ExportEncoder } from "@csnight/audio-recorder/codecs/g711"
+} from "@media-studio/audio-recorder/codecs/base"
+import { mp3ExportEncoder } from "@media-studio/audio-recorder/codecs/mp3"
+import { g711ExportEncoder } from "@media-studio/audio-recorder/codecs/g711"
 import {
   oggExportEncoder,
   webmExportEncoder,
-} from "@csnight/audio-recorder/codecs/opus"
-import { flacExportEncoder } from "@csnight/audio-recorder/codecs/flac"
-import { aacExportEncoder } from "@csnight/audio-recorder/codecs/aac"
-import { amrExportEncoder } from "@csnight/audio-recorder/codecs/amr"
+} from "@media-studio/audio-recorder/codecs/opus"
+import { flacExportEncoder } from "@media-studio/audio-recorder/codecs/flac"
+import { aacExportEncoder } from "@media-studio/audio-recorder/codecs/aac"
+import { amrExportEncoder } from "@media-studio/audio-recorder/codecs/amr"
 import {
   ac3ExportEncoder,
   eac3ExportEncoder,
-} from "@csnight/audio-recorder/codecs/ac3"
+} from "@media-studio/audio-recorder/codecs/ac3"
 
 export const PLAYGROUND_SOURCE_MODE = {
   microphone: RecorderInputSource.Microphone,

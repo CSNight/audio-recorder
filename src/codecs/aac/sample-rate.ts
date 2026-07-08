@@ -1,5 +1,5 @@
 import type { AacSampleRate } from "./types"
-import { pickNearestSupportedSampleRate } from "@csnight/audio-recorder"
+import { pickNearestSupportedSampleRate } from "@media-studio/audio-recorder"
 
 export const AAC_SAMPLE_RATES = [
   7350, 8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, 64000,

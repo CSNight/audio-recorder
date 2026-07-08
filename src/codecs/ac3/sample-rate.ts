@@ -1,5 +1,5 @@
 import type { Ac3Codec, Ac3SampleRate } from "./types"
-import { pickNearestSupportedSampleRate } from "@csnight/audio-recorder"
+import { pickNearestSupportedSampleRate } from "@media-studio/audio-recorder"
 
 export const AC3_SAMPLE_RATES = [
   32000, 44100, 48000,

@@ -959,7 +959,7 @@ streaming-export 插件当前只内置 PCM / WAV，MP3 通过 codec entry 注册
 ### 6.2 流播放器插件（StreamingPlayer）
 
 **功能**：接收任意来源的 `StreamingPacketPayload`，经乱序重排、抖动缓冲、解码和 `AudioContext` 调度后连续播放。当前实现已落地为独立子路径
-`@csnight/audio-recorder/plugins/streaming-player`，不是挂在 `RecorderPlugin` 生命周期里的 `onFrame` 型插件。
+`@media-studio/audio-recorder/plugins/streaming-player`，不是挂在 `RecorderPlugin` 生命周期里的 `onFrame` 型插件。
 
 **参照**：`vendor/Recorder-master/src/extensions/buffer_stream.player.js`
 
@@ -1199,9 +1199,9 @@ recorder.on("plugin:stream", ({ payload }) => {
 使用示例：
 
 ```ts
-import { deserializePcmSnapshot } from "@csnight/audio-recorder"
-import { createSonicExportPlugin } from "@csnight/audio-recorder/plugins/sonic-export"
-import { wavStreamEncoder } from "@csnight/audio-recorder/codecs/base"
+import { deserializePcmSnapshot } from "@media-studio/audio-recorder"
+import { createSonicExportPlugin } from "@media-studio/audio-recorder/plugins/sonic-export"
+import { wavStreamEncoder } from "@media-studio/audio-recorder/codecs/base"
 
 const sonicPlugin = createSonicExportPlugin({
   speed: 1.5,

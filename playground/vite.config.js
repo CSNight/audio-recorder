@@ -33,25 +33,25 @@ export default defineConfig({
     alias: [
       ...createDistWorkerAliases(),
       {
-        find: "@csnight/audio-recorder/plugins/level-meter",
+        find: "@media-studio/audio-recorder/plugins/level-meter",
         replacement: fileURLToPath(
           new URL("../dist/plugins/level-meter/index.js", import.meta.url)
         ),
       },
       {
-        find: "@csnight/audio-recorder/plugins/streaming-export",
+        find: "@media-studio/audio-recorder/plugins/streaming-export",
         replacement: fileURLToPath(
           new URL("../dist/plugins/streaming-export/index.js", import.meta.url)
         ),
       },
       {
-        find: "@csnight/audio-recorder/plugins/streaming-player",
+        find: "@media-studio/audio-recorder/plugins/streaming-player",
         replacement: fileURLToPath(
           new URL("../dist/plugins/streaming-player/index.js", import.meta.url)
         ),
       },
       {
-        find: "@csnight/audio-recorder/plugins/frequency-histogram",
+        find: "@media-studio/audio-recorder/plugins/frequency-histogram",
         replacement: fileURLToPath(
           new URL(
             "../dist/plugins/frequency-histogram/index.js",
@@ -60,98 +60,98 @@ export default defineConfig({
         ),
       },
       {
-        find: "@csnight/audio-recorder/plugins/dtmf",
+        find: "@media-studio/audio-recorder/plugins/dtmf",
         replacement: fileURLToPath(
           new URL("../dist/plugins/dtmf/index.js", import.meta.url)
         ),
       },
       {
-        find: "@csnight/audio-recorder/plugins/nmn2pcm",
+        find: "@media-studio/audio-recorder/plugins/nmn2pcm",
         replacement: fileURLToPath(
           new URL("../dist/plugins/nmn2pcm/index.js", import.meta.url)
         ),
       },
       {
-        find: "@csnight/audio-recorder/plugins/sonic-export",
+        find: "@media-studio/audio-recorder/plugins/sonic-export",
         replacement: fileURLToPath(
           new URL("../dist/plugins/sonic-export/index.js", import.meta.url)
         ),
       },
       {
-        find: "@csnight/audio-recorder/plugins/asr-export",
+        find: "@media-studio/audio-recorder/plugins/asr-export",
         replacement: fileURLToPath(
           new URL("../dist/plugins/asr-export/index.js", import.meta.url)
         ),
       },
       {
-        find: "@csnight/audio-recorder/plugins/dsp",
+        find: "@media-studio/audio-recorder/plugins/dsp",
         replacement: fileURLToPath(
           new URL("../dist/plugins/dsp/index.js", import.meta.url)
         ),
       },
       {
-        find: "@csnight/audio-recorder/storage/indexeddb",
+        find: "@media-studio/audio-recorder/storage/indexeddb",
         replacement: fileURLToPath(
           new URL("../dist/storage/indexeddb/index.js", import.meta.url)
         ),
       },
       {
-        find: "@csnight/audio-recorder/storage/opfs",
+        find: "@media-studio/audio-recorder/storage/opfs",
         replacement: fileURLToPath(
           new URL("../dist/storage/opfs/index.js", import.meta.url)
         ),
       },
       {
-        find: "@csnight/audio-recorder/codecs/base",
+        find: "@media-studio/audio-recorder/codecs/base",
         replacement: fileURLToPath(
           new URL("../dist/codecs/base/index.js", import.meta.url)
         ),
       },
       {
-        find: "@csnight/audio-recorder/codecs/mp3",
+        find: "@media-studio/audio-recorder/codecs/mp3",
         replacement: fileURLToPath(
           new URL("../dist/codecs/mp3/index.js", import.meta.url)
         ),
       },
       {
-        find: "@csnight/audio-recorder/codecs/g711",
+        find: "@media-studio/audio-recorder/codecs/g711",
         replacement: fileURLToPath(
           new URL("../dist/codecs/g711/index.js", import.meta.url)
         ),
       },
       {
-        find: "@csnight/audio-recorder/codecs/opus",
+        find: "@media-studio/audio-recorder/codecs/opus",
         replacement: fileURLToPath(
           new URL("../dist/codecs/opus/index.js", import.meta.url)
         ),
       },
       {
-        find: "@csnight/audio-recorder/codecs/flac",
+        find: "@media-studio/audio-recorder/codecs/flac",
         replacement: fileURLToPath(
           new URL("../dist/codecs/flac/index.js", import.meta.url)
         ),
       },
       {
-        find: "@csnight/audio-recorder/codecs/aac",
+        find: "@media-studio/audio-recorder/codecs/aac",
         replacement: fileURLToPath(
           new URL("../dist/codecs/aac/index.js", import.meta.url)
         ),
       },
       {
-        find: "@csnight/audio-recorder/codecs/amr",
+        find: "@media-studio/audio-recorder/codecs/amr",
         replacement: fileURLToPath(
           new URL("../dist/codecs/amr/index.js", import.meta.url)
         ),
       },
       {
-        find: "@csnight/audio-recorder/codecs/ac3",
+        find: "@media-studio/audio-recorder/codecs/ac3",
         replacement: fileURLToPath(
           new URL("../dist/codecs/ac3/index.js", import.meta.url)
         ),
       },
 
       {
-        find: "@csnight/audio-recorder",
+        find: "@media-studio/audio-recorder",
         replacement: fileURLToPath(
           new URL("../dist/index.js", import.meta.url)
         ),

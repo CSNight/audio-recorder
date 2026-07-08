@@ -32,7 +32,7 @@ export interface OggMuxerOptions {
 const CAPTURE_PATTERN = new TextEncoder().encode("OggS")
 const OPUS_HEAD_SIGNATURE = new TextEncoder().encode("OpusHead")
 const OPUS_TAGS_SIGNATURE = new TextEncoder().encode("OpusTags")
-const VENDOR_STRING = new TextEncoder().encode("@csnight/audio-recorder")
+const VENDOR_STRING = new TextEncoder().encode("@media-studio/audio-recorder")
 
 // Header type flags
 const FLAG_BOS = 0x02 // Beginning of stream

@@ -231,11 +231,11 @@ export class WebmMuxer {
       writeElement(TimestampScale, writeUint(1000000)), // 1ms precision
       writeElement(
         MuxingApp,
-        new TextEncoder().encode("@csnight/audio-recorder")
+        new TextEncoder().encode("@media-studio/audio-recorder")
       ),
       writeElement(
         WritingApp,
-        new TextEncoder().encode("@csnight/audio-recorder")
+        new TextEncoder().encode("@media-studio/audio-recorder")
       )
     )
 

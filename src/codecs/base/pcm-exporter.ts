@@ -1,6 +1,6 @@
 import type { PcmBufferSnapshot } from "../../buffer/types"
 import type { PcmExportOptions, PcmExportResult } from "./pcm-types"
-import { resample } from "@csnight/audio-recorder"
+import { resample } from "@media-studio/audio-recorder"
 import { resolveExportSampleRate } from "./sample-rate"
 
 type PcmLikeSnapshot = Pick<
@@ -43,12 +43,17 @@ export function createPcmExportResult(
   const bitRate = normalizeBitRate(bitRateOption)
   const interleaved = interleaveChannels(snapshot.planar, snapshot.channels)
 
+  const pcmData =
+    bitRate === 16
+      ? new Uint8Array(interleaved.buffer, interleaved.byteOffset, interleaved.byteLength)
+      : convertInt16ToUint8(interleaved)
+
   return {
     sampleRate: snapshot.sampleRate,
     channels: snapshot.channels,
     bitRate,
     durationMs: snapshot.durationMs,
-    data: bitRate === 16 ? interleaved : convertInt16ToInt8(interleaved),
+    data: pcmData,
   }
 }
 
@@ -87,14 +92,14 @@ function interleaveChannels(
   return interleaved
 }
 
-function convertInt16ToInt8(source: Int16Array): Int8Array {
-  const output = new Int8Array(source.length)
+function convertInt16ToUint8(source: Int16Array): Uint8Array {
+  // 8-bit PCM 裸字节流：每个样本取高字节并以有符号 Int8 解释（范围 -128..127），
+  // 存入 Uint8Array 时按二进制补码写入，与 Int8Array 底层字节相同。
+  const output = new Uint8Array(source.length)
 
   for (let index = 0; index < source.length; index += 1) {
     const sample = source[index] ?? 0
-    // arithmetic right-shift avoids Math.round truncation at +32767
-    // (32767 >> 8 === 127, whereas Math.round(32767/256) would also be 128 clamped to 127,
-    //  but >> 8 is both faster and semantically correct for PCM bit-depth reduction).
+    // arithmetic right-shift: 32767 >> 8 === 127, -32768 >> 8 === -128
     output[index] = sample >> 8
   }
 

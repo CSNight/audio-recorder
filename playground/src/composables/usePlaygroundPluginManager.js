@@ -1,18 +1,18 @@
 import { computed, reactive, ref } from "vue"
-import { RecorderState } from "@csnight/audio-recorder"
-import { createStreamingExportPlugin } from "@csnight/audio-recorder/plugins/streaming-export"
-import { createSonicExportPlugin } from "@csnight/audio-recorder/plugins/sonic-export"
-import { createDtmfDecoderPlugin } from "@csnight/audio-recorder/plugins/dtmf"
+import { RecorderState } from "@media-studio/audio-recorder"
+import { createStreamingExportPlugin } from "@media-studio/audio-recorder/plugins/streaming-export"
+import { createSonicExportPlugin } from "@media-studio/audio-recorder/plugins/sonic-export"
+import { createDtmfDecoderPlugin } from "@media-studio/audio-recorder/plugins/dtmf"
 import {
   createHighpassPlugin,
   createLowpassPlugin,
   createNoiseGatePlugin,
-} from "@csnight/audio-recorder/plugins/dsp"
-import { createFrequencyHistogramPlugin } from "@csnight/audio-recorder/plugins/frequency-histogram"
+} from "@media-studio/audio-recorder/plugins/dsp"
+import { createFrequencyHistogramPlugin } from "@media-studio/audio-recorder/plugins/frequency-histogram"
 import {
   pcmStreamEncoder,
   wavStreamEncoder,
-} from "@csnight/audio-recorder/codecs/base"
+} from "@media-studio/audio-recorder/codecs/base"
 
 export const PLAYGROUND_STREAM_PLUGIN_MODE = {
   streaming: "streaming-export",

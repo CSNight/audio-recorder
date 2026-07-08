@@ -13,15 +13,15 @@ import {
   listMicrophoneDevices,
   RecorderState,
   RecorderWarningCode,
-} from "@csnight/audio-recorder"
-import { createLevelMeterPlugin } from "@csnight/audio-recorder/plugins/level-meter"
-import { createAsrExportPlugin } from "@csnight/audio-recorder/plugins/asr-export"
-import { createSonicExportPlugin } from "@csnight/audio-recorder/plugins/sonic-export"
+} from "@media-studio/audio-recorder"
+import { createLevelMeterPlugin } from "@media-studio/audio-recorder/plugins/level-meter"
+import { createAsrExportPlugin } from "@media-studio/audio-recorder/plugins/asr-export"
+import { createSonicExportPlugin } from "@media-studio/audio-recorder/plugins/sonic-export"
 import {
   DEFAULT_NMN_OPTIONS,
   nmn2pcm,
-} from "@csnight/audio-recorder/plugins/nmn2pcm"
-import { wavExportEncoder } from "@csnight/audio-recorder/codecs/base"
+} from "@media-studio/audio-recorder/plugins/nmn2pcm"
+import { wavExportEncoder } from "@media-studio/audio-recorder/codecs/base"
 import {
   DSP_PLUGIN_OPTIONS,
   PLAYGROUND_STREAM_PLUGIN_MODE,
@@ -51,7 +51,7 @@ import {
 import {
   pcmStreamEncoder,
   wavStreamEncoder,
-} from "@csnight/audio-recorder/codecs/base"
+} from "@media-studio/audio-recorder/codecs/base"
 
 const state = reactive({
   sourceMode: PLAYGROUND_SOURCE_MODE.externalTone,
@@ -597,11 +597,8 @@ async function exportSonicSnapshot(format) {
 
 function downloadPCM(result = state.lastExportResult?.pcm) {
   if (!result) return
-  const blob = new Blob([result.data.buffer], {
-    type: "application/octet-stream",
-  })
   triggerDownload(
-    blob,
+    new Blob([result.data], { type: "application/octet-stream" }),
     `recording_${result.sampleRate}hz_${result.channels}ch_${result.bitRate}bit.pcm`
   )
 }
@@ -609,18 +606,15 @@ function downloadPCM(result = state.lastExportResult?.pcm) {
 function downloadWAV(result = state.lastExportResult?.wav) {
   if (!result) return
   triggerDownload(
-    result.blob,
+    new Blob([result.data], { type: result.mimeType }),
     `recording_${result.sampleRate}hz_${result.channels}ch_${result.bitRate}bit.wav`
   )
 }
 
 function downloadSonicPCM(result = state.lastSonicExportResult?.pcm) {
   if (!result) return
-  const blob = new Blob([result.data.buffer], {
-    type: "application/octet-stream",
-  })
   triggerDownload(
-    blob,
+    new Blob([result.data], { type: "application/octet-stream" }),
     `recording_sonic_${result.sampleRate}hz_${result.channels}ch_${result.bitRate}bit.pcm`
   )
 }
@@ -628,7 +622,7 @@ function downloadSonicPCM(result = state.lastSonicExportResult?.pcm) {
 function downloadSonicWAV(result = state.lastSonicExportResult?.wav) {
   if (!result) return
   triggerDownload(
-    result.blob,
+    new Blob([result.data], { type: result.mimeType }),
     `recording_sonic_${result.sampleRate}hz_${result.channels}ch_${result.bitRate}bit.wav`
   )
 }
@@ -636,7 +630,7 @@ function downloadSonicWAV(result = state.lastSonicExportResult?.wav) {
 function downloadMP3(result = state.lastExportResult?.mp3) {
   if (!result) return
   triggerDownload(
-    new Blob([result.data.buffer], { type: "audio/mpeg" }),
+    new Blob([result.data], { type: "audio/mpeg" }),
     `recording_${result.sampleRate}hz_${result.channels}ch_${result.bitrateKbps}kbps.mp3`
   )
 }
@@ -644,7 +638,7 @@ function downloadMP3(result = state.lastExportResult?.mp3) {
 function downloadG711(result = state.lastExportResult?.g711) {
   if (!result) return
   triggerDownload(
-    new Blob([result.data.buffer], { type: "audio/basic" }),
+    new Blob([result.data], { type: "audio/basic" }),
     `recording_${result.sampleRate}hz_${result.variant}.g711`
   )
 }
@@ -652,7 +646,7 @@ function downloadG711(result = state.lastExportResult?.g711) {
 function downloadAAC(result = state.lastExportResult?.aac) {
   if (!result) return
   triggerDownload(
-    new Blob([result.data.buffer], { type: result.mimeType }),
+    new Blob([result.data], { type: result.mimeType }),
     `recording_${result.sampleRate}hz_${result.channels}ch_${result.bitrate}bps.aac`
   )
 }
@@ -661,7 +655,7 @@ function downloadAMR(result = state.lastExportResult?.amr) {
   if (!result) return
   const extension = result.bandMode === "wb" ? "awb" : "amr"
   triggerDownload(
-    new Blob([result.data.buffer], { type: result.mimeType }),
+    new Blob([result.data], { type: result.mimeType }),
     `recording_${result.sampleRate}hz_${result.bandMode}.${extension}`
   )
 }
@@ -669,7 +663,7 @@ function downloadAMR(result = state.lastExportResult?.amr) {
 function downloadAC3(result = state.lastExportResult?.ac3) {
   if (!result) return
   triggerDownload(
-    new Blob([result.data.buffer], { type: result.mimeType }),
+    new Blob([result.data], { type: result.mimeType }),
     `recording_${result.sampleRate}hz_${result.channels}ch_${result.bitrate}bps.${result.codec}`
   )
 }
@@ -677,7 +671,7 @@ function downloadAC3(result = state.lastExportResult?.ac3) {
 function downloadEAC3(result = state.lastExportResult?.eac3) {
   if (!result) return
   triggerDownload(
-    new Blob([result.data.buffer], { type: result.mimeType }),
+    new Blob([result.data], { type: result.mimeType }),
     `recording_${result.sampleRate}hz_${result.channels}ch_${result.bitrate}bps.${result.codec}`
   )
 }
@@ -685,7 +679,7 @@ function downloadEAC3(result = state.lastExportResult?.eac3) {
 function downloadOpusOgg(result = state.lastExportResult?.ogg) {
   if (!result) return
   triggerDownload(
-    new Blob([result.data.buffer], { type: "audio/ogg; codecs=opus" }),
+    new Blob([result.data], { type: "audio/ogg; codecs=opus" }),
     `recording_${result.sampleRate}hz_${result.channels}ch.ogg`
   )
 }
@@ -693,7 +687,7 @@ function downloadOpusOgg(result = state.lastExportResult?.ogg) {
 function downloadOpusWebm(result = state.lastExportResult?.webm) {
   if (!result) return
   triggerDownload(
-    new Blob([result.data.buffer], { type: "audio/webm; codecs=opus" }),
+    new Blob([result.data], { type: "audio/webm; codecs=opus" }),
     `recording_${result.sampleRate}hz_${result.channels}ch.webm`
   )
 }
@@ -701,7 +695,7 @@ function downloadOpusWebm(result = state.lastExportResult?.webm) {
 function downloadFLAC(result = state.lastExportResult?.flac) {
   if (!result) return
   triggerDownload(
-    new Blob([result.data.buffer], { type: "audio/flac" }),
+    new Blob([result.data], { type: "audio/flac" }),
     `recording_${result.sampleRate}hz_${result.channels}ch_${result.bitsPerSample}bit.flac`
   )
 }
@@ -844,11 +838,13 @@ function formatError(error) {
 }
 
 function deinterleavePcmData(source, channels) {
-  const frameLength = Math.floor(source.length / channels)
+  // source 是 16-bit PCM 的 Uint8Array（小端 Int16 字节序），先转换为 Int16Array 视图
+  const i16 = new Int16Array(source.buffer, source.byteOffset, source.byteLength / 2)
+  const frameLength = Math.floor(i16.length / channels)
   return Array.from({ length: channels }, (_, channelIndex) => {
     const output = new Int16Array(frameLength)
     for (let frameIndex = 0; frameIndex < frameLength; frameIndex += 1) {
-      output[frameIndex] = source[frameIndex * channels + channelIndex] ?? 0
+      output[frameIndex] = i16[frameIndex * channels + channelIndex] ?? 0
     }
     return output
   })
@@ -856,14 +852,6 @@ function deinterleavePcmData(source, channels) {
 
 async function buildCurrentPcmSnapshot() {
   const pcm = await recorder.exportEncoded("pcm", { bitRate: 16 })
-  if (!(pcm.data instanceof Int16Array)) {
-    throw new Error(
-      localize(
-        "无法从录音器导出的 PCM 构建快照。",
-        "Failed to build a PCM snapshot from recorder export."
-      )
-    )
-  }
 
   const channels =
     state.summary?.channels ?? state.runtimeInfo?.actualChannelCount ?? 1
@@ -1002,7 +990,7 @@ function buildNmnArtifacts() {
 function commitNmnPreview(artifacts, previewKey) {
   revokeNmnPreviewUrl()
   latestNmnPreviewKey = previewKey
-  state.nmnPreviewUrl = URL.createObjectURL(artifacts.previewResult.blob)
+  state.nmnPreviewUrl = URL.createObjectURL(new Blob([artifacts.previewResult.data], { type: artifacts.previewResult.mimeType }))
   state.nmnPreviewByteLength = getExportResultByteLength(
     artifacts.previewResult
   )

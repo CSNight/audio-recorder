@@ -13,7 +13,7 @@
 
 import type { PcmBufferSnapshot } from "../../buffer/types"
 import type { ExportEncoderDefinition } from "../../types"
-import { resample } from "@csnight/audio-recorder"
+import { resample } from "@media-studio/audio-recorder"
 import type { ResampledPcm } from "../../utils/resample"
 import { createOpusEncoder, preloadOpusModule } from "./opus-wasm-api"
 import { isSupportSampleRate, resolveExportSampleRate } from "./sample-rate"

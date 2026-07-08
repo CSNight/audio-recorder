@@ -293,10 +293,15 @@ describe("RecorderController", () => {
     const pcm = await recorder.exportEncoded("pcm")
     const wav = await recorder.exportEncoded("wav", { bitRate: 8 })
 
-    expect(Array.from(pcm.data)).toEqual([0, 16384, -16384, 8192])
+    // pcm.data is Uint8Array of little-endian Int16 bytes
+    expect(pcm.data).toBeInstanceOf(Uint8Array)
+    expect(pcm.data.byteLength).toBe(8)
+    expect(new Int16Array(pcm.data.buffer, pcm.data.byteOffset, 4)).toEqual(
+      new Int16Array([0, 16384, -16384, 8192])
+    )
     expect(wav.mimeType).toBe("audio/wav")
     expect(wav.bitRate).toBe(8)
-    expect(wav.arrayBuffer.byteLength).toBe(48)
+    expect(wav.data.byteLength).toBe(48)
   })
 
   it("rejects exporting when no buffered PCM data exists", async () => {
@@ -397,7 +402,8 @@ describe("RecorderController", () => {
 
     const pcm = await recorder.exportEncoded("pcm")
 
-    expect(Array.from(pcm.data)).toEqual([0, 16384, -16384, 8192])
+    const i16 = new Int16Array(pcm.data.buffer, pcm.data.byteOffset, pcm.data.byteLength / 2)
+    expect(Array.from(i16)).toEqual([0, 16384, -16384, 8192])
     expect(issues).toContain(RecorderWarningCode.PersistenceActivationFailed)
   })
 
@@ -604,7 +610,7 @@ describe("RecorderController", () => {
     const pcm = await recorder.exportEncoded("pcm")
 
     expect(observed).toEqual([16394, 4106, "stop"])
-    expect(Array.from(pcm.data)).toEqual([16394, 4106])
+    expect(Array.from(new Int16Array(pcm.data.buffer, pcm.data.byteOffset, pcm.data.byteLength / 2))).toEqual([16394, 4106])
     expect(summary.frames).toBe(2)
     expect(summary.durationMs).toBeGreaterThan(0)
   })

@@ -71,7 +71,7 @@ export default defineConfig({
       fileName: (_format, entryName) => `${entryName}.js`,
     },
     rolldownOptions: {
-      external: ["@csnight/audio-recorder"],
+      external: ["@media-studio/audio-recorder"],
       output: {
         minify: true,
         comments: false,
