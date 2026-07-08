@@ -372,8 +372,8 @@ import {
 
 ### 子路径
 
-| Package path                                          | Exports                                                                        |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Package path                                               | Exports                                                                        |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | `@media-studio/audio-recorder/codecs/base`                 | PCM / WAV 编码器与解码器                                                       |
 | `@media-studio/audio-recorder/codecs/mp3`                  | MP3 编码器                                                                     |
 | `@media-studio/audio-recorder/codecs/flac`                 | FLAC 编码器                                                                    |

@@ -402,7 +402,11 @@ describe("RecorderController", () => {
 
     const pcm = await recorder.exportEncoded("pcm")
 
-    const i16 = new Int16Array(pcm.data.buffer, pcm.data.byteOffset, pcm.data.byteLength / 2)
+    const i16 = new Int16Array(
+      pcm.data.buffer,
+      pcm.data.byteOffset,
+      pcm.data.byteLength / 2
+    )
     expect(Array.from(i16)).toEqual([0, 16384, -16384, 8192])
     expect(issues).toContain(RecorderWarningCode.PersistenceActivationFailed)
   })
@@ -610,7 +614,15 @@ describe("RecorderController", () => {
     const pcm = await recorder.exportEncoded("pcm")
 
     expect(observed).toEqual([16394, 4106, "stop"])
-    expect(Array.from(new Int16Array(pcm.data.buffer, pcm.data.byteOffset, pcm.data.byteLength / 2))).toEqual([16394, 4106])
+    expect(
+      Array.from(
+        new Int16Array(
+          pcm.data.buffer,
+          pcm.data.byteOffset,
+          pcm.data.byteLength / 2
+        )
+      )
+    ).toEqual([16394, 4106])
     expect(summary.frames).toBe(2)
     expect(summary.durationMs).toBeGreaterThan(0)
   })

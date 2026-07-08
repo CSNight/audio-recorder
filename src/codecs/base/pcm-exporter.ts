@@ -45,7 +45,11 @@ export function createPcmExportResult(
 
   const pcmData =
     bitRate === 16
-      ? new Uint8Array(interleaved.buffer, interleaved.byteOffset, interleaved.byteLength)
+      ? new Uint8Array(
+          interleaved.buffer,
+          interleaved.byteOffset,
+          interleaved.byteLength
+        )
       : convertInt16ToUint8(interleaved)
 
   return {

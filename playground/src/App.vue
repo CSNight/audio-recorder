@@ -839,7 +839,11 @@ function formatError(error) {
 
 function deinterleavePcmData(source, channels) {
   // source 是 16-bit PCM 的 Uint8Array（小端 Int16 字节序），先转换为 Int16Array 视图
-  const i16 = new Int16Array(source.buffer, source.byteOffset, source.byteLength / 2)
+  const i16 = new Int16Array(
+    source.buffer,
+    source.byteOffset,
+    source.byteLength / 2
+  )
   const frameLength = Math.floor(i16.length / channels)
   return Array.from({ length: channels }, (_, channelIndex) => {
     const output = new Int16Array(frameLength)
@@ -990,7 +994,11 @@ function buildNmnArtifacts() {
 function commitNmnPreview(artifacts, previewKey) {
   revokeNmnPreviewUrl()
   latestNmnPreviewKey = previewKey
-  state.nmnPreviewUrl = URL.createObjectURL(new Blob([artifacts.previewResult.data], { type: artifacts.previewResult.mimeType }))
+  state.nmnPreviewUrl = URL.createObjectURL(
+    new Blob([artifacts.previewResult.data], {
+      type: artifacts.previewResult.mimeType,
+    })
+  )
   state.nmnPreviewByteLength = getExportResultByteLength(
     artifacts.previewResult
   )

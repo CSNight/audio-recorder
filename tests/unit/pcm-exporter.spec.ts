@@ -19,7 +19,11 @@ describe("exportPcmSnapshot", () => {
     expect(result.bitRate).toBe(16)
     expect(result.data).toBeInstanceOf(Uint8Array)
     // 16-bit little-endian: verify by reading back as Int16Array
-    const i16 = new Int16Array(result.data.buffer, result.data.byteOffset, result.data.byteLength / 2)
+    const i16 = new Int16Array(
+      result.data.buffer,
+      result.data.byteOffset,
+      result.data.byteLength / 2
+    )
     expect(Array.from(i16)).toEqual([0, 1000, -1000, 500])
   })
 
@@ -34,7 +38,11 @@ describe("exportPcmSnapshot", () => {
 
     const result = exportPcmSnapshot(snapshot)
 
-    const i16 = new Int16Array(result.data.buffer, result.data.byteOffset, result.data.byteLength / 2)
+    const i16 = new Int16Array(
+      result.data.buffer,
+      result.data.byteOffset,
+      result.data.byteLength / 2
+    )
     expect(Array.from(i16)).toEqual([1000, -1000, 2000, -2000])
   })
 
@@ -56,7 +64,11 @@ describe("exportPcmSnapshot", () => {
     expect(result.bitRate).toBe(8)
     expect(result.data).toBeInstanceOf(Uint8Array)
     // 8-bit: each byte is a signed Int8 value stored as 2's complement in Uint8Array
-    const i8 = new Int8Array(result.data.buffer, result.data.byteOffset, result.data.byteLength)
+    const i8 = new Int8Array(
+      result.data.buffer,
+      result.data.byteOffset,
+      result.data.byteLength
+    )
     expect(Array.from(i8)).toEqual([0, 3])
   })
 
@@ -88,7 +100,11 @@ describe("exportPcmSnapshot", () => {
     const result = exportPcmSnapshot(snapshot)
 
     // 单声道升混到双声道：复用第一声道
-    const i16 = new Int16Array(result.data.buffer, result.data.byteOffset, result.data.byteLength / 2)
+    const i16 = new Int16Array(
+      result.data.buffer,
+      result.data.byteOffset,
+      result.data.byteLength / 2
+    )
     expect(Array.from(i16)).toEqual([1000, 1000, -1000, -1000])
   })
 
@@ -103,7 +119,11 @@ describe("exportPcmSnapshot", () => {
 
     const result = exportPcmSnapshot(snapshot)
 
-    const i16 = new Int16Array(result.data.buffer, result.data.byteOffset, result.data.byteLength / 2)
+    const i16 = new Int16Array(
+      result.data.buffer,
+      result.data.byteOffset,
+      result.data.byteLength / 2
+    )
     expect(Array.from(i16)).toEqual([100, -100, 0, 200, -200, 0])
   })
 
@@ -119,7 +139,11 @@ describe("exportPcmSnapshot", () => {
     const result = exportPcmSnapshot(snapshot, { bitRate: 8 })
 
     expect(result.data).toBeInstanceOf(Uint8Array)
-    const i8 = new Int8Array(result.data.buffer, result.data.byteOffset, result.data.byteLength)
+    const i8 = new Int8Array(
+      result.data.buffer,
+      result.data.byteOffset,
+      result.data.byteLength
+    )
     expect(Array.from(i8)).toEqual([127, -128, 0])
   })
 })

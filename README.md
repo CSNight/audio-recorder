@@ -373,8 +373,8 @@ Returns:
 
 ### Subpaths
 
-| Package path                                          | Exports                                                                        |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Package path                                               | Exports                                                                        |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | `@media-studio/audio-recorder/codecs/base`                 | PCM and WAV encoders / decoders                                                |
 | `@media-studio/audio-recorder/codecs/mp3`                  | MP3 encoder                                                                    |
 | `@media-studio/audio-recorder/codecs/flac`                 | FLAC encoder                                                                   |

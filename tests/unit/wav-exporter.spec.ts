@@ -19,7 +19,11 @@ describe("exportWavSnapshot", () => {
     }
 
     const result = exportWavSnapshot(snapshot)
-    const view = new DataView(result.data.buffer, result.data.byteOffset, result.data.byteLength)
+    const view = new DataView(
+      result.data.buffer,
+      result.data.byteOffset,
+      result.data.byteLength
+    )
 
     expect(result.mimeType).toBe("audio/wav")
     expect(result.bitRate).toBe(16)
@@ -63,7 +67,11 @@ describe("exportWavSnapshot", () => {
       sampleRate: 16_000,
       bitRate: 16,
     })
-    const view = new DataView(result.data.buffer, result.data.byteOffset, result.data.byteLength)
+    const view = new DataView(
+      result.data.buffer,
+      result.data.byteOffset,
+      result.data.byteLength
+    )
 
     expect(result.sampleRate).toBe(16_000)
     expect(view.getUint32(24, true)).toBe(16_000)
