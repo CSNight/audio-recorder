@@ -42,7 +42,7 @@ export function exportWavSnapshot(
     durationMs: pcm.durationMs,
     mimeType: WAV_MIME_TYPE,
     arrayBuffer,
-    blob: new Blob([arrayBuffer], { type: WAV_MIME_TYPE }),
+    data: new Blob([arrayBuffer], { type: WAV_MIME_TYPE }),
   }
 }
 

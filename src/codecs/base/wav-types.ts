@@ -18,5 +18,5 @@ export interface WavExportResult {
   /** 完整的 WAV 文件数据（含 RIFF/WAVE 文件头） */
   arrayBuffer: ArrayBuffer
   /** 由 arrayBuffer 包装的 Blob，便于下载或上传 */
-  blob: Blob
+  data: Blob
 }
