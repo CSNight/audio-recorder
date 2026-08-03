@@ -12,11 +12,7 @@ export type { StreamingPacketPayload, AudioDecoderDefinition }
 
 /** 播放器状态 */
 export type StreamingPlayerState =
-  | "idle"
-  | "buffering"
-  | "playing"
-  | "paused"
-  | "stopped"
+  "idle" | "buffering" | "playing" | "paused" | "stopped"
 
 /** 持久化模式 */
 export type PersistMode = "memory" | "indexeddb" | "custom"

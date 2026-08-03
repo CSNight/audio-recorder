@@ -24,12 +24,7 @@ vi.mock("../../src/codecs/ac3/ac3-wasm-api", () => ({
         ? 384000
         : 192000),
     sampleRate: ((options.sampleRate as number | undefined) ?? sampleRate) as
-      | 16000
-      | 22050
-      | 24000
-      | 32000
-      | 44100
-      | 48000,
+      16000 | 22050 | 24000 | 32000 | 44100 | 48000,
     channels,
   }),
 }))

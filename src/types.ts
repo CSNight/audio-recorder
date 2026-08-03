@@ -103,9 +103,7 @@ export interface StreamEncoderDefinition<TOptions = unknown> {
 
 /** 三种底层采集链路。auto 由 createInputGraph 按兼容性逐级降级选择。 */
 export type RecorderInputStrategy =
-  | "media-recorder"
-  | "audio-worklet"
-  | "script-processor"
+  "media-recorder" | "audio-worklet" | "script-processor"
 
 export enum RecorderState {
   Idle = "idle",
