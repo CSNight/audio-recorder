@@ -7,10 +7,7 @@ export interface RecorderCapabilityReport {
   hasScriptProcessor: boolean
   // 预测的输入采集策略，按 media-recorder > audio-worklet > script-processor 优先级降级
   expectedInputStrategy:
-    | "media-recorder"
-    | "audio-worklet"
-    | "script-processor"
-    | "unsupported"
+    "media-recorder" | "audio-worklet" | "script-processor" | "unsupported"
 }
 
 /**
