@@ -25,15 +25,7 @@ vi.mock("../../src/codecs/mp3/mp3-wasm-api", () => ({
     mode: (options.mode as string | undefined) ?? "cbr",
     vbrQuality: (options.vbrQuality as number | undefined) ?? 4,
     sampleRate: ((options.sampleRate as number | undefined) ?? sampleRate) as
-      | 8000
-      | 11025
-      | 12000
-      | 16000
-      | 22050
-      | 24000
-      | 32000
-      | 44100
-      | 48000,
+      8000 | 11025 | 12000 | 16000 | 22050 | 24000 | 32000 | 44100 | 48000,
     channelMode:
       (options.channelMode as string | undefined) ??
       (channels > 1 ? "stereo" : "mono"),

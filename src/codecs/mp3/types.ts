@@ -6,15 +6,7 @@ export type Mp3ChannelMode = "mono" | "stereo" | "joint-stereo"
 
 /** MP3 编码器支持的标准采样率 */
 export type Mp3SampleRate =
-  | 8000
-  | 11025
-  | 12000
-  | 16000
-  | 22050
-  | 24000
-  | 32000
-  | 44100
-  | 48000
+  8000 | 11025 | 12000 | 16000 | 22050 | 24000 | 32000 | 44100 | 48000
 
 /** MP3 编码器选项 */
 export interface Mp3ExportOptions {

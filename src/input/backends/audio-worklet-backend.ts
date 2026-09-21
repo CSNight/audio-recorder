@@ -118,8 +118,7 @@ async function ensureWorkletRegistered(
 }
 
 function getAudioWorkletNodeConstructor():
-  | AudioWorkletNodeConstructor
-  | undefined {
+  AudioWorkletNodeConstructor | undefined {
   return (
     globalThis as typeof globalThis & {
       AudioWorkletNode?: AudioWorkletNodeConstructor
